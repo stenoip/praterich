@@ -3,21 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Oodles - Metasearch Engine</title>
-    </head>
+    <title>Oodles - Your Own Search Engine</title>
+</head>
 <body>
     <div class="container">
-        <div class="search-box">
-            <h1>Oodles</h1>
-            <form id="search-form" action="search.html" method="get">
-                <input type="text" id="search-input" name="q" placeholder="Search with Oodles..." required>
-                <button type="submit">Search</button>
-            </form>
-        </div>
-   <p>&copy; 2025 Stenoip Company</p>
-   
-   </div>
-    <script src="script.js"></script>
+        <h1>Oodles</h1>
+        <form id="search-form">
+            <input type="text" id="search-input" name="q" placeholder="Search my data..." required>
+            <button type="submit">Search</button>
+        </form>
+        <div id="results-container">
+            </div>
+    </div>
     
+    <script src="https://unpkg.com/lunr/lunr.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>
