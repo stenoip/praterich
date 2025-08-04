@@ -1,27 +1,68 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // This code only runs on the search.html page
-    if (window.location.pathname.includes('search.html')) {
-        const urlParams = new URLSearchParams(window.location.search);
-        const query = urlParams.get('q');
+    // 1. Define Your Data
+    const documents = [
+        {
+            id: '1',
+            title: 'Oodles Metasearch Engine Project',
+            body: 'This is the a project to build a simple metasearch engine called Oodles.'
+        },
+        {
+            id: '2',
+            title: 'Stenoip Company',
+            body: 'Stenoip Company is the copyright holder for the Oodles project.'
+        },
+        {
+            id: '3',
+            title: 'Javascript for Beginners',
+            body: 'Learn the fundamentals of Javascript to create interactive websites.'
+        },
+        {
+            id: '4',
+            title: 'HTML and CSS Styling',
+            body: 'This document explains how to style your websites using HTML and CSS.'
+        },
+    ];
+
+    // 2. Build the Lunr.js Index
+    const idx = lunr(function () {
+        this.ref('id');
+        this.field('title');
+        this.field('body');
+    
+        documents.forEach(function (doc) {
+            this.add(doc);
+        }, this);
+    });
+
+    const searchInput = document.getElementById('search-input');
+    const searchForm = document.getElementById('search-form');
+    const resultsContainer = document.getElementById('results-container');
+
+    // 3. Handle the Search
+    searchForm.addEventListener('submit', (event) => {
+        event.preventDefault();
+        const query = searchInput.value;
+        resultsContainer.innerHTML = ''; // Clear previous results
 
         if (query) {
-            document.getElementById('query-term').textContent = query;
-            
-            // Define the search engines and their URL templates
-            const searchEngines = [
-                { name: 'Google', id: 'google-iframe', url: `https://www.google.com/search?q=${encodeURIComponent(query)}` },
-                { name: 'Bing', id: 'bing-iframe', url: `https://www.bing.com/search?q=${encodeURIComponent(query)}` },
-                { name: 'Yahoo', id: 'yahoo-iframe', url: `https://search.yahoo.com/search?p=${encodeURIComponent(query)}` },
-                { name: 'DuckDuckGo', id: 'ddg-iframe', url: `https://duckduckgo.com/?q=${encodeURIComponent(query)}` }
-            ];
+            const searchResults = idx.search(query);
 
-            // Set the source for each iframe
-            searchEngines.forEach(engine => {
-                const iframe = document.getElementById(engine.id);
-                if (iframe) {
-                    iframe.src = engine.url;
-                }
-            });
+            if (searchResults.length === 0) {
+                resultsContainer.innerHTML = '<p>No results found.</p>';
+            } else {
+                searchResults.forEach(result => {
+                    // Find the original document from our data
+                    const doc = documents.find(d => d.id === result.ref);
+                    
+                    const resultDiv = document.createElement('div');
+                    resultDiv.className = 'search-result';
+                    resultDiv.innerHTML = `
+                        <h3>${doc.title}</h3>
+                        <p>${doc.body}</p>
+                    `;
+                    resultsContainer.appendChild(resultDiv);
+                });
+            }
         }
-    }
+    });
 });
