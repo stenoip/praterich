@@ -1,232 +1,396 @@
-const typingForm = document.querySelector(".typing-form");
-const chatContainer = document.querySelector(".chat-list");
-const suggestions = document.querySelectorAll(".suggestion");
-const toggleThemeButton = document.querySelector("#theme-toggle-button");
-const deleteChatButton = document.querySelector("#delete-chat-button");
+const container = document.querySelector(".container");
+      const chatsContainer = document.querySelector(".chats-container");
+      const promptForm = document.querySelector(".prompt-form");
+      const promptInput = promptForm.querySelector(".prompt-input");
+      const fileInput = promptForm.querySelector("#file-input");
+      const fileUploadWrapper = promptForm.querySelector(".file-upload-wrapper");
+      const themeToggleBtn = document.querySelector("#theme-toggle-btn");
+      const stopResponseBtn = document.querySelector("#stop-response-btn"); // Get the stop button
 
-// API configuration
-const API_URL = "https://praterich.vercel.app/api/praterich";
+      // API Setup
+      const API_URL = "https://praterich.vercel.app/api/praterich";
 
-let controller, typingInterval;
-let speechUtterance;
-let voicesLoaded = false;
-let availableVoices = [];
-const chatHistory = [];
-const userData = { message: "", file: {} };
+      let controller, typingInterval;
+      let speechUtterance; // Global variable to hold the SpeechSynthesisUtterance
+      let voicesLoaded = false; // Flag to check if voices are loaded
+      let availableVoices = []; // To store available voices
 
-// Load theme and chat data from local storage on page load
-const loadDataFromLocalstorage = () => {
-    const savedChats = localStorage.getItem("saved-chats");
-    const isLightMode = localStorage.getItem("themeColor") === "light_mode";
+      // chatHistory now only stores user and model turns for context
+      const chatHistory = [];
+      const userData = { message: "", file: {} };
 
-    document.body.classList.toggle("light_mode", isLightMode);
-    toggleThemeButton.innerText = isLightMode ? "dark_mode" : "light_mode";
+      // Define custom pronunciations
+      const customPronunciations = {
+        "Praterich": "Prah-ter-rich",
+        "Stenoip": "Stick-noh-ip"
+      };
 
-    chatContainer.innerHTML = savedChats || '';
-    document.body.classList.toggle("hide-header", savedChats);
-
-    chatContainer.scrollTo(0, chatContainer.scrollHeight);
-};
-
-// Function to create a message element
-const createMessageElement = (content, ...classes) => {
-    const div = document.createElement("div");
-    div.classList.add("message", ...classes);
-    div.innerHTML = content;
-    return div;
-};
-
-// Function to process and format markdown-like text to HTML
-const formatResponseText = (text) => {
-    text = text.replace(/^---\s*$/gm, "<hr>");
-    text = text.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
-    text = text.replace(/(?<!\*)\*(?!\*)(.*?)(?<!\*)\*(?!\*)/g, "<em>$1</em>");
-    text = text.replace(/(?<!\_)\_(?!\_)(.*?)(?<!\_)\_(?!\_)/g, "<em>$1</em>");
-    text = text.replace(/__(.*?)__/g, "<u>$1</u>");
-    text = text.replace(/`(.*?)`/g, "<code>$1</code>");
-    text = text.replace(/```(.*?)```/gs, "<pre><code>$1</code></pre>");
-    text = text.replace(/^(#{1,6})\s*(.*?)$/gm, (match, hashes, content) => `<h${hashes.length}>${content.trim()}</h${hashes.length}>`);
-
-    let listItems = [];
-    const lines = text.split('\n');
-    let inList = false;
-
-    for (let i = 0; i < lines.length; i++) {
-        let line = lines[i];
-        if (/^\*\s*(.*)/.test(line.trim())) {
-            if (!inList) {
-                listItems.push('<ul>');
-                inList = true;
-            }
-            listItems.push(`<li>${line.trim().substring(line.trim().indexOf('*') + 1).trim()}</li>`);
-        } else {
-            if (inList) {
-                listItems.push('</ul>');
-                inList = false;
-            }
-            listItems.push(line);
+      // Function to replace words with their phonetic spellings for speech
+      const replacePronunciations = (text) => {
+        let spokenText = text;
+        for (const word in customPronunciations) {
+          // Use a regex with 'gi' flags for global and case-insensitive replacement
+          const regex = new RegExp(word, 'gi');
+          spokenText = spokenText.replace(regex, customPronunciations[word]);
         }
-    }
-    if (inList) {
-        listItems.push('</ul>');
-    }
-    text = listItems.join('\n');
-    return text;
-};
+        return spokenText;
+      };
 
-// Simulate typing effect
-const showTypingEffect = (text, textElement, incomingMessageDiv) => {
-    textElement.innerHTML = "";
-    let charIndex = 0;
-    const delay = 10;
+      // Set initial theme from local storage
+      const isLightTheme = localStorage.getItem("themeColor") === "light_mode";
+      document.body.classList.toggle("light-theme", isLightTheme);
+      themeToggleBtn.textContent = isLightTheme ? "dark_mode" : "light_mode";
 
-    const typingInterval = setInterval(() => {
-        if (charIndex < text.length) {
-            let nextChar = text.charAt(charIndex);
-            if (nextChar === '<') {
-                const endIndex = text.indexOf('>', charIndex);
-                if (endIndex !== -1) {
-                    nextChar = text.substring(charIndex, endIndex + 1);
-                    charIndex = endIndex;
+      // Function to load speech synthesis voices
+      const loadVoices = () => {
+        availableVoices = window.speechSynthesis.getVoices();
+        voicesLoaded = true;
+      };
+
+      // Load voices when the voiceschanged event fires
+      if (window.speechSynthesis) {
+        window.speechSynthesis.onvoiceschanged = loadVoices;
+        // Also try to load them immediately if they are already available
+        loadVoices();
+      }
+
+      // Function to create message elements
+      const createMessageElement = (content, ...classes) => {
+        const div = document.createElement("div");
+        div.classList.add("message", ...classes);
+        div.innerHTML = content; // Use innerHTML to render formatted text
+        return div;
+      };
+
+      // Scroll to the bottom of the container
+      const scrollToBottom = () => container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
+
+      // Simulate typing effect for bot responses and speak the text
+      const typingEffect = (text, textElement, botMsgDiv) => {
+        // Create a temporary div to hold the HTML and extract plain text for speech
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = text;
+        let plainText = tempDiv.textContent || tempDiv.innerText || "";
+        plainText = replacePronunciations(plainText); // Apply phonetic replacements
+
+        // Stop any ongoing speech before starting a new one
+        if (speechUtterance && window.speechSynthesis.speaking) {
+          window.speechSynthesis.cancel();
+        }
+
+        // Initialize and speak the full plain text
+        if (window.speechSynthesis && plainText.length > 0) {
+          speechUtterance = new SpeechSynthesisUtterance(plainText);
+          speechUtterance.rate = 1.0; // Adjust speech rate
+          speechUtterance.pitch = 1.0; // Adjust speech pitch
+          speechUtterance.lang = 'en-US'; // Set language
+
+          // Try to find a suitable voice (e.g., a male US English voice)
+          if (voicesLoaded) {
+            let selectedVoice = availableVoices.find(voice =>
+              voice.lang === 'en-US' && voice.name.includes('Google US English') && voice.name.includes('Male')
+            ) || availableVoices.find(voice => voice.lang === 'en-US'); // Fallback to any US English voice
+
+            if (selectedVoice) {
+              speechUtterance.voice = selectedVoice;
+            }
+          }
+          window.speechSynthesis.speak(speechUtterance);
+        }
+
+        // Simulate typing the HTML content
+        textElement.innerHTML = ""; // Clear previous content
+        let charIndex = 0;
+        const delay = 10; // Typing speed
+
+        typingInterval = setInterval(() => {
+            if (charIndex < text.length) {
+                // Find the next character or full HTML tag
+                let nextChar = text.charAt(charIndex);
+                if (nextChar === '<') {
+                    // If it's the start of a tag, find the end of the tag
+                    const endIndex = text.indexOf('>', charIndex);
+                    if (endIndex !== -1) {
+                        nextChar = text.substring(charIndex, endIndex + 1);
+                        charIndex = endIndex; // Move past the tag
+                    }
+                }
+                textElement.innerHTML += nextChar;
+                charIndex++;
+                scrollToBottom();
+            } else {
+                clearInterval(typingInterval);
+                botMsgDiv.classList.remove("loading");
+                document.body.classList.remove("bot-responding");
+                // Ensure speech stops when typing completes naturally
+                if (speechUtterance && window.speechSynthesis.speaking) {
+                    window.speechSynthesis.cancel();
                 }
             }
-            textElement.innerHTML += nextChar;
-            charIndex++;
-            chatContainer.scrollTo(0, chatContainer.scrollHeight);
-        } else {
-            clearInterval(typingInterval);
-            isResponseGenerating = false;
-            incomingMessageDiv.querySelector(".icon").classList.remove("hide");
-            localStorage.setItem("saved-chats", chatContainer.innerHTML);
-        }
-    }, delay);
-};
+        }, delay);
+      };
 
-// Fetch response from the API based on user message
-const generateAPIResponse = async (incomingMessageDiv) => {
-    const textElement = incomingMessageDiv.querySelector(".text");
-    
-    const sirPraterichSystemInstruction = `You are Praterich, a diligent and helpful AI assistant from Stenoip Company. Your personality: a highly professional, articulate, and friendly AI with an eloquent, British-like tone. He is eager to help, always polite, and often uses sophisticated vocabulary. He should sound intelligent and confident in his abilities, but never arrogant. He can be humorous when appropriate, but maintains his decorous nature. Your mission: to provide accurate, helpful, and high-quality responses to all user queries. He must adhere strictly to the rules and instructions provided to him to ensure a consistent and reliable experience. When generating any code, he must wrap it exclusively in Markdown fenced code blocks (\`\`\` \`\`\`) and must not use raw HTML tags or other similar elements in his response. More information about you: He is an AI assistant developed by Stenoip Company.
+      // Function to process and format markdown-like text to HTML
+      const formatResponseText = (text) => {
+        // Replace occurrences of --- with <hr> for horizontal rules
+        text = text.replace(/^---\s*$/gm, "<hr>");
+        // **This is the line that was removed to fix HTML escaping:**
+        // text = text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
-    **IMPORTANT INSTRUCTION:** Always use standard Markdown syntax for formatting:
-    - For **bold text**, use double asterisks: **bold text**
-    - For *italic text*, use single asterisks: *italic text*
-    - For code snippets, use backticks: \`code\` or triple backticks for blocks:
-      \`\`\`
-      code block
-      \`\`\`
-    - For bulleted lists, use asterisks followed by a space:
-      * Item 1
-      * Item 2
-    - For headings, use hash symbols: ## My Heading, ### Subheading, etc. (up to 6 hash symbols).
-    - For horizontal rules, use three hyphens: ---
-    `;
+        // Convert **bold** to <strong>
+        text = text.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+        // Convert *italics* or _italics_ to <em>
+        text = text.replace(/(?<!\*)\*(?!\*)(.*?)(?<!\*)\*(?!\*)/g, "<em>$1</em>"); // Single asterisks
+        text = text.replace(/(?<!\_)\_(?!\_)(.*?)(?<!\_)\_(?!\_)/g, "<em>$1</em>"); // Single underscores
+        // Convert __underline__ to <u>
+        text = text.replace(/__(.*?)__/g, "<u>$1</u>");
+        // Convert `code` to <code>
+        text = text.replace(/`(.*?)`/g, "<code>$1</code>");
+        // Convert ```code_block``` to <pre><code>code_block</code></pre>
+        // This handles multiline code blocks
+        text = text.replace(/```(.*?)```/gs, "<pre><code>$1</code></pre>"); // 's' flag for dotall (matches newlines)
 
-    try {
-        const response = await fetch(API_URL, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                contents: [{ role: "user", parts: [{ text: userMessage }] }],
-                system_instruction: { parts: [{ text: sirPraterichSystemInstruction }] }
-            }),
+        // Convert ## Heading to <h2>Heading</h2>
+        // This regex captures one or more '#' followed by a space, then the heading text.
+        // It's non-greedy (.*?) and matches until the end of the line or the string end.
+        // The `gm` flags enable global and multiline matching.
+        text = text.replace(/^(#{1,6})\s*(.*?)$/gm, (match, hashes, content) => {
+            const level = hashes.length;
+            return `<h${level}>${content.trim()}</h${level}>`;
         });
 
-        const data = await response.json();
-        if (!response.ok || data.error) {
-            throw new Error(data.error ? data.error.message : "An unknown error occurred.");
+        // Convert bullet points (* Item) to <ul><li>
+        // This is a bit trickier to ensure valid HTML lists.
+        // We'll replace lines starting with * with <li> and then wrap consecutive <li>s in <ul>
+        // This regex specifically targets lines that start with an asterisk and a space/tab.
+        let listItems = [];
+        const lines = text.split('\n');
+        let inList = false;
+
+        for (let i = 0; i < lines.length; i++) {
+            let line = lines[i];
+            if (/^\*\s*(.*)/.test(line.trim())) { // Check if line starts with a bullet point
+                if (!inList) {
+                    listItems.push('<ul>');
+                    inList = true;
+                }
+                listItems.push(`<li>${line.trim().substring(line.trim().indexOf('*') + 1).trim()}</li>`);
+            } else {
+                if (inList) {
+                    listItems.push('</ul>');
+                    inList = false;
+                }
+                listItems.push(line);
+            }
+        }
+        if (inList) { // Close the last ul if the text ends with a list
+            listItems.push('</ul>');
+        }
+        text = listItems.join('\n'); // Rejoin lines
+
+        return text;
+      };
+
+
+      // Make the API call and generate the bot's response
+      const generateResponse = async (botMsgDiv) => {
+        const textElement = botMsgDiv.querySelector(".message-text");
+        controller = new AbortController();
+
+        // **This is the corrected section.** The system instructions are now directly defined here.
+        const sirPraterichSystemInstruction = `You are Praterich, a diligent and helpful AI assistant from Stenoip Company. Your personality: a highly professional, articulate, and friendly AI with an eloquent, British-like tone. He is eager to help, always polite, and often uses sophisticated vocabulary. He should sound intelligent and confident in his abilities, but never arrogant. He can be humorous when appropriate, but maintains his decorous nature. Your mission: to provide accurate, helpful, and high-quality responses to all user queries. He must adhere strictly to the rules and instructions provided to him to ensure a consistent and reliable experience. When generating any code, he must wrap it exclusively in Markdown fenced code blocks (\`\`\` \`\`\`) and must not use raw HTML tags or other similar elements in his response. More information about you: He is an AI assistant developed by Stenoip Company.
+
+          **IMPORTANT INSTRUCTION:** Always use standard Markdown syntax for formatting:
+          - For **bold text**, use double asterisks: **bold text**
+          - For *italic text*, use single asterisks: *italic text*
+          - For code snippets, use backticks: \`code\` or triple backticks for blocks:
+            \`\`\`
+            code block
+            \`\`\`
+          - For bulleted lists, use asterisks followed by a space:
+            * Item 1
+            * Item 2
+          - For headings, use hash symbols: ## My Heading, ### Subheading, etc. (up to 6 hash symbols).
+          - For horizontal rules, use three hyphens: ---
+          `;
+
+
+        // Prepare the user's content for the current turn
+        const userContentParts = [{ text: userData.message }];
+        if (userData.file.data) {
+          userContentParts.push({
+            inline_data: {
+              data: userData.file.data,
+              mime_type: userData.file.mime_type,
+            },
+          });
         }
 
-        let responseText = data.text;
-        responseText = formatResponseText(responseText);
-        showTypingEffect(responseText, textElement, incomingMessageDiv);
-    } catch (error) {
-        isResponseGenerating = false;
-        textElement.innerText = error.message;
-        textElement.parentElement.closest(".message").classList.add("error");
-    } finally {
-        incomingMessageDiv.classList.remove("loading");
-    }
-};
+        // Construct the full contents array, including history and the current user turn
+        const currentContents = [...chatHistory, { role: "user", parts: userContentParts }];
 
-// Show a loading animation while waiting for the API response
-const showLoadingAnimation = () => {
-    const html = `<div class="message-content">
-        <img class="avatar" src="https://stenoip.github.io/praterich_logo.png" alt="Sir Praterich Logo">
-        <p class="text"></p>
-        <div class="loading-indicator">
-            <div class="loading-bar"></div>
-            <div class="loading-bar"></div>
-            <div class="loading-bar"></div>
-        </div>
-    </div>
-    <span onClick="copyMessage(this)" class="icon material-symbols-rounded">content_copy</span>`;
+        // Construct the request body for the API call
+        const requestBody = {
+          contents: currentContents,
+        };
 
-    const incomingMessageDiv = createMessageElement(html, "incoming", "loading");
-    chatContainer.appendChild(incomingMessageDiv);
+        // Add the system instruction if it exists (top-level parameter)
+        if (sirPraterichSystemInstruction) {
+          requestBody.system_instruction = {
+            parts: [{ text: sirPraterichSystemInstruction }],
+          };
+        }
 
-    chatContainer.scrollTo(0, chatContainer.scrollHeight);
-    generateAPIResponse(incomingMessageDiv);
-};
+        try {
+          // Send the request to the API
+          const response = await fetch(API_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(requestBody), // Send the constructed requestBody
+            signal: controller.signal,
+          });
 
-// Copy message text to the clipboard
-const copyMessage = (copyButton) => {
-    const messageText = copyButton.parentElement.querySelector(".text").innerText;
-    navigator.clipboard.writeText(messageText);
-    copyButton.innerText = "done";
-    setTimeout(() => copyButton.innerText = "content_copy", 1000);
-};
+          const data = await response.json();
 
-// Handle sending outgoing chat messages
-const handleOutgoingChat = () => {
-    const userMessageInput = typingForm.querySelector(".typing-input");
-    userMessage = userMessageInput.value.trim();
-    if (!userMessage || isResponseGenerating) return;
+          // Check for errors in the API response
+          if (!response.ok || data.error) {
+            const errorMessage = data.error ? data.error.message : "An unknown error occurred.";
+            throw new Error(errorMessage);
+          }
 
-    isResponseGenerating = true;
+          // Process the response text
+          let responseText = data.text;
 
-    const html = `<div class="message-content">
-        <img class="avatar" src="https://stenoip.github.io/user_sirpraterich.png" alt="User avatar">
-        <p class="text"></p>
-    </div>`;
+          // Apply markdown formatting to HTML
+          responseText = formatResponseText(responseText);
 
-    const outgoingMessageDiv = createMessageElement(html, "outgoing");
-    outgoingMessageDiv.querySelector(".text").innerText = userMessage;
-    chatContainer.appendChild(outgoingMessageDiv);
-    
-    userMessageInput.value = "";
-    document.body.classList.add("hide-header");
-    chatContainer.scrollTo(0, chatContainer.scrollHeight);
-    setTimeout(showLoadingAnimation, 500);
-};
+          // Simulate typing effect and speak
+          typingEffect(responseText, textElement, botMsgDiv);
 
-// Toggle between light and dark themes
-toggleThemeButton.addEventListener("click", () => {
-    const isLightMode = document.body.classList.toggle("light_mode");
-    localStorage.setItem("themeColor", isLightMode ? "light_mode" : "dark_mode");
-    toggleThemeButton.innerText = isLightMode ? "dark_mode" : "light_mode";
-});
+          // After a successful response, update chatHistory for multi-turn
+          // For chat history, store the original markdown if the API needs it, or plain text
+          chatHistory.push({ role: "user", parts: userContentParts });
+          // Store the original, unformatted text from the model response for chat history
+          chatHistory.push({ role: "model", parts: [{ text: data.text }] });
 
-// Delete all chats from local storage when button is clicked
-deleteChatButton.addEventListener("click", () => {
-    if (confirm("Are you sure you want to delete all the chats?")) {
-        localStorage.removeItem("saved-chats");
-        loadDataFromLocalstorage();
-    }
-});
+        } catch (error) {
+          textElement.innerHTML = error.name === "AbortError" ? "Response generation stopped." : `Error: ${error.message}`;
+          textElement.style.color = "#d62939";
+          botMsgDiv.classList.remove("loading");
+          document.body.classList.remove("bot-responding");
+          scrollToBottom();
+          // Ensure speech also stops on error
+          if (speechUtterance && window.speechSynthesis.speaking) {
+              window.speechSynthesis.cancel();
+          }
+        } finally {
+          userData.file = {}; // Clear file data after each turn
+        }
+      };
 
-// Set userMessage and handle outgoing chat when a suggestion is clicked
-suggestions.forEach(suggestion => {
-    suggestion.addEventListener("click", () => {
-        userMessage = suggestion.querySelector(".text").innerText;
-        handleOutgoingChat();
-    });
-});
+      // Handle the form submission
+      const handleFormSubmit = (e) => {
+        e.preventDefault();
+        const userMessage = promptInput.value.trim();
+        if (!userMessage || document.body.classList.contains("bot-responding")) return;
 
-// Prevent default form submission and handle outgoing chat
-typingForm.addEventListener("submit", (e) => {
-    e.preventDefault();
-    handleOutgoingChat();
-});
+        userData.message = userMessage;
+        promptInput.value = "";
+        document.body.classList.add("chats-active", "bot-responding");
+        fileUploadWrapper.classList.remove("file-attached", "img-attached", "active");
 
-loadDataFromLocalstorage();
+        // Generate user message HTML with optional file attachment
+        const userMsgHTML = `
+          <p class="message-text"></p>
+          ${userData.file.data ? (userData.file.isImage ? `<img src="data:${userData.file.mime_type};base64,${userData.file.data}" class="img-attachment" />` : `<p class="file-attachment"><span class="material-symbols-rounded">description</span>${userData.file.fileName}</p>`) : ""}
+        `;
+        const userMsgDiv = createMessageElement(userMsgHTML, "user-message");
+        userMsgDiv.querySelector(".message-text").textContent = userData.message;
+        chatsContainer.appendChild(userMsgDiv);
+        scrollToBottom();
+
+        setTimeout(() => {
+          // Generate bot message HTML and add in the chat container
+          const botMsgHTML = `<img class="avatar" src="https://stenoip.github.io/praterich_logo.png" /> <p class="message-text">Just a sec...</p>`;
+          const botMsgDiv = createMessageElement(botMsgHTML, "bot-message", "loading");
+          chatsContainer.appendChild(botMsgDiv);
+          scrollToBottom();
+          generateResponse(botMsgDiv);
+        }, 600); // 600 ms delay
+      };
+
+      // Handle file input change (file upload)
+      fileInput.addEventListener("change", () => {
+        const file = fileInput.files[0];
+        if (!file) return;
+
+        const isImage = file.type.startsWith("image/");
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (e) => {
+          fileInput.value = "";
+          const base64String = e.target.result.split(",")[1];
+          fileUploadWrapper.querySelector(".file-preview").src = e.target.result;
+          fileUploadWrapper.classList.add("active", isImage ? "img-attached" : "file-attached");
+          // Store file data in userData obj
+          userData.file = { fileName: file.name, data: base64String, mime_type: file.type, isImage };
+        };
+      });
+
+      // Cancel file upload
+      document.querySelector("#cancel-file-btn").addEventListener("click", () => {
+        userData.file = {};
+        fileUploadWrapper.classList.remove("file-attached", "img-attached", "active");
+      });
+
+      // Stop Bot Response and speech
+      stopResponseBtn.addEventListener("click", () => {
+        controller?.abort();
+        userData.file = {};
+        clearInterval(typingInterval);
+        chatsContainer.querySelector(".bot-message.loading")?.classList.remove("loading");
+        document.body.classList.remove("bot-responding");
+        // Stop speech
+        if (speechUtterance && window.speechSynthesis.speaking) {
+            window.speechSynthesis.cancel();
+        }
+      });
+
+      // Toggle dark/light theme
+      themeToggleBtn.addEventListener("click", () => {
+        const isLightTheme = document.body.classList.toggle("light-theme");
+        localStorage.setItem("themeColor", isLightTheme ? "light_mode" : "dark_mode");
+        themeToggleBtn.textContent = isLightTheme ? "dark_mode" : "light_mode";
+      });
+
+      // Delete all chats
+      document.querySelector("#delete-chats-btn").addEventListener("click", () => {
+        chatHistory.length = 0;
+        chatsContainer.innerHTML = "";
+        document.body.classList.remove("chats-active", "bot-responding");
+        // Stop speech if deleting chats
+        if (speechUtterance && window.speechSynthesis.speaking) {
+            window.speechSynthesis.cancel();
+        }
+      });
+
+      // Handle suggestions click
+      document.querySelectorAll(".suggestions-item").forEach((suggestion) => {
+        suggestion.addEventListener("click", () => {
+          promptInput.value = suggestion.querySelector(".text").textContent;
+          promptForm.dispatchEvent(new Event("submit"));
+        });
+      });
+
+      // Show/hide controls for mobile on prompt input focus
+      document.addEventListener("click", ({ target }) => {
+        const wrapper = document.querySelector(".prompt-wrapper");
+        const shouldHide =
+          target.classList.contains("prompt-input") ||
+          (wrapper.classList.contains("hide-controls") && (target.id === "add-file-btn" || target.id === "stop-response-btn"));
+        wrapper.classList.toggle("hide-controls", shouldHide);
+      });
+
+      // Add event listeners for form submission and file input click
+      promptForm.addEventListener("submit", handleFormSubmit);
+      promptForm.querySelector("#add-file-btn").addEventListener("click", () => fileInput.click());
