@@ -12,7 +12,7 @@ export default async function handler(request, response) {
     }
 
     const genAI = new GoogleGenerativeAI(API_KEY);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
     const { contents, system_instruction } = request.body;
 
     const payload = {
