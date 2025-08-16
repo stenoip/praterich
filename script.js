@@ -244,7 +244,7 @@
 
         try {
           // This connects to Vercel. It sendsa  request to the API.
-      const response = await fetch("https://praterich.vercel.app/api/praterich", {
+      const response = await fetch("https://praterich.vercel.app/api/praterich.js", {
         
             method: "POST",
             headers: { "Content-Type": "application/json" },
