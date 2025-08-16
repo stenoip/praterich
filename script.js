@@ -243,8 +243,9 @@
         }
 
         try {
-          // Send the request to the API
-          const response = await fetch("/api/praterich", {
+          // This connects to Vercel. It sendsa  request to the API.
+      const response = await fetch("https://praterich.vercel.app/api/praterich", {
+        
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(requestBody), // Send the constructed requestBody
