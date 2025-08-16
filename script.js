@@ -1,4 +1,4 @@
-  const container = document.querySelector(".container");
+const container = document.querySelector(".container");
       const chatsContainer = document.querySelector(".chats-container");
       const promptForm = document.querySelector(".prompt-form");
       const promptInput = promptForm.querySelector(".prompt-input");
@@ -6,6 +6,9 @@
       const fileUploadWrapper = promptForm.querySelector(".file-upload-wrapper");
       const themeToggleBtn = document.querySelector("#theme-toggle-btn");
       const stopResponseBtn = document.querySelector("#stop-response-btn"); // Get the stop button
+
+      // API Setup
+      const API_URL = "https://praterich.vercel.app/api/praterich";
 
       let controller, typingInterval;
       let speechUtterance; // Global variable to hold the SpeechSynthesisUtterance
@@ -243,9 +246,8 @@
         }
 
         try {
-          // This connects to Vercel. It sendsa  request to the API.
-      const response = await fetch("https://praterich.vercel.app/api/praterich", {
-        
+          // Send the request to the API
+          const response = await fetch(API_URL, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(requestBody), // Send the constructed requestBody
@@ -396,4 +398,3 @@
       // Add event listeners for form submission and file input click
       promptForm.addEventListener("submit", handleFormSubmit);
       promptForm.querySelector("#add-file-btn").addEventListener("click", () => fileInput.click());
-    
