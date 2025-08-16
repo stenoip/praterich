@@ -1,0 +1,12 @@
+{
+  "name": "praterich-ai-app",
+  "version": "1.0.0",
+  "description": "A Gemini AI chat application.",
+  "main": "index.html",
+  "dependencies": {
+    "@google-cloud/generativelanguage": "^2.1.0"
+  },
+  "scripts": {
+    "start": "vercel dev"
+  }
+}
