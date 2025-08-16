@@ -1,6 +1,23 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export default async function handler(request, response) {
+  // Set CORS headers to allow requests from your GitHub Pages domain
+  response.setHeader('Access-Control-Allow-Origin', 'https://stenoip.github.io');
+  response.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  response.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  // Handle preflight requests
+  if (request.method === 'OPTIONS') {
+    return response.status(200).end();
+  }
+
+  // Check the Origin header to ensure the request is from your GitHub Pages site.
+  // This is a crucial security measure.
+  const origin = request.headers.get('origin');
+  if (origin !== 'https://stenoip.github.io') {
+    return response.status(403).json({ error: 'Forbidden: Unauthorized origin.' });
+  }
+
   if (request.method !== "POST") {
     return response.status(405).send("Method Not Allowed");
   }
