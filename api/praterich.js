@@ -1,13 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export default async function handler(request, response) {
-  // Check the Origin header to ensure the request is from your GitHub Pages site.
-  // This is a crucial security measure.
-  const origin = request.headers.get('origin');
-  if (origin !== 'https://stenoip.github.io') {
-    return response.status(403).json({ error: 'Forbidden: Unauthorized origin.' });
-  }
-
   if (request.method !== "POST") {
     return response.status(405).send("Method Not Allowed");
   }
@@ -19,7 +12,7 @@ export default async function handler(request, response) {
     }
 
     const genAI = new GoogleGenerativeAI(API_KEY);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
     const { contents, system_instruction } = request.body;
 
     const payload = {
