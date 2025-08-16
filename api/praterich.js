@@ -13,7 +13,7 @@ export default async function handler(request, response) {
 
   // Check the Origin header to ensure the request is from your GitHub Pages site.
   // This is a crucial security measure.
-  const origin = request.headers.get('origin');
+  const origin = request.headers['origin'];
   if (origin !== 'https://stenoip.github.io') {
     return response.status(403).json({ error: 'Forbidden: Unauthorized origin.' });
   }
