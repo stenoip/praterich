@@ -395,4 +395,4 @@
       // Add event listeners for form submission and file input click
       promptForm.addEventListener("submit", handleFormSubmit);
       promptForm.querySelector("#add-file-btn").addEventListener("click", () => fileInput.click());
-    </script>
+    
