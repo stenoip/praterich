@@ -4,7 +4,7 @@
   "description": "A Gemini AI chat application.",
   "main": "index.html",
   "dependencies": {
-    "@google-cloud/generativelanguage": "^2.1.0"
+    "@google/generative-ai": "^0.16.0"
   },
   "scripts": {
     "start": "vercel dev"
