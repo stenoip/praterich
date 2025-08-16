@@ -485,10 +485,6 @@
       const themeToggleBtn = document.querySelector("#theme-toggle-btn");
       const stopResponseBtn = document.querySelector("#stop-response-btn"); // Get the stop button
 
-      // API Setup
-      const API_KEY = ""; // REPLACE WITH YOUR ACTUAL API KEY
-      const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
-
       let controller, typingInterval;
       let speechUtterance; // Global variable to hold the SpeechSynthesisUtterance
       let voicesLoaded = false; // Flag to check if voices are loaded
@@ -726,7 +722,7 @@
 
         try {
           // Send the request to the API
-          const response = await fetch(API_URL, {
+          const response = await fetch("/api/praterich", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(requestBody), // Send the constructed requestBody
@@ -742,7 +738,7 @@
           }
 
           // Process the response text
-          let responseText = data.candidates[0].content.parts[0].text;
+          let responseText = data.text;
 
           // Apply markdown formatting to HTML
           responseText = formatResponseText(responseText);
@@ -754,7 +750,7 @@
           // For chat history, store the original markdown if the API needs it, or plain text
           chatHistory.push({ role: "user", parts: userContentParts });
           // Store the original, unformatted text from the model response for chat history
-          chatHistory.push({ role: "model", parts: [{ text: data.candidates[0].content.parts[0].text }] });
+          chatHistory.push({ role: "model", parts: [{ text: data.text }] });
 
         } catch (error) {
           textElement.innerHTML = error.name === "AbortError" ? "Response generation stopped." : `Error: ${error.message}`;
