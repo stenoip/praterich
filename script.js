@@ -134,8 +134,8 @@ const container = document.querySelector(".container");
       const formatResponseText = (text) => {
         // Replace occurrences of --- with <hr> for horizontal rules
         text = text.replace(/^---\s*$/gm, "<hr>");
-        // Precautionary step: Escape any literal HTML tags that might still slip through from the AI
-        text = text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        // **This is the line that was removed to fix HTML escaping:**
+        // text = text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
         // Convert **bold** to <strong>
         text = text.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
