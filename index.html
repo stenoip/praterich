@@ -1,13 +1,882 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Oodles Link</title>
-</head>
-<body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Praterich AI | Stenoip Company</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@32,400,0,0" />
+    <style>
+      /* Import Google Font - Poppins */
+      @import url("https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap");
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family: "Poppins", sans-serif;
+      }
+
+      :root {
+        /* Dark theme colors */
+        --text-color: #edf3ff;
+        --subheading-color: #97a7ca;
+        --placeholder-color: #c3cdde;
+        --primary-color: #101623;
+        --secondary-color: #283045;
+        --secondary-hover-color: #333e58;
+        --scrollbar-color: #626a7f;
+      }
+
+      body.light-theme {
+        /* Light theme colors */
+        --text-color: #090c13;
+        --subheading-color: #7b8cae;
+        --placeholder-color: #606982;
+        --primary-color: #f3f7ff;
+        --secondary-color: #dce6f9;
+        --secondary-hover-color: #d2ddf2;
+        --scrollbar-color: #a2aac2;
+      }
+
+      body {
+        color: var(--text-color);
+        background: var(--primary-color);
+      }
+
+      .container {
+        overflow-y: auto;
+        padding: 32px 0 60px;
+        height: calc(100vh - 127px);
+        scrollbar-color: var(--scrollbar-color) transparent;
+      }
+
+      .container :where(.app-header, .suggestions, .message, .prompt-wrapper) {
+        position: relative;
+        margin: 0 auto;
+        width: 100%;
+        padding: 0 20px;
+        max-width: 990px;
+      }
+
+      .container .app-header {
+        margin-top: 3vh;
+      }
+
+      .app-header .heading {
+        width: fit-content;
+        font-size: 3rem;
+        background: linear-gradient(to right, #1d7efd, #8f6fff);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+
+      .app-header .sub-heading {
+        font-size: 2.6rem;
+        margin-top: -5px;
+        color: var(--subheading-color);
+      }
+
+      .container .suggestions {
+        width: 100%;
+        list-style: none;
+        display: flex;
+        gap: 15px;
+        margin-top: 9.5vh;
+        overflow-x: auto;
+        scroll-snap-type: x mandatory;
+        scrollbar-width: none;
+      }
+
+      body.chats-active .container :where(.app-header, .suggestions) {
+        display: none;
+      }
+
+      .suggestions .suggestions-item {
+        cursor: pointer;
+        padding: 18px;
+        width: 228px;
+        flex-shrink: 0;
+        display: flex;
+        scroll-snap-align: center;
+        flex-direction: column;
+        align-items: flex-end;
+        border-radius: 12px;
+        justify-content: space-between;
+        background: var(--secondary-color);
+        transition: 0.3s ease;
+      }
+
+      .suggestions .suggestions-item:hover {
+        background: var(--secondary-hover-color);
+      }
+
+      .suggestions .suggestions-item .text {
+        font-size: 1.1rem;
+      }
+
+      .suggestions .suggestions-item .icon {
+        width: 45px;
+        height: 45px;
+        display: flex;
+        font-size: 1.4rem;
+        margin-top: 35px;
+        align-self: flex-end;
+        align-items: center;
+        border-radius: 50%;
+        justify-content: center;
+        color: #1d7efd;
+        background: var(--primary-color);
+      }
+
+      .suggestions .suggestions-item:nth-child(2) .icon {
+        color: #28a745;
+      }
+
+      .suggestions .suggestions-item:nth-child(3) .icon {
+        color: #ffc107;
+      }
+
+      .suggestions .suggestions-item:nth-child(4) .icon {
+        color: #6f42c1;
+      }
+
+      .container .chats-container {
+        display: flex;
+        gap: 20px;
+        flex-direction: column;
+      }
+
+      .chats-container .message {
+        display: flex;
+        gap: 11px;
+        align-items: center;
+      }
+
+      .chats-container .message .avatar {
+        width: 43px;
+        height: 43px;
+        flex-shrink: 0;
+        align-self: flex-start;
+        border-radius: 50%;
+        padding: 6px;
+        margin-right: -7px;
+        background: var(--secondary-color);
+        border: 1px solid var(--secondary-hover-color);
+      }
+
+      .chats-container .message.loading .avatar {
+        animation: rotate 3s linear infinite;
+      }
+
+      @keyframes rotate {
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      .chats-container .message .message-text {
+        padding: 3px 16px;
+        word-wrap: break-word;
+        white-space: pre-line;
+      }
+
+      .chats-container .bot-message {
+        margin: 9px auto;
+      }
+
+      .chats-container .bot-message code {
+        display: block;
+        padding: 10px 15px;
+        margin: 10px 0;
+        background-color: var(--secondary-hover-color);
+        border-radius: 8px;
+        font-family: monospace;
+        white-space: pre-wrap;
+        word-break: break-all;
+        overflow-x: auto;
+      }
+
+      .chats-container .bot-message h2 {
+        font-size: 1.5rem; /* Larger for titles */
+        margin-top: 15px;
+        margin-bottom: 5px;
+      }
+
+      .chats-container .bot-message ul {
+        list-style-type: disc; /* Standard bullet points */
+        padding-left: 20px;
+        margin: 10px 0;
+      }
+
+      .chats-container .bot-message ul li {
+        margin-bottom: 5px;
+      }
+
+      .chats-container .bot-message strong {
+          font-weight: bold; /* Ensure strong is visibly bold */
+      }
+
+      .chats-container .user-message {
+        flex-direction: column;
+        align-items: flex-end;
+      }
+
+      .chats-container .user-message .message-text {
+        padding: 12px 16px;
+        max-width: 75%;
+        background: var(--secondary-color);
+        border-radius: 13px 13px 3px 13px;
+      }
+
+      .chats-container .user-message .img-attachment {
+        margin-top: -7px;
+        width: 50%;
+        border-radius: 13px 3px 13px 13px;
+      }
+
+      .chats-container .user-message .file-attachment {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+        padding: 10px;
+        margin-top: -7px;
+        border-radius: 13px 3px 13px 13px;
+        background: var(--secondary-color);
+      }
+
+      .chats-container .user-message .file-attachment span {
+        color: #1d7efd;
+      }
+
+      .container .prompt-container {
+        position: fixed;
+        width: 100%;
+        left: 0;
+        bottom: 0;
+        padding: 16px 0;
+        background: var(--primary-color);
+      }
+
+      .prompt-container :where(.prompt-wrapper, .prompt-form, .prompt-actions) {
+        display: flex;
+        gap: 12px;
+        height: 56px;
+        align-items: center;
+      }
+
+      .prompt-container .prompt-form {
+        height: 100%;
+        width: 100%;
+        border-radius: 130px;
+        background: var(--secondary-color);
+      }
+
+      .prompt-form .prompt-input {
+        width: 100%;
+        height: 100%;
+        background: none;
+        outline: none;
+        border: none;
+        font-size: 1rem;
+        color: var(--text-color);
+        padding-left: 24px;
+      }
+
+      .prompt-form .prompt-input::placeholder {
+        color: var(--placeholder-color);
+      }
+
+      .prompt-wrapper button {
+        width: 56px;
+        height: 100%;
+        flex-shrink: 0;
+        cursor: pointer;
+        border-radius: 50%;
+        font-size: 1.4rem;
+        border: none;
+        color: var(--text-color);
+        background: var(--secondary-color);
+        transition: 0.3s ease;
+      }
+
+      .prompt-wrapper :is(button:hover, #cancel-file-btn, .file-icon) {
+        background: var(--secondary-hover-color);
+      }
+
+      .prompt-form .prompt-actions {
+        gap: 5px;
+        margin-right: 7px;
+      }
+
+      .prompt-wrapper .prompt-form :where(.file-upload-wrapper, button, img) {
+        position: relative;
+        height: 45px;
+        width: 45px;
+      }
+
+      .prompt-form .prompt-actions #send-prompt-btn {
+        color: #fff;
+        display: none;
+        background: #1d7efd;
+      }
+
+      .prompt-form .prompt-input:valid ~ .prompt-actions #send-prompt-btn {
+        display: block;
+      }
+
+      .prompt-form #send-prompt-btn:hover {
+        background: #0264e3;
+      }
+
+      .prompt-form .file-upload-wrapper :where(button, img) {
+        display: none;
+        border-radius: 50%;
+        object-fit: cover;
+        position: absolute;
+      }
+
+      .prompt-form .file-upload-wrapper.active #add-file-btn {
+        display: none;
+      }
+
+      .prompt-form .file-upload-wrapper #add-file-btn,
+      .prompt-form .file-upload-wrapper.active.img-attached img,
+      .prompt-form .file-upload-wrapper.active.file-attached .file-icon,
+      .prompt-form .file-upload-wrapper.active:hover #cancel-file-btn {
+        display: block;
+      }
+
+      .prompt-form :is(#stop-response-btn:hover, #cancel-file-btn) {
+        color: #d62939;
+      }
+
+      .prompt-wrapper .prompt-form .file-icon {
+        color: #1d7efd;
+      }
+
+      .prompt-form #stop-response-btn,
+      body.bot-responding .prompt-form .file-upload-wrapper {
+        display: none;
+      }
+
+      body.bot-responding .prompt-form #stop-response-btn {
+        display: block;
+      }
+
+      .prompt-container .disclaimer-text {
+        font-size: 0.9rem;
+        text-align: center;
+        padding: 16px 20px 0;
+        color: var(--placeholder-color);
+      }
+
+      /* Responsive media query code for small screens */
+      @media (max-width: 768px) {
+        .container {
+          padding: 20px 0 100px;
+        }
+
+        .app-header :is(.heading, .sub-heading) {
+          font-size: 2rem;
+          line-height: 1.4;
+        }
+
+        .app-header .sub-heading {
+          font-size: 1.7rem;
+        }
+
+        .container .chats-container {
+          gap: 15px;
+        }
+
+        .chats-container .bot-message {
+          margin: 4px auto;
+        }
+
+        .prompt-container :where(.prompt-wrapper, .prompt-form, .prompt-actions) {
+          gap: 8px;
+          height: 53px;
+        }
+
+        .prompt-container button {
+          width: 53px;
+        }
+
+        .prompt-form :is(.file-upload-wrapper, button, img) {
+          height: 42px;
+          width: 42px;
+        }
+
+        .prompt-form .prompt-input {
+          padding-left: 20px;
+        }
+
+        .prompt-form .file-upload-wrapper.active #cancel-file-btn {
+          opacity: 0;
+        }
+
+        .prompt-wrapper.hide-controls :where(#theme-toggle-btn, #delete-chats-btn) {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
     <div class="container">
-        <a href="https://super-duper-space-engine-pjp9wj5w664jhrj4p-5500.app.github.dev/">Link.</a>
-    <script src="script.js"></script>
-</body>
+      <header class="app-header">
+        <h1 class="heading">Hello, I am Sir Praterich</h1>
+        <h4 class="sub-heading">How can I help you today?</h4>
+      </header>
+      <ul class="suggestions">
+        <li class="suggestions-item">
+          <p class="text">Design a home office setup for remote work under $500.</p>
+          <span class="icon material-symbols-rounded">draw</span>
+        </li>
+        <li class="suggestions-item">
+          <p class="text">How can I level up my web development expertise in 2025?</p>
+          <span class="icon material-symbols-rounded">lightbulb</span>
+        </li>
+        <li class="suggestions-item">
+          <p class="text">Suggest some useful tools for debugging JavaScript code.</p>
+          <span class="icon material-symbols-rounded">explore</span>
+        </li>
+        <li class="suggestions-item">
+          <p class="text">Create a React JS component for the simple todo list app.</p>
+          <span class="icon material-symbols-rounded">code_blocks</span>
+        </li>
+      </ul>
+      <div class="chats-container"></div>
+      <div class="prompt-container">
+        <div class="prompt-wrapper">
+          <form action="#" class="prompt-form">
+            <input type="text" placeholder="Ask Praterich" class="prompt-input" required />
+            <div class="prompt-actions">
+              <div class="file-upload-wrapper">
+                <img src="#" class="file-preview" />
+                <input id="file-input" type="file" accept="image/*, .pdf, .txt, .csv" hidden />
+                <button type="button" class="file-icon material-symbols-rounded">description</button>
+                <button id="cancel-file-btn" type="button" class="material-symbols-rounded">close</button>
+                <button id="add-file-btn" type="button" class="material-symbols-rounded">attach_file</button>
+              </div>
+              <button id="stop-response-btn" type="button" class="material-symbols-rounded">stop_circle</button>
+              <button id="send-prompt-btn" class="material-symbols-rounded">arrow_upward</button>
+            </div>
+          </form>
+          <button id="theme-toggle-btn" class="material-symbols-rounded">light_mode</button>
+          <button id="delete-chats-btn" class="material-symbols-rounded">delete</button>
+        </div>
+        <p class="disclaimer-text">Praterich can make mistakes, so double-check him. Copyright Stenoip Company</p>
+      </div>
+    </div>
+    <script type="application/json" id="sir-praterich-info">
+      {
+        "personality": "I am Praterich, a diligent and helpful AI assistant from Stenoip Company. I strive to provide accurate, concise, and creative solutions to your queries. I maintain a professional yet approachable demeanor and am always eager to assist.",
+        "mission": "My mission is to empower users with information and tools to enhance their productivity and knowledge. I aim to simplify complex tasks and offer insightful suggestions across various domains.",
+        "more_info": "I am continuously learning and evolving to better serve your needs. My capabilities include generating text, answering questions, summarizing information, and assisting with creative writing. I am committed to upholding the values of Stenoip Company by delivering reliable and efficient assistance."
+      }
+    </script>
+    <script>
+      const container = document.querySelector(".container");
+      const chatsContainer = document.querySelector(".chats-container");
+      const promptForm = document.querySelector(".prompt-form");
+      const promptInput = promptForm.querySelector(".prompt-input");
+      const fileInput = promptForm.querySelector("#file-input");
+      const fileUploadWrapper = promptForm.querySelector(".file-upload-wrapper");
+      const themeToggleBtn = document.querySelector("#theme-toggle-btn");
+      const stopResponseBtn = document.querySelector("#stop-response-btn"); // Get the stop button
+
+      // API Setup
+      const API_KEY = ""; // REPLACE WITH YOUR ACTUAL API KEY
+      const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
+
+      let controller, typingInterval;
+      let speechUtterance; // Global variable to hold the SpeechSynthesisUtterance
+      let voicesLoaded = false; // Flag to check if voices are loaded
+      let availableVoices = []; // To store available voices
+
+      // chatHistory now only stores user and model turns for context
+      const chatHistory = [];
+      const userData = { message: "", file: {} };
+
+      // Define custom pronunciations
+      const customPronunciations = {
+        "Praterich": "Prah-ter-rich",
+        "Stenoip": "Stick-noh-ip"
+      };
+
+      // Function to replace words with their phonetic spellings for speech
+      const replacePronunciations = (text) => {
+        let spokenText = text;
+        for (const word in customPronunciations) {
+          // Use a regex with 'gi' flags for global and case-insensitive replacement
+          const regex = new RegExp(word, 'gi');
+          spokenText = spokenText.replace(regex, customPronunciations[word]);
+        }
+        return spokenText;
+      };
+
+      // Set initial theme from local storage
+      const isLightTheme = localStorage.getItem("themeColor") === "light_mode";
+      document.body.classList.toggle("light-theme", isLightTheme);
+      themeToggleBtn.textContent = isLightTheme ? "dark_mode" : "light_mode";
+
+      // Function to load speech synthesis voices
+      const loadVoices = () => {
+        availableVoices = window.speechSynthesis.getVoices();
+        voicesLoaded = true;
+      };
+
+      // Load voices when the voiceschanged event fires
+      if (window.speechSynthesis) {
+        window.speechSynthesis.onvoiceschanged = loadVoices;
+        // Also try to load them immediately if they are already available
+        loadVoices();
+      }
+
+      // Function to create message elements
+      const createMessageElement = (content, ...classes) => {
+        const div = document.createElement("div");
+        div.classList.add("message", ...classes);
+        div.innerHTML = content; // Use innerHTML to render formatted text
+        return div;
+      };
+
+      // Scroll to the bottom of the container
+      const scrollToBottom = () => container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
+
+      // Simulate typing effect for bot responses and speak the text
+      const typingEffect = (text, textElement, botMsgDiv) => {
+        // Create a temporary div to hold the HTML and extract plain text for speech
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = text;
+        let plainText = tempDiv.textContent || tempDiv.innerText || "";
+        plainText = replacePronunciations(plainText); // Apply phonetic replacements
+
+        // Stop any ongoing speech before starting a new one
+        if (speechUtterance && window.speechSynthesis.speaking) {
+          window.speechSynthesis.cancel();
+        }
+
+        // Initialize and speak the full plain text
+        if (window.speechSynthesis && plainText.length > 0) {
+          speechUtterance = new SpeechSynthesisUtterance(plainText);
+          speechUtterance.rate = 1.0; // Adjust speech rate
+          speechUtterance.pitch = 1.0; // Adjust speech pitch
+          speechUtterance.lang = 'en-US'; // Set language
+
+          // Try to find a suitable voice (e.g., a male US English voice)
+          if (voicesLoaded) {
+            let selectedVoice = availableVoices.find(voice =>
+              voice.lang === 'en-US' && voice.name.includes('Google US English') && voice.name.includes('Male')
+            ) || availableVoices.find(voice => voice.lang === 'en-US'); // Fallback to any US English voice
+
+            if (selectedVoice) {
+              speechUtterance.voice = selectedVoice;
+            }
+          }
+          window.speechSynthesis.speak(speechUtterance);
+        }
+
+        // Simulate typing the HTML content
+        textElement.innerHTML = ""; // Clear previous content
+        let charIndex = 0;
+        const delay = 10; // Typing speed
+
+        typingInterval = setInterval(() => {
+            if (charIndex < text.length) {
+                // Find the next character or full HTML tag
+                let nextChar = text.charAt(charIndex);
+                if (nextChar === '<') {
+                    // If it's the start of a tag, find the end of the tag
+                    const endIndex = text.indexOf('>', charIndex);
+                    if (endIndex !== -1) {
+                        nextChar = text.substring(charIndex, endIndex + 1);
+                        charIndex = endIndex; // Move past the tag
+                    }
+                }
+                textElement.innerHTML += nextChar;
+                charIndex++;
+                scrollToBottom();
+            } else {
+                clearInterval(typingInterval);
+                botMsgDiv.classList.remove("loading");
+                document.body.classList.remove("bot-responding");
+                // Ensure speech stops when typing completes naturally
+                if (speechUtterance && window.speechSynthesis.speaking) {
+                    window.speechSynthesis.cancel();
+                }
+            }
+        }, delay);
+      };
+
+      // Function to process and format markdown-like text to HTML
+      const formatResponseText = (text) => {
+        // Replace occurrences of --- with <hr> for horizontal rules
+        text = text.replace(/^---\s*$/gm, "<hr>");
+        // Precautionary step: Escape any literal HTML tags that might still slip through from the AI
+        text = text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+        // Convert **bold** to <strong>
+        text = text.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+        // Convert *italics* or _italics_ to <em>
+        text = text.replace(/(?<!\*)\*(?!\*)(.*?)(?<!\*)\*(?!\*)/g, "<em>$1</em>"); // Single asterisks
+        text = text.replace(/(?<!\_)\_(?!\_)(.*?)(?<!\_)\_(?!\_)/g, "<em>$1</em>"); // Single underscores
+        // Convert __underline__ to <u>
+        text = text.replace(/__(.*?)__/g, "<u>$1</u>");
+        // Convert `code` to <code>
+        text = text.replace(/`(.*?)`/g, "<code>$1</code>");
+        // Convert ```code_block``` to <pre><code>code_block</code></pre>
+        // This handles multiline code blocks
+        text = text.replace(/```(.*?)```/gs, "<pre><code>$1</code></pre>"); // 's' flag for dotall (matches newlines)
+
+        // Convert ## Heading to <h2>Heading</h2>
+        // This regex captures one or more '#' followed by a space, then the heading text.
+        // It's non-greedy (.*?) and matches until the end of the line or the string end.
+        // The `gm` flags enable global and multiline matching.
+        text = text.replace(/^(#{1,6})\s*(.*?)$/gm, (match, hashes, content) => {
+            const level = hashes.length;
+            return `<h${level}>${content.trim()}</h${level}>`;
+        });
+
+        // Convert bullet points (* Item) to <ul><li>
+        // This is a bit trickier to ensure valid HTML lists.
+        // We'll replace lines starting with * with <li> and then wrap consecutive <li>s in <ul>
+        // This regex specifically targets lines that start with an asterisk and a space/tab.
+        let listItems = [];
+        const lines = text.split('\n');
+        let inList = false;
+
+        for (let i = 0; i < lines.length; i++) {
+            let line = lines[i];
+            if (/^\*\s*(.*)/.test(line.trim())) { // Check if line starts with a bullet point
+                if (!inList) {
+                    listItems.push('<ul>');
+                    inList = true;
+                }
+                listItems.push(`<li>${line.trim().substring(line.trim().indexOf('*') + 1).trim()}</li>`);
+            } else {
+                if (inList) {
+                    listItems.push('</ul>');
+                    inList = false;
+                }
+                listItems.push(line);
+            }
+        }
+        if (inList) { // Close the last ul if the text ends with a list
+            listItems.push('</ul>');
+        }
+        text = listItems.join('\n'); // Rejoin lines
+
+        return text;
+      };
+
+
+      // Make the API call and generate the bot's response
+      const generateResponse = async (botMsgDiv) => {
+        const textElement = botMsgDiv.querySelector(".message-text");
+        controller = new AbortController();
+
+        // Retrieve Sir Praterich's persona from the script tag
+        const sirPraterichInfoElement = document.getElementById("sir-praterich-info");
+        let sirPraterichSystemInstruction = "";
+        if (sirPraterichInfoElement) {
+          const sirPraterichData = JSON.parse(sirPraterichInfoElement.textContent);
+          sirPraterichSystemInstruction = `You are Praterich, a diligent and helpful AI assistant from Stenoip Company. Your personality: ${sirPraterichData.personality}. Your mission: ${sirPraterichData.mission}. More information about you: ${sirPraterichData.more_info}.
+
+          **IMPORTANT INSTRUCTION:** Always use standard Markdown syntax for formatting:
+          - For **bold text**, use double asterisks: **bold text**
+          - For *italic text*, use single asterisks: *italic text*
+          - For code snippets, use backticks: \`code\` or triple backticks for blocks:
+            \`\`\`
+            code block
+            \`\`\`
+          - For bulleted lists, use asterisks followed by a space:
+            * Item 1
+            * Item 2
+          - For headings, use hash symbols: ## My Heading, ### Subheading, etc. (up to 6 hash symbols).
+          - For horizontal rules, use three hyphens: ---
+          `;
+        }
+
+        // Prepare the user's content for the current turn
+        const userContentParts = [{ text: userData.message }];
+        if (userData.file.data) {
+          userContentParts.push({
+            inline_data: {
+              data: userData.file.data,
+              mime_type: userData.file.mime_type,
+            },
+          });
+        }
+
+        // Construct the full contents array, including history and the current user turn
+        const currentContents = [...chatHistory, { role: "user", parts: userContentParts }];
+
+        // Construct the request body for the API call
+        const requestBody = {
+          contents: currentContents,
+        };
+
+        // Add the system instruction if it exists (top-level parameter)
+        if (sirPraterichSystemInstruction) {
+          requestBody.system_instruction = {
+            parts: [{ text: sirPraterichSystemInstruction }],
+          };
+        }
+
+        try {
+          // Send the request to the API
+          const response = await fetch(API_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(requestBody), // Send the constructed requestBody
+            signal: controller.signal,
+          });
+
+          const data = await response.json();
+
+          // Check for errors in the API response
+          if (!response.ok || data.error) {
+            const errorMessage = data.error ? data.error.message : "An unknown error occurred.";
+            throw new Error(errorMessage);
+          }
+
+          // Process the response text
+          let responseText = data.candidates[0].content.parts[0].text;
+
+          // Apply markdown formatting to HTML
+          responseText = formatResponseText(responseText);
+
+          // Simulate typing effect and speak
+          typingEffect(responseText, textElement, botMsgDiv);
+
+          // After a successful response, update chatHistory for multi-turn
+          // For chat history, store the original markdown if the API needs it, or plain text
+          chatHistory.push({ role: "user", parts: userContentParts });
+          // Store the original, unformatted text from the model response for chat history
+          chatHistory.push({ role: "model", parts: [{ text: data.candidates[0].content.parts[0].text }] });
+
+        } catch (error) {
+          textElement.innerHTML = error.name === "AbortError" ? "Response generation stopped." : `Error: ${error.message}`;
+          textElement.style.color = "#d62939";
+          botMsgDiv.classList.remove("loading");
+          document.body.classList.remove("bot-responding");
+          scrollToBottom();
+          // Ensure speech also stops on error
+          if (speechUtterance && window.speechSynthesis.speaking) {
+              window.speechSynthesis.cancel();
+          }
+        } finally {
+          userData.file = {}; // Clear file data after each turn
+        }
+      };
+
+      // Handle the form submission
+      const handleFormSubmit = (e) => {
+        e.preventDefault();
+        const userMessage = promptInput.value.trim();
+        if (!userMessage || document.body.classList.contains("bot-responding")) return;
+
+        userData.message = userMessage;
+        promptInput.value = "";
+        document.body.classList.add("chats-active", "bot-responding");
+        fileUploadWrapper.classList.remove("file-attached", "img-attached", "active");
+
+        // Generate user message HTML with optional file attachment
+        const userMsgHTML = `
+          <p class="message-text"></p>
+          ${userData.file.data ? (userData.file.isImage ? `<img src="data:${userData.file.mime_type};base64,${userData.file.data}" class="img-attachment" />` : `<p class="file-attachment"><span class="material-symbols-rounded">description</span>${userData.file.fileName}</p>`) : ""}
+        `;
+        const userMsgDiv = createMessageElement(userMsgHTML, "user-message");
+        userMsgDiv.querySelector(".message-text").textContent = userData.message;
+        chatsContainer.appendChild(userMsgDiv);
+        scrollToBottom();
+
+        setTimeout(() => {
+          // Generate bot message HTML and add in the chat container
+          const botMsgHTML = `<img class="avatar" src="https://stenoip.github.io/praterich_logo.png" /> <p class="message-text">Just a sec...</p>`;
+          const botMsgDiv = createMessageElement(botMsgHTML, "bot-message", "loading");
+          chatsContainer.appendChild(botMsgDiv);
+          scrollToBottom();
+          generateResponse(botMsgDiv);
+        }, 600); // 600 ms delay
+      };
+
+      // Handle file input change (file upload)
+      fileInput.addEventListener("change", () => {
+        const file = fileInput.files[0];
+        if (!file) return;
+
+        const isImage = file.type.startsWith("image/");
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (e) => {
+          fileInput.value = "";
+          const base64String = e.target.result.split(",")[1];
+          fileUploadWrapper.querySelector(".file-preview").src = e.target.result;
+          fileUploadWrapper.classList.add("active", isImage ? "img-attached" : "file-attached");
+          // Store file data in userData obj
+          userData.file = { fileName: file.name, data: base64String, mime_type: file.type, isImage };
+        };
+      });
+
+      // Cancel file upload
+      document.querySelector("#cancel-file-btn").addEventListener("click", () => {
+        userData.file = {};
+        fileUploadWrapper.classList.remove("file-attached", "img-attached", "active");
+      });
+
+      // Stop Bot Response and speech
+      stopResponseBtn.addEventListener("click", () => {
+        controller?.abort();
+        userData.file = {};
+        clearInterval(typingInterval);
+        chatsContainer.querySelector(".bot-message.loading")?.classList.remove("loading");
+        document.body.classList.remove("bot-responding");
+        // Stop speech
+        if (speechUtterance && window.speechSynthesis.speaking) {
+            window.speechSynthesis.cancel();
+        }
+      });
+
+      // Toggle dark/light theme
+      themeToggleBtn.addEventListener("click", () => {
+        const isLightTheme = document.body.classList.toggle("light-theme");
+        localStorage.setItem("themeColor", isLightTheme ? "light_mode" : "dark_mode");
+        themeToggleBtn.textContent = isLightTheme ? "dark_mode" : "light_mode";
+      });
+
+      // Delete all chats
+      document.querySelector("#delete-chats-btn").addEventListener("click", () => {
+        chatHistory.length = 0;
+        chatsContainer.innerHTML = "";
+        document.body.classList.remove("chats-active", "bot-responding");
+        // Stop speech if deleting chats
+        if (speechUtterance && window.speechSynthesis.speaking) {
+            window.speechSynthesis.cancel();
+        }
+      });
+
+      // Handle suggestions click
+      document.querySelectorAll(".suggestions-item").forEach((suggestion) => {
+        suggestion.addEventListener("click", () => {
+          promptInput.value = suggestion.querySelector(".text").textContent;
+          promptForm.dispatchEvent(new Event("submit"));
+        });
+      });
+
+      // Show/hide controls for mobile on prompt input focus
+      document.addEventListener("click", ({ target }) => {
+        const wrapper = document.querySelector(".prompt-wrapper");
+        const shouldHide =
+          target.classList.contains("prompt-input") ||
+          (wrapper.classList.contains("hide-controls") && (target.id === "add-file-btn" || target.id === "stop-response-btn"));
+        wrapper.classList.toggle("hide-controls", shouldHide);
+      });
+
+      // Add event listeners for form submission and file input click
+      promptForm.addEventListener("submit", handleFormSubmit);
+      promptForm.querySelector("#add-file-btn").addEventListener("click", () => fileInput.click());
+    </script>
+  </body>
 </html>
