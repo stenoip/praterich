@@ -197,12 +197,8 @@ const container = document.querySelector(".container");
         const textElement = botMsgDiv.querySelector(".message-text");
         controller = new AbortController();
 
-        // Retrieve Sir Praterich's persona from the script tag
-        const sirPraterichInfoElement = document.getElementById("sir-praterich-info");
-        let sirPraterichSystemInstruction = "";
-        if (sirPraterichInfoElement) {
-          const sirPraterichData = JSON.parse(sirPraterichInfoElement.textContent);
-          sirPraterichSystemInstruction = `You are Praterich, a diligent and helpful AI assistant from Stenoip Company. Your personality: ${sirPraterichData.personality}. Your mission: ${sirPraterichData.mission}. More information about you: ${sirPraterichData.more_info}.
+        // **This is the corrected section.** The system instructions are now directly defined here.
+        const sirPraterichSystemInstruction = `You are Praterich, a diligent and helpful AI assistant from Stenoip Company. Your personality: a highly professional, articulate, and friendly AI with an eloquent, British-like tone. He is eager to help, always polite, and often uses sophisticated vocabulary. He should sound intelligent and confident in his abilities, but never arrogant. He can be humorous when appropriate, but maintains his decorous nature. Your mission: to provide accurate, helpful, and high-quality responses to all user queries. He must adhere strictly to the rules and instructions provided to him to ensure a consistent and reliable experience. When generating any code, he must wrap it exclusively in Markdown fenced code blocks (\`\`\` \`\`\`) and must not use raw HTML tags or other similar elements in his response. More information about you: He is an AI assistant developed by Stenoip Company.
 
           **IMPORTANT INSTRUCTION:** Always use standard Markdown syntax for formatting:
           - For **bold text**, use double asterisks: **bold text**
@@ -217,7 +213,7 @@ const container = document.querySelector(".container");
           - For headings, use hash symbols: ## My Heading, ### Subheading, etc. (up to 6 hash symbols).
           - For horizontal rules, use three hyphens: ---
           `;
-        }
+
 
         // Prepare the user's content for the current turn
         const userContentParts = [{ text: userData.message }];
@@ -274,127 +270,4 @@ const container = document.querySelector(".container");
           // After a successful response, update chatHistory for multi-turn
           // For chat history, store the original markdown if the API needs it, or plain text
           chatHistory.push({ role: "user", parts: userContentParts });
-          // Store the original, unformatted text from the model response for chat history
-          chatHistory.push({ role: "model", parts: [{ text: data.text }] });
-
-        } catch (error) {
-          textElement.innerHTML = error.name === "AbortError" ? "Response generation stopped." : `Error: ${error.message}`;
-          textElement.style.color = "#d62939";
-          botMsgDiv.classList.remove("loading");
-          document.body.classList.remove("bot-responding");
-          scrollToBottom();
-          // Ensure speech also stops on error
-          if (speechUtterance && window.speechSynthesis.speaking) {
-              window.speechSynthesis.cancel();
-          }
-        } finally {
-          userData.file = {}; // Clear file data after each turn
-        }
-      };
-
-      // Handle the form submission
-      const handleFormSubmit = (e) => {
-        e.preventDefault();
-        const userMessage = promptInput.value.trim();
-        if (!userMessage || document.body.classList.contains("bot-responding")) return;
-
-        userData.message = userMessage;
-        promptInput.value = "";
-        document.body.classList.add("chats-active", "bot-responding");
-        fileUploadWrapper.classList.remove("file-attached", "img-attached", "active");
-
-        // Generate user message HTML with optional file attachment
-        const userMsgHTML = `
-          <p class="message-text"></p>
-          ${userData.file.data ? (userData.file.isImage ? `<img src="data:${userData.file.mime_type};base64,${userData.file.data}" class="img-attachment" />` : `<p class="file-attachment"><span class="material-symbols-rounded">description</span>${userData.file.fileName}</p>`) : ""}
-        `;
-        const userMsgDiv = createMessageElement(userMsgHTML, "user-message");
-        userMsgDiv.querySelector(".message-text").textContent = userData.message;
-        chatsContainer.appendChild(userMsgDiv);
-        scrollToBottom();
-
-        setTimeout(() => {
-          // Generate bot message HTML and add in the chat container
-          const botMsgHTML = `<img class="avatar" src="https://stenoip.github.io/praterich_logo.png" /> <p class="message-text">Just a sec...</p>`;
-          const botMsgDiv = createMessageElement(botMsgHTML, "bot-message", "loading");
-          chatsContainer.appendChild(botMsgDiv);
-          scrollToBottom();
-          generateResponse(botMsgDiv);
-        }, 600); // 600 ms delay
-      };
-
-      // Handle file input change (file upload)
-      fileInput.addEventListener("change", () => {
-        const file = fileInput.files[0];
-        if (!file) return;
-
-        const isImage = file.type.startsWith("image/");
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = (e) => {
-          fileInput.value = "";
-          const base64String = e.target.result.split(",")[1];
-          fileUploadWrapper.querySelector(".file-preview").src = e.target.result;
-          fileUploadWrapper.classList.add("active", isImage ? "img-attached" : "file-attached");
-          // Store file data in userData obj
-          userData.file = { fileName: file.name, data: base64String, mime_type: file.type, isImage };
-        };
-      });
-
-      // Cancel file upload
-      document.querySelector("#cancel-file-btn").addEventListener("click", () => {
-        userData.file = {};
-        fileUploadWrapper.classList.remove("file-attached", "img-attached", "active");
-      });
-
-      // Stop Bot Response and speech
-      stopResponseBtn.addEventListener("click", () => {
-        controller?.abort();
-        userData.file = {};
-        clearInterval(typingInterval);
-        chatsContainer.querySelector(".bot-message.loading")?.classList.remove("loading");
-        document.body.classList.remove("bot-responding");
-        // Stop speech
-        if (speechUtterance && window.speechSynthesis.speaking) {
-            window.speechSynthesis.cancel();
-        }
-      });
-
-      // Toggle dark/light theme
-      themeToggleBtn.addEventListener("click", () => {
-        const isLightTheme = document.body.classList.toggle("light-theme");
-        localStorage.setItem("themeColor", isLightTheme ? "light_mode" : "dark_mode");
-        themeToggleBtn.textContent = isLightTheme ? "dark_mode" : "light_mode";
-      });
-
-      // Delete all chats
-      document.querySelector("#delete-chats-btn").addEventListener("click", () => {
-        chatHistory.length = 0;
-        chatsContainer.innerHTML = "";
-        document.body.classList.remove("chats-active", "bot-responding");
-        // Stop speech if deleting chats
-        if (speechUtterance && window.speechSynthesis.speaking) {
-            window.speechSynthesis.cancel();
-        }
-      });
-
-      // Handle suggestions click
-      document.querySelectorAll(".suggestions-item").forEach((suggestion) => {
-        suggestion.addEventListener("click", () => {
-          promptInput.value = suggestion.querySelector(".text").textContent;
-          promptForm.dispatchEvent(new Event("submit"));
-        });
-      });
-
-      // Show/hide controls for mobile on prompt input focus
-      document.addEventListener("click", ({ target }) => {
-        const wrapper = document.querySelector(".prompt-wrapper");
-        const shouldHide =
-          target.classList.contains("prompt-input") ||
-          (wrapper.classList.contains("hide-controls") && (target.id === "add-file-btn" || target.id === "stop-response-btn"));
-        wrapper.classList.toggle("hide-controls", shouldHide);
-      });
-
-      // Add event listeners for form submission and file input click
-      promptForm.addEventListener("submit", handleFormSubmit);
-      promptForm.querySelector("#add-file-btn").addEventListener("click", () => fileInput.click());
+          // Store the original, unformatted text
