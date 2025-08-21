@@ -1,5 +1,39 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import axios from 'axios';
+import cheerio from 'cheerio';
+import fs from 'fs';
+import path from 'path';
 
+// Helper function to fetch local text files
+const fetchLocalFile = (fileName) => {
+  return new Promise((resolve, reject) => {
+    const filePath = path.join(process.cwd(), 'data', fileName);
+    fs.readFile(filePath, 'utf-8', (err, data) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(data);
+      }
+    });
+  });
+};
+
+// Helper function to scrape content from a website (WikiHow in this case)
+const scrapeWebsite = async (url) => {
+  try {
+    const response = await axios.get(url);
+    const $ = cheerio.load(response.data);
+    // You can modify this selector to match the content you need from the website.
+    // Example: Extract the main content of the article.
+    const articleContent = $('.article-content').text().trim();
+    return articleContent;
+  } catch (error) {
+    console.error("Failed to scrape website:", error);
+    return '';
+  }
+};
+
+// Main handler function
 export default async function handler(request, response) {
   // Set CORS headers to allow requests from your GitHub Pages domain
   response.setHeader('Access-Control-Allow-Origin', 'https://stenoip.github.io');
@@ -11,8 +45,6 @@ export default async function handler(request, response) {
     return response.status(200).end();
   }
 
-  // Check the Origin header to ensure the request is from your GitHub Pages site.
-  // This is a crucial security measure.
   const origin = request.headers['origin'];
   if (origin !== 'https://stenoip.github.io') {
     return response.status(403).json({ error: 'Forbidden: Unauthorized origin.' });
@@ -32,8 +64,24 @@ export default async function handler(request, response) {
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
     const { contents, system_instruction } = request.body;
 
+    // Fetch the local files (more_info.txt, personality.txt)
+    const moreInfoContent = await fetchLocalFile('more_info.txt');
+    const personalityContent = await fetchLocalFile('personality.txt');
+
+    // Scrape the websites (Example: WikiHow and stenoip.github.io)
+    const wikiHowContent = await scrapeWebsite('https://www.wikihow.com/Main-Page');
+    const stenoipContent = await scrapeWebsite('https://stenoip.github.io');
+
+    // Combine all the fetched content
+    const combinedContent = `
+      ${moreInfoContent}\n\n
+      ${personalityContent}\n\n
+      WikiHow Content: \n${wikiHowContent}\n\n
+      Stenoip Content: \n${stenoipContent}
+    `;
+
     const payload = {
-      contents,
+      contents: [...contents, { role: "system", parts: [{ text: combinedContent }] }],
       safetySettings: [],
       generationConfig: {},
     };
