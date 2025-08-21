@@ -1,6 +1,5 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-// This handler will be used for your API route
 export default async function handler(request, response) {
   // Set CORS headers to allow requests from stenoip.github.io
   response.setHeader('Access-Control-Allow-Origin', 'https://stenoip.github.io');  // Replace with your actual domain
@@ -16,11 +15,13 @@ export default async function handler(request, response) {
   // Verify the origin is from a valid source (security measure)
   const origin = request.headers['origin'];
   if (origin !== 'https://stenoip.github.io') {
+    console.error('Forbidden: Unauthorized origin', origin);  // Log the origin if it doesn't match
     return response.status(403).json({ error: 'Forbidden: Unauthorized origin.' });
   }
 
   // Ensure the request method is POST
   if (request.method !== 'POST') {
+    console.error('Invalid request method:', request.method);  // Log if the request method isn't POST
     return response.status(405).send('Method Not Allowed');
   }
 
@@ -34,6 +35,13 @@ export default async function handler(request, response) {
     const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
     const { contents, system_instruction } = request.body;  // Extract relevant fields from the request body
+
+    if (!contents) {
+      throw new Error('Missing "contents" field in request body.');
+    }
+
+    // Log the received contents (for debugging purposes)
+    console.log('Received contents:', contents);
 
     // Build the payload to pass to the model
     const payload = {
@@ -54,6 +62,9 @@ export default async function handler(request, response) {
     // Combine content from external files and sources
     payload.contents += `\n\nMore Info:\n${moreInfo}\n\nPersonality Info:\n${personalityInfo}\n\nExternal Content:\n${externalContent}`;
 
+    // Log the full payload before sending to the AI model
+    console.log('Generated Payload:', payload);
+
     // Call the generative model to get content based on the provided inputs
     const result = await model.generateContent(payload);
     const apiResponse = result.response;
@@ -61,18 +72,23 @@ export default async function handler(request, response) {
     // Send back the generated content as a response
     response.status(200).json({ text: apiResponse.text() });
   } catch (error) {
-    console.error('API call failed:', error);
+    console.error('Error during API call:', error.message);  // Log the error message for debugging
     response.status(500).json({ error: 'Failed to generate content.', details: error.message });
   }
 }
 
 // Helper function to fetch content from an external file
 async function fetchFileContent(fileName) {
-  const res = await fetch(`https://stenoip.github.io/${fileName}`);  // Replace with your file URL
-  if (!res.ok) {
-    throw new Error(`Failed to fetch ${fileName}`);
+  try {
+    const res = await fetch(`https://your-storage-location.com/${fileName}`);  // Replace with your file URL
+    if (!res.ok) {
+      throw new Error(`Failed to fetch ${fileName}`);
+    }
+    return await res.text();
+  } catch (err) {
+    console.error(`Error fetching ${fileName}:`, err.message);
+    throw new Error(`Error fetching ${fileName}`);
   }
-  return res.text();
 }
 
 // Helper function to fetch external content (e.g., crawling WikiHow)
