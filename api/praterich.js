@@ -1,5 +1,5 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import fetch from 'node-fetch'; // Assuming you're using fetch to get external files
+import fetch from 'node-fetch'; // Required for fetching external resources like txt files
 
 export default async function handler(request, response) {
   // Set CORS headers to allow requests from your GitHub Pages domain
@@ -7,17 +7,19 @@ export default async function handler(request, response) {
   response.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   response.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  // Handle preflight requests
+  // Handle preflight requests (OPTIONS request)
   if (request.method === 'OPTIONS') {
     return response.status(200).end();
   }
 
   // Check the Origin header to ensure the request is from your GitHub Pages site.
+  // This is a crucial security measure.
   const origin = request.headers['origin'];
   if (origin !== 'https://stenoip.github.io') {
     return response.status(403).json({ error: 'Forbidden: Unauthorized origin.' });
   }
 
+  // Ensure POST method
   if (request.method !== "POST") {
     return response.status(405).send("Method Not Allowed");
   }
@@ -33,13 +35,12 @@ export default async function handler(request, response) {
 
     const { contents, system_instruction } = request.body;
 
-    // Check if we have the contents and system instruction
-    if (!contents) {
-      throw new Error("Contents not provided in the request.");
-    }
+    // Fetch additional data from external resources
+    const moreInfoContent = await fetchExternalFile('more_info.txt');
+    const personalityContent = await fetchExternalFile('personality.txt');
 
     const payload = {
-      contents,
+      contents: contents.concat([{ role: 'system', parts: [{ text: moreInfoContent }, { text: personalityContent }] }]),
       safetySettings: [],
       generationConfig: {},
     };
@@ -48,35 +49,29 @@ export default async function handler(request, response) {
       payload.systemInstruction = system_instruction;
     }
 
-    // Attempt to fetch more_info.txt or personality.txt if needed
-    const moreInfoContent = await fetchFileContent('more_info.txt');
-    const personalityContent = await fetchFileContent('personality.txt');
-
-    // Optional: Combine fetched content with user content (this is an example)
-    contents.push({ role: "system", parts: [{ text: moreInfoContent }, { text: personalityContent }] });
-
-    // Now call the GoogleGenerativeAI API
+    // Requesting content from the generative AI model
     const result = await model.generateContent(payload);
     const apiResponse = result.response;
 
     response.status(200).json({ text: apiResponse.text() });
   } catch (error) {
-    console.error("API call failed:", error);  // Log full error details
+    console.error("API call failed:", error);
     response.status(500).json({ error: "Failed to generate content.", details: error.message });
   }
 }
 
-// Helper function to fetch content from an external file hosted on GitHub Pages
-async function fetchFileContent(fileName) {
+// Fetch content from the specified file URL (more_info.txt, personality.txt, etc.)
+async function fetchExternalFile(fileName) {
   try {
-    // Make sure to adjust the URL to the correct file path on your GitHub Pages
-    const res = await fetch(`https://stenoip.github.io/${fileName}`);
+    const fileUrl = `https://stenoip.github.io/praterich/${fileName}`;
+    const res = await fetch(fileUrl);
     if (!res.ok) {
-      throw new Error(`Failed to fetch ${fileName}: ${res.statusText}`);
+      throw new Error(`Failed to fetch ${fileName}`);
     }
-    return await res.text();  // Read and return the text content of the file
-  } catch (err) {
-    console.error(`Error fetching ${fileName}:`, err.message);  // Log the error
-    throw new Error(`Error fetching ${fileName}`);
+    const content = await res.text();
+    return content;
+  } catch (error) {
+    console.error(`Error fetching file ${fileName}:`, error);
+    throw new Error(`Could not load content from ${fileName}`);
   }
 }
