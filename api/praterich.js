@@ -1,53 +1,85 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+// crawler.js
+import fetch from "node-fetch";
+import * as cheerio from "cheerio";
+import robotsParser from "robots-parser";
 
-export default async function handler(request, response) {
-  // Set CORS headers to allow requests from your GitHub Pages domain
-  response.setHeader('Access-Control-Allow-Origin', 'https://stenoip.github.io');
-  response.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  response.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+// ------------- CONFIG ------------------
+const START_URLS = [
+  "https://stenoip.github.io", 
+  // add other URLs you own or have permission for
+];
+const API_ENDPOINT = "https://your-server.com/api/praterich";
+const MAX_DEPTH = 2;
+const USER_AGENT = "SafeCrawlerBot/1.0";
+// ----------------------------------------
 
-  // Handle preflight requests
-  if (request.method === 'OPTIONS') {
-    return response.status(200).end();
-  }
-
-  // Check the Origin header to ensure the request is from your GitHub Pages site.
-  // This is a crucial security measure.
-  const origin = request.headers['origin'];
-  if (origin !== 'https://stenoip.github.io') {
-    return response.status(403).json({ error: 'Forbidden: Unauthorized origin.' });
-  }
-
-  if (request.method !== "POST") {
-    return response.status(405).send("Method Not Allowed");
-  }
-
+async function canCrawl(url) {
+  const { origin } = new URL(url);
+  const robotsTxtUrl = `${origin}/robots.txt`;
   try {
-    const API_KEY = process.env.API_KEY;
-    if (!API_KEY) {
-      throw new Error("API_KEY environment variable is not set.");
-    }
-
-    const genAI = new GoogleGenerativeAI(API_KEY);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-    const { contents, system_instruction } = request.body;
-
-    const payload = {
-      contents,
-      safetySettings: [],
-      generationConfig: {},
-    };
-
-    if (system_instruction) {
-      payload.systemInstruction = system_instruction;
-    }
-
-    const result = await model.generateContent(payload);
-    const apiResponse = result.response;
-
-    response.status(200).json({ text: apiResponse.text() });
-  } catch (error) {
-    console.error("API call failed:", error);
-    response.status(500).json({ error: "Failed to generate content.", details: error.message });
+    const res = await fetch(robotsTxtUrl);
+    if (!res.ok) return true; // no robots.txt, assume allowed
+    const txt = await res.text();
+    const robots = robotsParser(robotsTxtUrl, txt);
+    return robots.isAllowed(url, USER_AGENT);
+  } catch {
+    return true; // fail-open on fetch error
   }
 }
+
+async function crawl(url, visited = new Set(), depth = 0) {
+  if (visited.has(url) || depth > MAX_DEPTH) return;
+  visited.add(url);
+
+  if (!(await canCrawl(url))) {
+    console.log(`❌ Disallowed by robots.txt: ${url}`);
+    return;
+  }
+
+  console.log(`🌐 Fetching: ${url}`);
+  const res = await fetch(url, { headers: { "User-Agent": USER_AGENT } });
+  if (!res.ok) {
+    console.warn(`Failed to fetch ${url}: ${res.status}`);
+    return;
+  }
+
+  const html = await res.text();
+  const $ = cheerio.load(html);
+  const textContent = $("body").text().replace(/\s+/g, " ").trim();
+
+  // send text to your API handler
+  try {
+    await fetch(API_ENDPOINT, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Origin": "https://stenoip.github.io"
+      },
+      body: JSON.stringify({
+        contents: [
+          { role: "user", parts: [{ text: textContent.slice(0, 5000) }]} // keep it small
+        ]
+      })
+    });
+    console.log(`✅ Sent content from ${url}`);
+  } catch (err) {
+    console.error(`Error sending content from ${url}:`, err);
+  }
+
+  // follow same-domain links
+  const links = $("a[href]")
+    .map((_, el) => new URL($(el).attr("href"), url).toString())
+    .get()
+    .filter(link => link.startsWith(new URL(url).origin));
+
+  for (const link of links) {
+    await crawl(link, visited, depth + 1);
+  }
+}
+
+// run the crawler
+(async () => {
+  for (const startUrl of START_URLS) {
+    await crawl(startUrl);
+  }
+})();
