@@ -23,8 +23,6 @@ const scrapeWebsite = async (url) => {
   try {
     const response = await axios.get(url);
     const $ = cheerio.load(response.data);
-    // You can modify this selector to match the content you need from the website.
-    // Example: Extract the main content of the article.
     const articleContent = $('.article-content').text().trim();
     return articleContent;
   } catch (error) {
@@ -35,21 +33,26 @@ const scrapeWebsite = async (url) => {
 
 // Main handler function
 export default async function handler(request, response) {
-  // Set CORS headers to allow requests from your GitHub Pages domain
-  response.setHeader('Access-Control-Allow-Origin', 'https://stenoip.github.io');
+  // CORS configuration
+  const allowedOrigin = 'https://stenoip.github.io';
+  const origin = request.headers['origin'];
+
+  // Allow the specific origin and preflight requests
+  response.setHeader('Access-Control-Allow-Origin', allowedOrigin);
   response.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   response.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-  // Handle preflight requests
+  
+  // If the request is a preflight OPTIONS request, respond with status 200
   if (request.method === 'OPTIONS') {
     return response.status(200).end();
   }
 
-  const origin = request.headers['origin'];
-  if (origin !== 'https://stenoip.github.io') {
+  // Check the origin against the allowed one
+  if (origin !== allowedOrigin) {
     return response.status(403).json({ error: 'Forbidden: Unauthorized origin.' });
   }
 
+  // Only allow POST requests
   if (request.method !== "POST") {
     return response.status(405).send("Method Not Allowed");
   }
