@@ -33,7 +33,7 @@ const scrapeWebsite = async (url) => {
 
 // Main handler function
 export default async function handler(request, response) {
-  // CORS configuration
+  // Set CORS headers to allow requests from your GitHub Pages domain
   const allowedOrigin = 'https://stenoip.github.io';
   const origin = request.headers['origin'];
 
@@ -41,7 +41,8 @@ export default async function handler(request, response) {
   response.setHeader('Access-Control-Allow-Origin', allowedOrigin);
   response.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   response.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  
+  response.setHeader('Access-Control-Allow-Credentials', 'true');
+
   // If the request is a preflight OPTIONS request, respond with status 200
   if (request.method === 'OPTIONS') {
     return response.status(200).end();
@@ -102,3 +103,4 @@ export default async function handler(request, response) {
     response.status(500).json({ error: "Failed to generate content.", details: error.message });
   }
 }
+
