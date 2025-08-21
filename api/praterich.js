@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import fetch from 'node-fetch'; // Required for fetching external resources like txt files
+import cheerio from 'cheerio'; // For crawling and parsing HTML pages
 
 export default async function handler(request, response) {
   // Set CORS headers to allow requests from your GitHub Pages domain
@@ -42,9 +43,12 @@ export default async function handler(request, response) {
     const moreInfoContent = await fetchExternalFile('more_info.txt');
     const personalityContent = await fetchExternalFile('personality.txt');
 
+    // Optionally crawl a website like wikiHow for more info (if needed)
+    const wikiHowContent = await crawlWebsite('https://www.wikihow.com/Main-Page');
+
     // Prepare the payload for the generative AI model
     const payload = {
-      contents: contents.concat([{ role: 'system', parts: [{ text: moreInfoContent }, { text: personalityContent }] }]),
+      contents: contents.concat([{ role: 'system', parts: [{ text: moreInfoContent }, { text: personalityContent }, { text: wikiHowContent }] }]),
       safetySettings: [],
       generationConfig: {},
     };
@@ -69,8 +73,8 @@ export default async function handler(request, response) {
 // Helper function to fetch content from external text files (more_info.txt, personality.txt, etc.)
 async function fetchExternalFile(fileName) {
   try {
-    // Construct the URL for the file 
-    const fileUrl = `https://stenoip.github.io/praterich${fileName}`;
+    // Construct the URL for the file (assuming it's hosted on GitHub Pages)
+    const fileUrl = `https://stenoip.github.io/praterich/${fileName}`;
     const res = await fetch(fileUrl);
 
     // If the response is not okay, throw an error
@@ -85,5 +89,26 @@ async function fetchExternalFile(fileName) {
     // Log and throw the error if fetching fails
     console.error(`Error fetching file ${fileName}:`, error);
     throw new Error(`Could not load content from ${fileName}`);
+  }
+}
+
+// Helper function to crawl a website and fetch text content (using Cheerio)
+async function crawlWebsite(url) {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) {
+      throw new Error(`Failed to crawl ${url}`);
+    }
+
+    // Parse the HTML content using Cheerio (similar to jQuery)
+    const html = await res.text();
+    const $ = cheerio.load(html);
+
+    // Example: extract the first paragraph text from the page
+    const firstParagraph = $('p').first().text();
+    return firstParagraph; // Return just the first paragraph (or adapt as needed)
+  } catch (error) {
+    console.error(`Error crawling website ${url}:`, error);
+    throw new Error(`Failed to crawl website: ${url}`);
   }
 }
