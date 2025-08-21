@@ -80,7 +80,7 @@ export default async function handler(request, response) {
 // Helper function to fetch content from an external file
 async function fetchFileContent(fileName) {
   try {
-    const res = await fetch(`https://your-storage-location.com/${fileName}`);  // Replace with your file URL
+    const res = await fetch(`https://stenoip.github.io/praterich/${fileName}`);  // Replace with your file URL
     if (!res.ok) {
       throw new Error(`Failed to fetch ${fileName}`);
     }
