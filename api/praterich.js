@@ -1,49 +1,43 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import fetch from 'node-fetch'; // Assuming you're using fetch to get external files
 
 export default async function handler(request, response) {
-  // Set CORS headers to allow requests from stenoip.github.io
-  response.setHeader('Access-Control-Allow-Origin', 'https://stenoip.github.io');  // Replace with your actual domain
+  // Set CORS headers to allow requests from your GitHub Pages domain
+  response.setHeader('Access-Control-Allow-Origin', 'https://stenoip.github.io');
   response.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  response.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  response.setHeader('Access-Control-Allow-Credentials', 'true');  // Allow cookies if needed
+  response.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  // Handle preflight requests (OPTIONS requests)
+  // Handle preflight requests
   if (request.method === 'OPTIONS') {
     return response.status(200).end();
   }
 
-  // Verify the origin is from a valid source (security measure)
+  // Check the Origin header to ensure the request is from your GitHub Pages site.
   const origin = request.headers['origin'];
   if (origin !== 'https://stenoip.github.io') {
-    console.error('Forbidden: Unauthorized origin', origin);  // Log the origin if it doesn't match
     return response.status(403).json({ error: 'Forbidden: Unauthorized origin.' });
   }
 
-  // Ensure the request method is POST
-  if (request.method !== 'POST') {
-    console.error('Invalid request method:', request.method);  // Log if the request method isn't POST
-    return response.status(405).send('Method Not Allowed');
+  if (request.method !== "POST") {
+    return response.status(405).send("Method Not Allowed");
   }
 
   try {
-    const API_KEY = process.env.API_KEY;  // Make sure to set your API key in your environment variables
+    const API_KEY = process.env.API_KEY;
     if (!API_KEY) {
-      throw new Error('API_KEY environment variable is not set.');
+      throw new Error("API_KEY environment variable is not set.");
     }
 
     const genAI = new GoogleGenerativeAI(API_KEY);
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-    const { contents, system_instruction } = request.body;  // Extract relevant fields from the request body
+    const { contents, system_instruction } = request.body;
 
+    // Check if we have the contents and system instruction
     if (!contents) {
-      throw new Error('Missing "contents" field in request body.');
+      throw new Error("Contents not provided in the request.");
     }
 
-    // Log the received contents (for debugging purposes)
-    console.log('Received contents:', contents);
-
-    // Build the payload to pass to the model
     const payload = {
       contents,
       safetySettings: [],
@@ -54,55 +48,35 @@ export default async function handler(request, response) {
       payload.systemInstruction = system_instruction;
     }
 
-    // Fetch more information from your external files and sites
-    const moreInfo = await fetchFileContent('more_info.txt');
-    const personalityInfo = await fetchFileContent('personality.txt');
-    const externalContent = await fetchExternalContent();
+    // Attempt to fetch more_info.txt or personality.txt if needed
+    const moreInfoContent = await fetchFileContent('more_info.txt');
+    const personalityContent = await fetchFileContent('personality.txt');
 
-    // Combine content from external files and sources
-    payload.contents += `\n\nMore Info:\n${moreInfo}\n\nPersonality Info:\n${personalityInfo}\n\nExternal Content:\n${externalContent}`;
+    // Optional: Combine fetched content with user content (this is an example)
+    contents.push({ role: "system", parts: [{ text: moreInfoContent }, { text: personalityContent }] });
 
-    // Log the full payload before sending to the AI model
-    console.log('Generated Payload:', payload);
-
-    // Call the generative model to get content based on the provided inputs
+    // Now call the GoogleGenerativeAI API
     const result = await model.generateContent(payload);
     const apiResponse = result.response;
 
-    // Send back the generated content as a response
     response.status(200).json({ text: apiResponse.text() });
   } catch (error) {
-    console.error('Error during API call:', error.message);  // Log the error message for debugging
-    response.status(500).json({ error: 'Failed to generate content.', details: error.message });
+    console.error("API call failed:", error);  // Log full error details
+    response.status(500).json({ error: "Failed to generate content.", details: error.message });
   }
 }
 
-// Helper function to fetch content from an external file
+// Helper function to fetch content from an external file hosted on GitHub Pages
 async function fetchFileContent(fileName) {
   try {
-    const res = await fetch(`https://stenoip.github.io/praterich/${fileName}`);  // Replace with your file URL
+    // Make sure to adjust the URL to the correct file path on your GitHub Pages
+    const res = await fetch(`https://stenoip.github.io/${fileName}`);
     if (!res.ok) {
-      throw new Error(`Failed to fetch ${fileName}`);
+      throw new Error(`Failed to fetch ${fileName}: ${res.statusText}`);
     }
-    return await res.text();
+    return await res.text();  // Read and return the text content of the file
   } catch (err) {
-    console.error(`Error fetching ${fileName}:`, err.message);
+    console.error(`Error fetching ${fileName}:`, err.message);  // Log the error
     throw new Error(`Error fetching ${fileName}`);
-  }
-}
-
-// Helper function to fetch external content (e.g., crawling WikiHow)
-async function fetchExternalContent() {
-  try {
-    const response = await fetch('https://www.wikihow.com/Some-Article');  // Replace with the actual article URL
-    const html = await response.text();
-
-    // Example: Extract relevant content from the page (this would require a proper parser)
-    // This is just an example - you can use libraries like Cheerio for server-side parsing if needed
-    const content = html.match(/<div class="step">(.*?)<\/div>/);  // Simplified extraction (you should improve this part)
-    return content ? content[1] : 'No external content found.';
-  } catch (err) {
-    console.error('Error fetching external content:', err);
-    return 'Failed to fetch external content.';
   }
 }
