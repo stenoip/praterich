@@ -1,93 +1,122 @@
-// api/praterich.js
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import fetch from 'node-fetch'; // Required for fetching external resources like txt files
+import cheerio from 'cheerio'; // For crawling and parsing HTML pages
 
-// Use dynamic import to handle ESM in Vercel's Node 18+ runtime
-import fetch from 'node-fetch';
-import cheerio from 'cheerio';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+export default async function handler(request, response) {
+  // Set CORS headers to allow requests from your GitHub Pages domain
+  response.setHeader('Access-Control-Allow-Origin', 'https://stenoip.github.io');
+  response.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  response.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  response.setHeader('Access-Control-Allow-Credentials', 'true'); // Allow credentials if needed
 
-export default async function handler(req, res) {
-  // --- CORS headers ---
-  res.setHeader('Access-Control-Allow-Origin', 'https://stenoip.github.io');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-
-  // Handle OPTIONS preflight
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
+  // Handle preflight requests (OPTIONS request)
+  if (request.method === 'OPTIONS') {
+    // This will handle preflight requests and allow the actual POST request to go through
+    return response.status(200).end();
   }
 
-  // Restrict requests to your allowed origin
-  const origin = req.headers.origin;
+  // Check the Origin header to ensure the request is from your GitHub Pages site.
+  // This is a crucial security measure.
+  const origin = request.headers['origin'];
   if (origin !== 'https://stenoip.github.io') {
-    return res.status(403).json({ error: 'Forbidden: Unauthorized origin.' });
+    return response.status(403).json({ error: 'Forbidden: Unauthorized origin.' });
   }
 
-  // Only allow POST
-  if (req.method !== 'POST') {
-    return res.status(405).send('Method Not Allowed');
+  // Ensure POST method
+  if (request.method !== "POST") {
+    return response.status(405).send("Method Not Allowed");
   }
 
   try {
+    // Ensure API_KEY is available in environment variables
     const API_KEY = process.env.API_KEY;
     if (!API_KEY) {
-      throw new Error('API_KEY environment variable is not set.');
+      throw new Error("API_KEY environment variable is not set.");
     }
 
-    // Init Gemini
+    // Initialize Google Generative AI
     const genAI = new GoogleGenerativeAI(API_KEY);
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-    const { contents, system_instruction } = req.body;
+    // Get contents and optional system_instruction from the request body
+    const { contents, system_instruction } = request.body;
 
-    // Load external files
+    // Fetch additional data from external files like more_info.txt and personality.txt
     const moreInfoContent = await fetchExternalFile('more_info.txt');
     const personalityContent = await fetchExternalFile('personality.txt');
 
-    // Crawl optional page
+    // Optionally crawl a website like wikiHow for more info (if needed)
     const wikiHowContent = await crawlWebsite('https://www.wikihow.com/Main-Page');
 
+    // Prepare the payload for the generative AI model
     const payload = {
-      contents: contents.concat([
-        {
-          role: 'system',
-          parts: [
-            { text: moreInfoContent },
-            { text: personalityContent },
-            { text: wikiHowContent }
-          ]
-        }
-      ]),
+      contents: contents.concat([{ role: 'system', parts: [{ text: moreInfoContent }, { text: personalityContent }, { text: wikiHowContent }] }]),
       safetySettings: [],
-      generationConfig: {}
+      generationConfig: {},
     };
 
     if (system_instruction) {
       payload.systemInstruction = system_instruction;
     }
 
+    // Request content generation from the AI model
     const result = await model.generateContent(payload);
     const apiResponse = result.response;
 
-    res.status(200).json({ text: apiResponse.text() });
+    // Respond with the generated content
+    response.status(200).json({ text: apiResponse.text() });
   } catch (error) {
-    console.error('API call failed:', error);
-    res.status(500).json({ error: 'Failed to generate content.', details: error.message });
+    // Catch any errors and send a 500 response
+    console.error("API call failed:", error);
+    response.status(500).json({ error: "Failed to generate content.", details: error.message });
   }
 }
 
-// --- Helpers ---
+// Helper function to fetch content from external text files (more_info.txt, personality.txt, etc.)
 async function fetchExternalFile(fileName) {
-  const fileUrl = `https://stenoip.github.io/${fileName}`;
-  const res = await fetch(fileUrl);
-  if (!res.ok) throw new Error(`Failed to fetch ${fileName}`);
-  return await res.text();
+  try {
+    // Construct the URL for the file (assuming it's hosted on GitHub Pages)
+    const fileUrl = `https://stenoip.github.io/praterich/${fileName}`;
+    const res = await fetch(fileUrl);
+
+    // Check if the response status is OK
+    if (!res.ok) {
+      throw new Error(`Failed to fetch ${fileName}. Status: ${res.status}`);
+    }
+
+    // Check the Content-Type header to ensure it's text or JSON
+    const contentType = res.headers.get('Content-Type');
+    if (!contentType.includes('text/plain') && !contentType.includes('application/json')) {
+      throw new Error(`Expected text or JSON, but got: ${contentType}`);
+    }
+
+    // Return the content of the file as text
+    const content = await res.text();
+    return content;
+  } catch (error) {
+    // Log and throw the error if fetching fails
+    console.error(`Error fetching file ${fileName}:`, error);
+    throw new Error(`Could not load content from ${fileName}`);
+  }
 }
 
+// Helper function to crawl a website and fetch text content (using Cheerio)
 async function crawlWebsite(url) {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Failed to crawl ${url}`);
-  const html = await res.text();
-  const $ = cheerio.load(html);
-  return $('p').first().text();
+  try {
+    const res = await fetch(url);
+    if (!res.ok) {
+      throw new Error(`Failed to crawl ${url}`);
+    }
+
+    // Parse the HTML content using Cheerio (similar to jQuery)
+    const html = await res.text();
+    const $ = cheerio.load(html);
+
+    // Example: extract the first paragraph text from the page
+    const firstParagraph = $('p').first().text();
+    return firstParagraph; // Return just the first paragraph (or adapt as needed)
+  } catch (error) {
+    console.error(`Error crawling website ${url}:`, error);
+    throw new Error(`Failed to crawl website: ${url}`);
+  }
 }
