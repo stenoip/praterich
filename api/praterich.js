@@ -1,12 +1,13 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import fetch from 'node-fetch'; // Required for fetching external resources like txt files
-import cheerio from 'cheerio'; // For crawling and parsing HTML pages
+import fetch from 'node-fetch'; // Or use native fetch if your Node version supports it
+import cheerio from 'cheerio';
 
 export default async function handler(request, response) {
   // Set CORS headers to allow requests from your GitHub Pages domain
   response.setHeader('Access-Control-Allow-Origin', 'https://stenoip.github.io');
   response.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   response.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  response.setHeader('Access-Control-Allow-Credentials', 'true'); // Allow credentials if needed
 
   // Handle preflight requests (OPTIONS request)
   if (request.method === 'OPTIONS') {
@@ -14,7 +15,6 @@ export default async function handler(request, response) {
   }
 
   // Check the Origin header to ensure the request is from your GitHub Pages site.
-  // This is a crucial security measure.
   const origin = request.headers['origin'];
   if (origin !== 'https://stenoip.github.io') {
     return response.status(403).json({ error: 'Forbidden: Unauthorized origin.' });
@@ -34,6 +34,8 @@ export default async function handler(request, response) {
 
     // Initialize Google Generative AI
     const genAI = new GoogleGenerativeAI(API_KEY);
+    
+    // Assuming .generateContent method is correct, adjust based on the library's API
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
     // Get contents and optional system_instruction from the request body
@@ -59,12 +61,13 @@ export default async function handler(request, response) {
 
     // Request content generation from the AI model
     const result = await model.generateContent(payload);
-    const apiResponse = result.response;
+
+    // Assuming the response has 'text' directly or it's an object with the 'text' property
+    const apiResponseText = result.response.text || result.response;
 
     // Respond with the generated content
-    response.status(200).json({ text: apiResponse.text() });
+    response.status(200).json({ text: apiResponseText });
   } catch (error) {
-    // Catch any errors and send a 500 response
     console.error("API call failed:", error);
     response.status(500).json({ error: "Failed to generate content.", details: error.message });
   }
@@ -73,20 +76,16 @@ export default async function handler(request, response) {
 // Helper function to fetch content from external text files (more_info.txt, personality.txt, etc.)
 async function fetchExternalFile(fileName) {
   try {
-    // Construct the URL for the file (assuming it's hosted on GitHub Pages)
     const fileUrl = `https://stenoip.github.io/praterich/${fileName}`;
     const res = await fetch(fileUrl);
 
-    // If the response is not okay, throw an error
     if (!res.ok) {
       throw new Error(`Failed to fetch ${fileName}`);
     }
 
-    // Return the content of the file as text
     const content = await res.text();
     return content;
   } catch (error) {
-    // Log and throw the error if fetching fails
     console.error(`Error fetching file ${fileName}:`, error);
     throw new Error(`Could not load content from ${fileName}`);
   }
@@ -100,13 +99,12 @@ async function crawlWebsite(url) {
       throw new Error(`Failed to crawl ${url}`);
     }
 
-    // Parse the HTML content using Cheerio (similar to jQuery)
     const html = await res.text();
     const $ = cheerio.load(html);
-
+    
     // Example: extract the first paragraph text from the page
     const firstParagraph = $('p').first().text();
-    return firstParagraph; // Return just the first paragraph (or adapt as needed)
+    return firstParagraph;
   } catch (error) {
     console.error(`Error crawling website ${url}:`, error);
     throw new Error(`Failed to crawl website: ${url}`);
