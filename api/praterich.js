@@ -1,91 +1,43 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import axios from 'axios';
-import cheerio from 'cheerio';
-import fs from 'fs';
-import path from 'path';
 
-// Helper function to fetch local text files
-const fetchLocalFile = (fileName) => {
-  return new Promise((resolve, reject) => {
-    const filePath = path.join(process.cwd(), 'data', fileName);
-    fs.readFile(filePath, 'utf-8', (err, data) => {
-      if (err) {
-        reject(err);
-      } else {
-        resolve(data);
-      }
-    });
-  });
-};
-
-// Helper function to scrape content from a website (WikiHow in this case)
-const scrapeWebsite = async (url) => {
-  try {
-    const response = await axios.get(url);
-    const $ = cheerio.load(response.data);
-    const articleContent = $('.article-content').text().trim();
-    return articleContent;
-  } catch (error) {
-    console.error("Failed to scrape website:", error);
-    return '';
-  }
-};
-
-// Main handler function
+// This handler will be used for your API route
 export default async function handler(request, response) {
-  // Set CORS headers to allow requests from your GitHub Pages domain
-  const allowedOrigin = 'https://stenoip.github.io';
-  const origin = request.headers['origin'];
-
-  // Allow the specific origin and preflight requests
-  response.setHeader('Access-Control-Allow-Origin', allowedOrigin);
+  // Set CORS headers to allow requests from stenoip.github.io
+  response.setHeader('Access-Control-Allow-Origin', 'https://stenoip.github.io');  // Replace with your actual domain
   response.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  response.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  response.setHeader('Access-Control-Allow-Credentials', 'true');
+  response.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  response.setHeader('Access-Control-Allow-Credentials', 'true');  // Allow cookies if needed
 
-  // If the request is a preflight OPTIONS request, respond with status 200
+  // Handle preflight requests (OPTIONS requests)
   if (request.method === 'OPTIONS') {
     return response.status(200).end();
   }
 
-  // Check the origin against the allowed one
-  if (origin !== allowedOrigin) {
+  // Verify the origin is from a valid source (security measure)
+  const origin = request.headers['origin'];
+  if (origin !== 'https://stenoip.github.io') {
     return response.status(403).json({ error: 'Forbidden: Unauthorized origin.' });
   }
 
-  // Only allow POST requests
-  if (request.method !== "POST") {
-    return response.status(405).send("Method Not Allowed");
+  // Ensure the request method is POST
+  if (request.method !== 'POST') {
+    return response.status(405).send('Method Not Allowed');
   }
 
   try {
-    const API_KEY = process.env.API_KEY;
+    const API_KEY = process.env.API_KEY;  // Make sure to set your API key in your environment variables
     if (!API_KEY) {
-      throw new Error("API_KEY environment variable is not set.");
+      throw new Error('API_KEY environment variable is not set.');
     }
 
     const genAI = new GoogleGenerativeAI(API_KEY);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-    const { contents, system_instruction } = request.body;
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
-    // Fetch the local files (more_info.txt, personality.txt)
-    const moreInfoContent = await fetchLocalFile('more_info.txt');
-    const personalityContent = await fetchLocalFile('personality.txt');
+    const { contents, system_instruction } = request.body;  // Extract relevant fields from the request body
 
-    // Scrape the websites (Example: WikiHow and stenoip.github.io)
-    const wikiHowContent = await scrapeWebsite('https://www.wikihow.com/Main-Page');
-    const stenoipContent = await scrapeWebsite('https://stenoip.github.io');
-
-    // Combine all the fetched content
-    const combinedContent = `
-      ${moreInfoContent}\n\n
-      ${personalityContent}\n\n
-      WikiHow Content: \n${wikiHowContent}\n\n
-      Stenoip Content: \n${stenoipContent}
-    `;
-
+    // Build the payload to pass to the model
     const payload = {
-      contents: [...contents, { role: "system", parts: [{ text: combinedContent }] }],
+      contents,
       safetySettings: [],
       generationConfig: {},
     };
@@ -94,13 +46,47 @@ export default async function handler(request, response) {
       payload.systemInstruction = system_instruction;
     }
 
+    // Fetch more information from your external files and sites
+    const moreInfo = await fetchFileContent('more_info.txt');
+    const personalityInfo = await fetchFileContent('personality.txt');
+    const externalContent = await fetchExternalContent();
+
+    // Combine content from external files and sources
+    payload.contents += `\n\nMore Info:\n${moreInfo}\n\nPersonality Info:\n${personalityInfo}\n\nExternal Content:\n${externalContent}`;
+
+    // Call the generative model to get content based on the provided inputs
     const result = await model.generateContent(payload);
     const apiResponse = result.response;
 
+    // Send back the generated content as a response
     response.status(200).json({ text: apiResponse.text() });
   } catch (error) {
-    console.error("API call failed:", error);
-    response.status(500).json({ error: "Failed to generate content.", details: error.message });
+    console.error('API call failed:', error);
+    response.status(500).json({ error: 'Failed to generate content.', details: error.message });
   }
 }
 
+// Helper function to fetch content from an external file
+async function fetchFileContent(fileName) {
+  const res = await fetch(`https://stenoip.github.io/${fileName}`);  // Replace with your file URL
+  if (!res.ok) {
+    throw new Error(`Failed to fetch ${fileName}`);
+  }
+  return res.text();
+}
+
+// Helper function to fetch external content (e.g., crawling WikiHow)
+async function fetchExternalContent() {
+  try {
+    const response = await fetch('https://www.wikihow.com/Some-Article');  // Replace with the actual article URL
+    const html = await response.text();
+
+    // Example: Extract relevant content from the page (this would require a proper parser)
+    // This is just an example - you can use libraries like Cheerio for server-side parsing if needed
+    const content = html.match(/<div class="step">(.*?)<\/div>/);  // Simplified extraction (you should improve this part)
+    return content ? content[1] : 'No external content found.';
+  } catch (err) {
+    console.error('Error fetching external content:', err);
+    return 'Failed to fetch external content.';
+  }
+}
