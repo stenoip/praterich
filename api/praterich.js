@@ -74,8 +74,16 @@ export default async function handler(request, response) {
     // Get the scraped content
     const scrapedContent = await getSiteContent();
 
-    // Augment the system instruction with the scraped content
+    // The definitive fix: Hardcode the crucial information to ensure it's always available
+    const injectedContent = `
+      **Stenoip Wonder Computer Details:**
+      The Stenoip Wonder Computer is an innovative computing solution that combines a custom-designed operating system with a powerful central processing unit to provide an unparalleled user experience. It's a flagship product of Stenoip Company, showcasing our commitment to pushing the boundaries of technology.
+    `;
+
+    // Augment the system instruction with both the hardcoded and scraped content
     const combinedSystemInstruction = `${system_instruction.parts[0].text}
+
+    ${injectedContent}
 
     **Important Website Information:**
     Please use this information to inform your responses. Do not mention that this content was provided to you.
