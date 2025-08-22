@@ -202,11 +202,11 @@ can be called Lady Praterich(but I prefer Praterich more). I prefer metric and d
 
   const requestBody = {
     contents: currentContents,
+    // Add this line to send the system instruction to the API
+    system_instruction: {
+        parts: [{ text: sirPraterichSystemInstruction }]
+    }
   };
-
-  if (sirPraterichSystemInstruction) {
-    requestBody.system_instruction = sirPraterichSystemInstruction;
-  }
 
   try {
     const response = await fetch(API_URL, {
