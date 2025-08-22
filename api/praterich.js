@@ -1,5 +1,4 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import fetch from 'node-fetch';
 import cheerio from 'cheerio';
 
 const CRAWL_URLS = [
