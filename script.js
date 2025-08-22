@@ -6,7 +6,6 @@ const fileInput = promptForm.querySelector("#file-input");
 const fileUploadWrapper = promptForm.querySelector(".file-upload-wrapper");
 const themeToggleBtn = document.querySelector("#theme-toggle-btn");
 const stopResponseBtn = document.querySelector("#stop-response-btn");
-const crawlSiteBtn = document.querySelector("#crawl-site-btn");
 const deleteChatsBtn = document.querySelector("#delete-chats-btn");
 
 // API Setup
@@ -206,9 +205,7 @@ can be called Lady Praterich(but I prefer Praterich more). I prefer metric and d
   };
 
   if (sirPraterichSystemInstruction) {
-    requestBody.system_instruction = {
-      parts: [{ text: sirPraterichSystemInstruction }],
-    };
+    requestBody.system_instruction = sirPraterichSystemInstruction;
   }
 
   try {
@@ -222,7 +219,7 @@ can be called Lady Praterich(but I prefer Praterich more). I prefer metric and d
     const data = await response.json();
 
     if (!response.ok || data.error) {
-      const errorMessage = data.error ? data.error.message : "An unknown error occurred.";
+      const errorMessage = data.error ? data.error.details : "An unknown error occurred.";
       throw new Error(errorMessage);
     }
 
@@ -333,60 +330,6 @@ document.querySelectorAll(".suggestions-item").forEach((suggestion) => {
     promptInput.value = suggestion.querySelector(".text").textContent;
     promptForm.dispatchEvent(new Event("submit"));
   });
-});
-
-// Crawl Site functionality
-crawlSiteBtn.addEventListener("click", async () => {
-  const userMsgDiv = createMessageElement(`<p class="message-text">Please crawl my site.</p>`, "user-message");
-  chatsContainer.appendChild(userMsgDiv);
-  scrollToBottom();
-
-  const botMsgHTML = `<img class="avatar" src="https://stenoip.github.io/praterich/ladypraterich.png" /> <p class="message-text">Starting to crawl your website. This may take a moment.</p>`;
-  const botMsgDiv = createMessageElement(botMsgHTML, "bot-message", "loading");
-  chatsContainer.appendChild(botMsgDiv);
-  scrollToBottom();
-
-  try {
-    const response = await fetch(API_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: "crawl_site",
-        crawl_urls: ["https://stenoip.github.io/", "https://stenoip.github.io/about.html", "https://stenoip.github.io/services.html"],
-      }),
-    });
-
-    const data = await response.json();
-    let responseText;
-
-    if (response.ok && data.text) {
-      responseText = data.text;
-    } else {
-      responseText = `I encountered an error while crawling: ${data.error || 'Unknown error'}.`;
-      botMsgDiv.style.color = "#d62939";
-    }
-
-    botMsgDiv.classList.remove("loading");
-    const textElement = botMsgDiv.querySelector(".message-text");
-    textElement.innerHTML = formatResponseText(responseText);
-    scrollToBottom();
-
-  } catch (error) {
-    botMsgDiv.classList.remove("loading");
-    const textElement = botMsgDiv.querySelector(".message-text");
-    textElement.innerHTML = `An unexpected error occurred: ${error.message}.`;
-    textElement.style.color = "#d62939";
-    scrollToBottom();
-  }
-});
-
-// Show/hide controls for mobile on prompt input focus
-document.addEventListener("click", ({ target }) => {
-  const wrapper = document.querySelector(".prompt-wrapper");
-  const shouldHide =
-    target.classList.contains("prompt-input") ||
-    (wrapper.classList.contains("hide-controls") && (target.id === "add-file-btn" || target.id === "stop-response-btn"));
-  wrapper.classList.toggle("hide-controls", shouldHide);
 });
 
 // Add event listeners for form submission and file input click
