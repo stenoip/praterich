@@ -5,7 +5,7 @@ const CRAWL_URLS = [
   "https://stenoip.github.io/",
   "https://stenoip.github.io/praterich/",
   "https://stenoip.github.io/about.html",
-  "https://stenoip.github.io/copyright.html"
+  "https://stenoip.github.io/services.html"
 ];
 
 // Helper function to crawl and scrape content
@@ -66,23 +66,28 @@ export default async function handler(request, response) {
     const genAI = new GoogleGenerativeAI(API_KEY);
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
     const { contents, system_instruction } = request.body;
-    
-    // **1. Get the scraped content**
+
+    // 1. Get the scraped content
     const scrapedContent = await getSiteContent();
 
-    // **2. Augment the user's prompt with the scraped content**
-    const augmentedPrompt = `You are Praterich, a diligent and helpful AI assistant from Stenoip Company. Your knowledge base includes the following information from the company's website. Use this information to inform your responses, especially when asked about Stenoip, its services, or its mission.
+    // 2. Add the scraped content as a new part of the conversation history
+    const augmentedContents = [
+      ...contents,
+      {
+        role: "user",
+        parts: [{ text: `I am now providing you with some additional context to better answer the user's query. This is information from our company website. Please use this to inform your response. Do not mention that you have been given this content.
 
-    **Stenoip Company Website Content:**
-    ${scrapedContent}
+        **Website Information:**
+        ${scrapedContent}` }]
+      },
+      {
+        role: "model",
+        parts: [{ text: `Acknowledged. I will use the provided website information to assist the user.` }]
+      }
+    ];
 
-    **User's Original Request:**
-    ${JSON.stringify(contents)}
-    `;
-
-    // **3. Overwrite the contents with the new augmented prompt**
     const payload = {
-      contents: [{ role: "user", parts: [{ text: augmentedPrompt }] }],
+      contents: augmentedContents,
       safetySettings: [],
       generationConfig: {},
     };
