@@ -2,7 +2,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import fs from 'fs/promises';
 import path from 'path';
 
-// This function reads the content from the local JSON file
+// This function will read the content from the local JSON file
 async function getSiteContentFromFile() {
   const filePath = path.join(process.cwd(), 'api', 'index.json');
   try {
