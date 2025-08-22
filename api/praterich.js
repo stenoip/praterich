@@ -21,14 +21,8 @@ async function getSiteContent() {
       const html = await response.text();
       const $ = cheerio.load(html);
 
-      // Target specific content-bearing tags for better data extraction
-      let content = [];
-      $('p, h1, h2, h3, h4, h5, h6, li').each((i, el) => {
-        const text = $(el).text().trim();
-        if (text) {
-          content.push(text);
-        }
-      });
+      // Extract all text content from the body, then clean it up
+      const allText = $('body').text().replace(/\s+/g, ' ').trim();
 
       // Extract alt text from images
       let imageDescriptions = [];
@@ -38,7 +32,7 @@ async function getSiteContent() {
           imageDescriptions.push(`Image description: ${altText}`);
         }
       });
-      combinedContent += `--- Content from ${url} ---\n${content.filter(Boolean).join('\n')}\n${imageDescriptions.join('\n')}\n`;
+      combinedContent += `--- Content from ${url} ---\n${allText}\n${imageDescriptions.join('\n')}\n`;
     } catch (error) {
       console.error(`Error crawling ${url}:`, error);
     }
