@@ -1,0 +1,3 @@
+{
+  "buildCommand": "node crawler.js && npm install"
+}
