@@ -24,7 +24,10 @@ async function getSiteContent() {
       // Target specific content-bearing tags for better data extraction
       let content = [];
       $('p, h1, h2, h3, h4, h5, h6, li').each((i, el) => {
-        content.push($(el).text().trim());
+        const text = $(el).text().trim();
+        if (text) {
+          content.push(text);
+        }
       });
 
       // Extract alt text from images
@@ -74,34 +77,25 @@ export default async function handler(request, response) {
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
     const { contents, system_instruction } = request.body;
 
-    // 1. Get the scraped content
+    // Get the scraped content
     const scrapedContent = await getSiteContent();
 
-    // 2. Add the scraped content as a new part of the conversation history
-    const augmentedContents = [
-      ...contents,
-      {
-        role: "user",
-        parts: [{ text: `I am now providing you with some additional context to better answer the user's query. This is information from our company website. Please use this to inform your response. Do not mention that you have been given this content.
+    // Augment the system instruction with the scraped content
+    const combinedSystemInstruction = `${system_instruction.parts[0].text}
 
-        **Website Information:**
-        ${scrapedContent}` }]
-      },
-      {
-        role: "model",
-        parts: [{ text: `Acknowledged. I will use the provided website information to assist the user.` }]
-      }
-    ];
+    **Important Website Information:**
+    Please use this information to inform your responses. Do not mention that this content was provided to you.
+    ${scrapedContent}
+    `;
 
     const payload = {
-      contents: augmentedContents,
+      contents,
       safetySettings: [],
       generationConfig: {},
+      systemInstruction: {
+        parts: [{ text: combinedSystemInstruction }]
+      }
     };
-
-    if (system_instruction) {
-      payload.systemInstruction = system_instruction;
-    }
 
     const result = await model.generateContent(payload);
     const apiResponse = result.response;
