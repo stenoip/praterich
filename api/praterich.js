@@ -1,43 +1,18 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import cheerio from 'cheerio';
+import fs from 'fs/promises';
+import path from 'path';
 
-const CRAWL_URLS = [
-  "https://stenoip.github.io/",
-  "https://stenoip.github.io/praterich/",
-  "https://stenoip.github.io/about.html",
-  "https://stenoip.github.io/services.html"
-];
-
-// Helper function to crawl and scrape content
-async function getSiteContent() {
-  let combinedContent = "";
-  for (const url of CRAWL_URLS) {
-    try {
-      const response = await fetch(url);
-      if (!response.ok) {
-        console.error(`Failed to fetch ${url}: ${response.statusText}`);
-        continue;
-      }
-      const html = await response.text();
-      const $ = cheerio.load(html);
-
-      // Extract all text content from the body, then clean it up
-      const allText = $('body').text().replace(/\s+/g, ' ').trim();
-
-      // Extract alt text from images
-      let imageDescriptions = [];
-      $('img').each((i, el) => {
-        const altText = $(el).attr('alt');
-        if (altText) {
-          imageDescriptions.push(`Image description: ${altText}`);
-        }
-      });
-      combinedContent += `--- Content from ${url} ---\n${allText}\n${imageDescriptions.join('\n')}\n`;
-    } catch (error) {
-      console.error(`Error crawling ${url}:`, error);
-    }
+// This function reads the content from the local JSON file
+async function getSiteContentFromFile() {
+  const filePath = path.join(process.cwd(), 'api', 'index.json');
+  try {
+    const data = await fs.readFile(filePath, 'utf8');
+    const parsedData = JSON.parse(data);
+    return parsedData.website_info;
+  } catch (error) {
+    console.error("Error reading index.json:", error);
+    return "Error: Could not retrieve website information.";
   }
-  return combinedContent;
 }
 
 export default async function handler(request, response) {
@@ -71,29 +46,14 @@ export default async function handler(request, response) {
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
     const { contents, system_instruction } = request.body;
 
-    // Get the scraped content
-    const scrapedContent = await getSiteContent();
+    // Get the content from the local JSON file
+    const scrapedContent = await getSiteContentFromFile();
 
-    // Check the user's latest message for keywords related to the "Stenoip Wonder Computer"
-    const latestUserMessage = contents[contents.length - 1].parts[0].text;
-    const wonderComputerKeywords = ["wonder computer", "swc", "stenoip wonder computer"];
-    const shouldInject = wonderComputerKeywords.some(keyword => latestUserMessage.toLowerCase().includes(keyword));
-
-    // Conditionally inject the specific content
-    let injectedContent = "";
-    if (shouldInject) {
-      injectedContent = `
-        **Stenoip Wonder Computer Details:**
-        The Stenoip Wonder Computer is an innovative computing solution that seamlessly merges a custom-designed operating system with a profoundly powerful central processing unit. This sophisticated integration is meticulously crafted to furnish users with an unparalleled computing experience. It proudly stands as a flagship product of Stenoip Company, embodying our steadfast dedication to continually advance the frontiers of technology.
-      `;
-    }
-
-    // Augment the system instruction with only the necessary content
+    // Augment the system instruction with the local content
     const combinedSystemInstruction = `${system_instruction.parts[0].text}
 
     **Important Website Information:**
     Please use this information to inform your responses. Do not mention that this content was provided to you.
-    ${injectedContent}
     ${scrapedContent}
     `;
 
