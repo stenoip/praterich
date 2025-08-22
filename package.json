@@ -1,14 +1,14 @@
 {
   "name": "praterich-api",
   "version": "1.0.0",
-  "description": "Praterich AI Assistant",
+  "description": "API for Praterich AI Assistant",
   "main": "api/praterich.js",
   "scripts": {
     "start": "vercel dev"
   },
   "dependencies": {
     "@google/generative-ai": "^0.15.0",
-    "cheerio": "^1.0.0-rc.12",
-    "node-fetch": "^3.3.2"
+    "cheerio": "^1.0.0-rc.12"
+   
   }
 }
