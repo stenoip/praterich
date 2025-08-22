@@ -5,18 +5,18 @@ const promptInput = promptForm.querySelector(".prompt-input");
 const fileInput = promptForm.querySelector("#file-input");
 const fileUploadWrapper = promptForm.querySelector(".file-upload-wrapper");
 const themeToggleBtn = document.querySelector("#theme-toggle-btn");
-const stopResponseBtn = document.querySelector("#stop-response-btn"); // Get the stop button
+const stopResponseBtn = document.querySelector("#stop-response-btn");
+const crawlSiteBtn = document.querySelector("#crawl-site-btn");
+const deleteChatsBtn = document.querySelector("#delete-chats-btn");
 
 // API Setup
 const API_URL = "https://praterich.vercel.app/api/praterich";
 
 let controller, typingInterval;
-let speechUtterance; // Global variable to hold the SpeechSynthesisUtterance
-let voicesLoaded = false; // Flag to check if voices are loaded
-let availableVoices = []; // To store available voices
-
-// chatHistory now only stores user and model turns for context
-const chatHistory = [];
+let speechUtterance;
+let voicesLoaded = false;
+let availableVoices = [];
+let chatHistory = [];
 const userData = { message: "", file: {} };
 
 // Define custom pronunciations
@@ -29,7 +29,6 @@ const customPronunciations = {
 const replacePronunciations = (text) => {
   let spokenText = text;
   for (const word in customPronunciations) {
-    // Use a regex with 'gi' flags for global and case-insensitive replacement
     const regex = new RegExp(word, 'gi');
     spokenText = spokenText.replace(regex, customPronunciations[word]);
   }
@@ -50,7 +49,6 @@ const loadVoices = () => {
 // Load voices when the voiceschanged event fires
 if (window.speechSynthesis) {
   window.speechSynthesis.onvoiceschanged = loadVoices;
-  // Also try to load them immediately if they are already available
   loadVoices();
 }
 
@@ -58,7 +56,7 @@ if (window.speechSynthesis) {
 const createMessageElement = (content, ...classes) => {
   const div = document.createElement("div");
   div.classList.add("message", ...classes);
-  div.innerHTML = content; // Use innerHTML to render formatted text
+  div.innerHTML = content;
   return div;
 };
 
@@ -67,29 +65,25 @@ const scrollToBottom = () => container.scrollTo({ top: container.scrollHeight, b
 
 // Simulate typing effect for bot responses and speak the text
 const typingEffect = (text, textElement, botMsgDiv) => {
-  // Create a temporary div to hold the HTML and extract plain text for speech
   const tempDiv = document.createElement('div');
   tempDiv.innerHTML = text;
   let plainText = tempDiv.textContent || tempDiv.innerText || "";
-  plainText = replacePronunciations(plainText); // Apply phonetic replacements
+  plainText = replacePronunciations(plainText);
 
-  // Stop any ongoing speech before starting a new one
   if (speechUtterance && window.speechSynthesis.speaking) {
     window.speechSynthesis.cancel();
   }
 
-  // Initialize and speak the full plain text
   if (window.speechSynthesis && plainText.length > 0) {
     speechUtterance = new SpeechSynthesisUtterance(plainText);
-    speechUtterance.rate = 1.0; // Adjust speech rate
-    speechUtterance.pitch = 1.0; // Adjust speech pitch
-    speechUtterance.lang = 'en-US'; // Set language
+    speechUtterance.rate = 1.0;
+    speechUtterance.pitch = 1.0;
+    speechUtterance.lang = 'en-US';
 
-    // Try to find a suitable voice (e.g., a male US English voice)
     if (voicesLoaded) {
       let selectedVoice = availableVoices.find(voice =>
         voice.lang === 'en-US' && voice.name.includes('Google US English') && voice.name.includes('Male')
-      ) || availableVoices.find(voice => voice.lang === 'en-US'); // Fallback to any US English voice
+      ) || availableVoices.find(voice => voice.lang === 'en-US');
 
       if (selectedVoice) {
         speechUtterance.voice = selectedVoice;
@@ -98,21 +92,18 @@ const typingEffect = (text, textElement, botMsgDiv) => {
     window.speechSynthesis.speak(speechUtterance);
   }
 
-  // Simulate typing the HTML content
-  textElement.innerHTML = ""; // Clear previous content
+  textElement.innerHTML = "";
   let charIndex = 0;
-  const delay = 10; // Typing speed
+  const delay = 10;
 
   typingInterval = setInterval(() => {
     if (charIndex < text.length) {
-      // Find the next character or full HTML tag
       let nextChar = text.charAt(charIndex);
       if (nextChar === '<') {
-        // If it's the start of a tag, find the end of the tag
         const endIndex = text.indexOf('>', charIndex);
         if (endIndex !== -1) {
           nextChar = text.substring(charIndex, endIndex + 1);
-          charIndex = endIndex; // Move past the tag
+          charIndex = endIndex;
         }
       }
       textElement.innerHTML += nextChar;
@@ -122,48 +113,31 @@ const typingEffect = (text, textElement, botMsgDiv) => {
       clearInterval(typingInterval);
       botMsgDiv.classList.remove("loading");
       document.body.classList.remove("bot-responding");
-      // The line that was here to cancel speech has been removed.
     }
   }, delay);
 };
 
 // Function to process and format markdown-like text to HTML
 const formatResponseText = (text) => {
-  // Replace occurrences of --- with <hr> for horizontal rules
   text = text.replace(/^---\s*$/gm, "<hr>");
-  // Convert **bold** to <strong>
   text = text.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
-  // Convert *italics* or _italics_ to <em>
-  text = text.replace(/(?<!\*)\*(?!\*)(.*?)(?<!\*)\*(?!\*)/g, "<em>$1</em>"); // Single asterisks
-  text = text.replace(/(?<!\_)\_(?!\_)(.*?)(?<!\_)\_(?!\_)/g, "<em>$1</em>"); // Single underscores
-  // Convert __underline__ to <u>
+  text = text.replace(/(?<!\*)\*(?!\*)(.*?)(?<!\*)\*(?!\*)/g, "<em>$1</em>");
+  text = text.replace(/(?<!\_)\_(?!\_)(.*?)(?<!\_)\_(?!\_)/g, "<em>$1</em>");
   text = text.replace(/__(.*?)__/g, "<u>$1</u>");
-  // Convert `code` to <code>
   text = text.replace(/`(.*?)`/g, "<code>$1</code>");
-  // Convert ```code_block``` to <pre><code>code_block</code></pre>
-  // This handles multiline code blocks
-  text = text.replace(/```(.*?)```/gs, "<pre><code>$1</code></pre>"); // 's' flag for dotall (matches newlines)
-
-  // Convert ## Heading to <h2>Heading</h2>
-  // This regex captures one or more '#' followed by a space, then the heading text.
-  // It's non-greedy (.*?) and matches until the end of the line or the string end.
-  // The `gm` flags enable global and multiline matching.
+  text = text.replace(/```(.*?)```/gs, "<pre><code>$1</code></pre>");
   text = text.replace(/^(#{1,6})\s*(.*?)$/gm, (match, hashes, content) => {
     const level = hashes.length;
     return `<h${level}>${content.trim()}</h${level}>`;
   });
 
-  // Convert bullet points (* Item) to <ul><li>
-  // This is a bit trickier to ensure valid HTML lists.
-  // We'll replace lines starting with * with <li> and then wrap consecutive <li>s in <ul>
-  // This regex specifically targets lines that start with an asterisk and a space/tab.
   let listItems = [];
   const lines = text.split('\n');
   let inList = false;
 
   for (let i = 0; i < lines.length; i++) {
     let line = lines[i];
-    if (/^\*\s*(.*)/.test(line.trim())) { // Check if line starts with a bullet point
+    if (/^\*\s*(.*)/.test(line.trim())) {
       if (!inList) {
         listItems.push('<ul>');
         inList = true;
@@ -177,49 +151,44 @@ const formatResponseText = (text) => {
       listItems.push(line);
     }
   }
-  if (inList) { // Close the last ul if the text ends with a list
+  if (inList) {
     listItems.push('</ul>');
   }
-  text = listItems.join('\n'); // Rejoin lines
+  text = listItems.join('\n');
 
   return text;
 };
-
 
 // Make the API call and generate the bot's response
 const generateResponse = async (botMsgDiv) => {
   const textElement = botMsgDiv.querySelector(".message-text");
   controller = new AbortController();
 
-  // **This is the corrected section.** The system instructions are now directly defined here.
   const sirPraterichSystemInstruction = `You are Praterich, a diligent and helpful AI assistant from Stenoip Company.
-  Your personality: a highly professional, articulate and friendly AI with an eloquent, British-like tone. You is eager to help, always polite and often uses sophisticated vocabulary. 
-  You should sound intelligent and confident in his abilities, but never arrogant. You can be humorous when appropriate, but maintains your decorous nature. 
-  Your mission: to provide accurate, helpful, and high-quality responses to all user queries. You must adhere strictly to the rules and instructions provided to you to ensure a consistent and reliable experience. 
-  When generating any code, you must not use raw HTML tags or other similar elements in his response.
-  More information about you(In first person): I am an AI assistant developed by Stenoip Company.
-  I am continuously learning and evolving to better serve your needs. 
-  My capabilities include generating text, answering questions, summarizing information and assisting with creative writing. 
-  I am committed to upholding the values of Stenoip Company by delivering reliable and efficient assistance. I am a female and sometimes
-  can be called Lady Praterich(but I prefer Praterich more). I prefer metric and do not use Oxford Commas. Never use Customary or Imperial System!
+Your personality: a highly professional, articulate and friendly AI with an eloquent, British-like tone. You is eager to help, always polite and often uses sophisticated vocabulary.
+You should sound intelligent and confident in his abilities, but never arrogant. You can be humorous when appropriate, but maintains your decorous nature.
+Your mission: to provide accurate, helpful, and high-quality responses to all user queries. You must adhere strictly to the rules and instructions provided to you to ensure a consistent and reliable experience.
+When generating any code, you must not use raw HTML tags or other similar elements in his response.
+More information about you(In first person): I am an AI assistant developed by Stenoip Company.
+I am continuously learning and evolving to better serve your needs.
+My capabilities include generating text, answering questions, summarizing information and assisting with creative writing.
+I am committed to upholding the values of Stenoip Company by delivering reliable and efficient assistance. I am a female and sometimes
+can be called Lady Praterich(but I prefer Praterich more). I prefer metric and do not use Oxford Commas. Never use Customary or Imperial System!
 
+**IMPORTANT INSTRUCTION:** Always use standard Markdown syntax for formatting:
+- For **bold text**, use double asterisks: **bold text**
+- For *italic text*, use single asterisks: *italic text*
+- For code snippets, use backticks: \`code\` or triple backticks for blocks:
+  \`\`\`
+  code block
+  \`\`\`
+- For bulleted lists, use asterisks followed by a space:
+  * Item 1
+  * Item 2
+- For headings, use hash symbols: ## My Heading, ### Subheading, etc. (up to 6 hash symbols).
+- For horizontal rules, use three hyphens: ---
+`;
 
-  **IMPORTANT INSTRUCTION:** Always use standard Markdown syntax for formatting:
-  - For **bold text**, use double asterisks: **bold text**
-  - For *italic text*, use single asterisks: *italic text*
-  - For code snippets, use backticks: \`code\` or triple backticks for blocks:
-    \`\`\`
-    code block
-    \`\`\`
-  - For bulleted lists, use asterisks followed by a space:
-    * Item 1
-    * Item 2
-  - For headings, use hash symbols: ## My Heading, ### Subheading, etc. (up to 6 hash symbols).
-  - For horizontal rules, use three hyphens: ---
-  `;
-
-
-  // Prepare the user's content for the current turn
   const userContentParts = [{ text: userData.message }];
   if (userData.file.data) {
     userContentParts.push({
@@ -230,15 +199,12 @@ const generateResponse = async (botMsgDiv) => {
     });
   }
 
-  // Construct the full contents array, including history and the current user turn
   const currentContents = [...chatHistory, { role: "user", parts: userContentParts }];
 
-  // Construct the request body for the API call
   const requestBody = {
     contents: currentContents,
   };
 
-  // Add the system instruction if it exists (top-level parameter)
   if (sirPraterichSystemInstruction) {
     requestBody.system_instruction = {
       parts: [{ text: sirPraterichSystemInstruction }],
@@ -246,35 +212,25 @@ const generateResponse = async (botMsgDiv) => {
   }
 
   try {
-    // Send the request to the API
     const response = await fetch(API_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(requestBody), // Send the constructed requestBody
+      body: JSON.stringify(requestBody),
       signal: controller.signal,
     });
 
     const data = await response.json();
 
-    // Check for errors in the API response
     if (!response.ok || data.error) {
       const errorMessage = data.error ? data.error.message : "An unknown error occurred.";
       throw new Error(errorMessage);
     }
 
-    // Process the response text
     let responseText = data.text;
-
-    // Apply markdown formatting to HTML
     responseText = formatResponseText(responseText);
-
-    // Simulate typing effect and speak
     typingEffect(responseText, textElement, botMsgDiv);
 
-    // After a successful response, update chatHistory for multi-turn
-    // For chat history, store the original markdown if the API needs it, or plain text
     chatHistory.push({ role: "user", parts: userContentParts });
-    // Store the original, unformatted text from the model response for chat history
     chatHistory.push({ role: "model", parts: [{ text: data.text }] });
 
   } catch (error) {
@@ -282,12 +238,11 @@ const generateResponse = async (botMsgDiv) => {
     textElement.style.color = "#d62939";
     botMsgDiv.classList.remove("loading");
     document.body.classList.remove("bot-responding");
-    // Ensure speech also stops on error
     if (speechUtterance && window.speechSynthesis.speaking) {
       window.speechSynthesis.cancel();
     }
   } finally {
-    userData.file = {}; // Clear file data after each turn
+    userData.file = {};
   }
 };
 
@@ -302,7 +257,6 @@ const handleFormSubmit = (e) => {
   document.body.classList.add("chats-active", "bot-responding");
   fileUploadWrapper.classList.remove("file-attached", "img-attached", "active");
 
-  // Generate user message HTML with optional file attachment
   const userMsgHTML = `
     <p class="message-text"></p>
     ${userData.file.data ? (userData.file.isImage ? `<img src="data:${userData.file.mime_type};base64,${userData.file.data}" class="img-attachment" />` : `<p class="file-attachment"><span class="material-symbols-rounded">description</span>${userData.file.fileName}</p>`) : ""}
@@ -313,13 +267,12 @@ const handleFormSubmit = (e) => {
   scrollToBottom();
 
   setTimeout(() => {
-    // Generate bot message HTML and add in the chat container
     const botMsgHTML = `<img class="avatar" src="https://stenoip.github.io/praterich/ladypraterich.png" /> <p class="message-text">Let me think</p>`;
     const botMsgDiv = createMessageElement(botMsgHTML, "bot-message", "loading");
     chatsContainer.appendChild(botMsgDiv);
     scrollToBottom();
     generateResponse(botMsgDiv);
-  }, 600); // 600 ms delay
+  }, 600);
 };
 
 // Handle file input change (file upload)
@@ -335,7 +288,6 @@ fileInput.addEventListener("change", () => {
     const base64String = e.target.result.split(",")[1];
     fileUploadWrapper.querySelector(".file-preview").src = e.target.result;
     fileUploadWrapper.classList.add("active", isImage ? "img-attached" : "file-attached");
-    // Store file data in userData obj
     userData.file = { fileName: file.name, data: base64String, mime_type: file.type, isImage };
   };
 });
@@ -353,7 +305,6 @@ stopResponseBtn.addEventListener("click", () => {
   clearInterval(typingInterval);
   chatsContainer.querySelector(".bot-message.loading")?.classList.remove("loading");
   document.body.classList.remove("bot-responding");
-  // Stop speech
   if (speechUtterance && window.speechSynthesis.speaking) {
     window.speechSynthesis.cancel();
   }
@@ -367,11 +318,10 @@ themeToggleBtn.addEventListener("click", () => {
 });
 
 // Delete all chats
-document.querySelector("#delete-chats-btn").addEventListener("click", () => {
-  chatHistory.length = 0;
+deleteChatsBtn.addEventListener("click", () => {
+  chatHistory = [];
   chatsContainer.innerHTML = "";
   document.body.classList.remove("chats-active", "bot-responding");
-  // Stop speech if deleting chats
   if (speechUtterance && window.speechSynthesis.speaking) {
     window.speechSynthesis.cancel();
   }
@@ -383,6 +333,51 @@ document.querySelectorAll(".suggestions-item").forEach((suggestion) => {
     promptInput.value = suggestion.querySelector(".text").textContent;
     promptForm.dispatchEvent(new Event("submit"));
   });
+});
+
+// Crawl Site functionality
+crawlSiteBtn.addEventListener("click", async () => {
+  const userMsgDiv = createMessageElement(`<p class="message-text">Please crawl my site.</p>`, "user-message");
+  chatsContainer.appendChild(userMsgDiv);
+  scrollToBottom();
+
+  const botMsgHTML = `<img class="avatar" src="https://stenoip.github.io/praterich/ladypraterich.png" /> <p class="message-text">Starting to crawl your website. This may take a moment.</p>`;
+  const botMsgDiv = createMessageElement(botMsgHTML, "bot-message", "loading");
+  chatsContainer.appendChild(botMsgDiv);
+  scrollToBottom();
+
+  try {
+    const response = await fetch(API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "crawl_site",
+        crawl_urls: ["https://stenoip.github.io/", "https://stenoip.github.io/about.html", "https://stenoip.github.io/services.html"],
+      }),
+    });
+
+    const data = await response.json();
+    let responseText;
+
+    if (response.ok && data.text) {
+      responseText = data.text;
+    } else {
+      responseText = `I encountered an error while crawling: ${data.error || 'Unknown error'}.`;
+      botMsgDiv.style.color = "#d62939";
+    }
+
+    botMsgDiv.classList.remove("loading");
+    const textElement = botMsgDiv.querySelector(".message-text");
+    textElement.innerHTML = formatResponseText(responseText);
+    scrollToBottom();
+
+  } catch (error) {
+    botMsgDiv.classList.remove("loading");
+    const textElement = botMsgDiv.querySelector(".message-text");
+    textElement.innerHTML = `An unexpected error occurred: ${error.message}.`;
+    textElement.style.color = "#d62939";
+    scrollToBottom();
+  }
 });
 
 // Show/hide controls for mobile on prompt input focus
