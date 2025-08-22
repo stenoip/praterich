@@ -1,5 +1,5 @@
 import fetch from 'node-fetch';
-import cheerio from 'cheerio';
+import { load } from 'cheerio'; // Correct import statement for cheerio
 import fs from 'fs/promises';
 import path from 'path';
 
@@ -20,7 +20,7 @@ async function getSiteContent() {
         continue;
       }
       const html = await response.text();
-      const $ = cheerio.load(html);
+      const $ = load(html); // Use the corrected 'load' function
 
       const allText = $('body').text().replace(/\s+/g, ' ').trim();
 
@@ -51,7 +51,7 @@ async function main() {
     console.log("Successfully generated index.json with crawled data!");
   } catch (error) {
     console.error("Error writing to file:", error);
-    process.exit(1); // Exit with an error code
+    process.exit(1);
   }
 }
 
