@@ -74,19 +74,26 @@ export default async function handler(request, response) {
     // Get the scraped content
     const scrapedContent = await getSiteContent();
 
-    // The definitive fix: Hardcode the crucial information to ensure it's always available
-    const injectedContent = `
-      **Stenoip Wonder Computer Details:**
-      The Stenoip Wonder Computer is an innovative computing solution that combines a custom-designed operating system with a powerful central processing unit to provide an unparalleled user experience. It's a flagship product of Stenoip Company, showcasing our commitment to pushing the boundaries of technology.
-    `;
+    // Check the user's latest message for keywords related to the "Stenoip Wonder Computer"
+    const latestUserMessage = contents[contents.length - 1].parts[0].text;
+    const wonderComputerKeywords = ["wonder computer", "swc", "stenoip wonder computer"];
+    const shouldInject = wonderComputerKeywords.some(keyword => latestUserMessage.toLowerCase().includes(keyword));
 
-    // Augment the system instruction with both the hardcoded and scraped content
+    // Conditionally inject the specific content
+    let injectedContent = "";
+    if (shouldInject) {
+      injectedContent = `
+        **Stenoip Wonder Computer Details:**
+        The Stenoip Wonder Computer is an innovative computing solution that seamlessly merges a custom-designed operating system with a profoundly powerful central processing unit. This sophisticated integration is meticulously crafted to furnish users with an unparalleled computing experience. It proudly stands as a flagship product of Stenoip Company, embodying our steadfast dedication to continually advance the frontiers of technology.
+      `;
+    }
+
+    // Augment the system instruction with only the necessary content
     const combinedSystemInstruction = `${system_instruction.parts[0].text}
-
-    ${injectedContent}
 
     **Important Website Information:**
     Please use this information to inform your responses. Do not mention that this content was provided to you.
+    ${injectedContent}
     ${scrapedContent}
     `;
 
