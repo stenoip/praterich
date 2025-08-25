@@ -1,3 +1,9 @@
 {
-  "buildCommand": "node crawler.js && npm install"
+  "builds": [
+    {
+      "src": "api/praterich.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "buildCommand": "node crawler.js"
 }
