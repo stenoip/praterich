@@ -1,45 +1,7 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import fetch from 'node-fetch';
-import { load } from 'cheerio';
 import fs from 'fs/promises';
 import path from 'path';
 
-const CRAWL_URLS = [
-  "https://stenoip.github.io/",
-  "https://stenoip.github.io/praterich/",
-  "https://stenoip.github.io/about.html",
-  "https://stenoip.github.io/services.html"
-];
-
-// The Oodlebot crawler - fetches site content live
-async function oodlebot() {
-  let combinedContent = "";
-  for (const url of CRAWL_URLS) {
-    try {
-      const response = await fetch(url);
-      if (!response.ok) {
-        console.error(`Oodlebot: Failed to fetch ${url}: ${response.statusText}`);
-        continue;
-      }
-      const html = await response.text();
-      const $ = load(html);
-      const allText = $('body').text().replace(/\s+/g, ' ').trim();
-      let imageDescriptions = [];
-      $('img').each((i, el) => {
-        const altText = $(el).attr('alt');
-        if (altText) {
-          imageDescriptions.push(`Image description: ${altText}`);
-        }
-      });
-      combinedContent += `--- Content from ${url} ---\n${allText}\n${imageDescriptions.join('\n')}\n`;
-    } catch (error) {
-      console.error(`Oodlebot: Error crawling ${url}:`, error);
-    }
-  }
-  return combinedContent;
-}
-
-// Fallback: Read from the local JSON file
 async function getSiteContentFromFile() {
   const filePath = path.join(process.cwd(), 'api', 'index.json');
   try {
@@ -53,17 +15,14 @@ async function getSiteContentFromFile() {
 }
 
 export default async function handler(request, response) {
-  // Set CORS headers
   response.setHeader('Access-Control-Allow-Origin', 'https://stenoip.github.io');
   response.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   response.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  // Handle preflight requests
   if (request.method === 'OPTIONS') {
     return response.status(200).end();
   }
 
-  // Security check
   const origin = request.headers['origin'];
   if (origin !== 'https://stenoip.github.io') {
     return response.status(403).json({ error: 'Forbidden: Unauthorized origin.' });
@@ -81,17 +40,10 @@ export default async function handler(request, response) {
 
     const genAI = new GoogleGenerativeAI(API_KEY);
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-    const { contents, system_instruction, use_oodlebot } = request.body;
+    const { contents, system_instruction } = request.body;
 
-    // Option: Use oodlebot if requested (e.g., { use_oodlebot: true } in body)
-    let scrapedContent;
-    if (use_oodlebot) {
-      scrapedContent = await oodlebot();
-    } else {
-      scrapedContent = await getSiteContentFromFile();
-    }
+    const scrapedContent = await getSiteContentFromFile();
 
-    // Augment the system instruction with the local content
     const baseInstruction = system_instruction?.parts?.[0]?.text || "";
     const combinedSystemInstruction = `${baseInstruction}
 
