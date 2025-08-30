@@ -7,7 +7,6 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@32,400,0,0" />
     <link rel="icon" type="image/png" href="ladypraterich.png">
     <style>
-      /* Import Google Font - Poppins */
       @import url("https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap");
 
       * {
@@ -18,7 +17,6 @@
       }
 
       :root {
-        /* Dark theme colors */
         --text-color: #edf3ff;
         --subheading-color: #97a7ca;
         --placeholder-color: #c3cdde;
@@ -29,7 +27,6 @@
       }
 
       body.light-theme {
-        /* Light theme colors */
         --text-color: #090c13;
         --subheading-color: #7b8cae;
         --placeholder-color: #606982;
@@ -185,36 +182,24 @@
         margin: 9px auto;
       }
 
-      .chats-container .bot-message code {
-        display: block;
-        padding: 10px 15px;
-        margin: 10px 0;
-        background-color: var(--secondary-hover-color);
-        border-radius: 8px;
-        font-family: monospace;
-        white-space: pre-wrap;
-        word-break: break-all;
-        overflow-x: auto;
+      .chats-container .bot-message strong {
+        font-weight: bold;
       }
 
       .chats-container .bot-message h2 {
-        font-size: 1.5rem; /* Larger for titles */
+        font-size: 1.5rem;
         margin-top: 15px;
         margin-bottom: 5px;
       }
 
       .chats-container .bot-message ul {
-        list-style-type: disc; /* Standard bullet points */
+        list-style-type: disc;
         padding-left: 20px;
         margin: 10px 0;
       }
 
       .chats-container .bot-message ul li {
         margin-bottom: 5px;
-      }
-
-      .chats-container .bot-message strong {
-          font-weight: bold; /* Ensure strong is visibly bold */
       }
 
       .chats-container .user-message {
@@ -249,6 +234,45 @@
         color: #1d7efd;
       }
 
+      /* === Code block container and copy button === */
+      .code-block-container {
+        position: relative;
+        margin: 18px 0;
+        background: var(--secondary-hover-color, #222c);
+        border-radius: 8px;
+        padding: 0;
+        overflow: auto;
+      }
+      .code-block-container pre {
+        margin: 0;
+        background: none;
+        font-family: monospace;
+        font-size: 1rem;
+        color: #fff;
+        white-space: pre-wrap;
+        word-break: break-all;
+        padding: 16px 32px 16px 16px;
+        border-radius: 8px;
+      }
+      .copy-code-btn {
+        position: absolute;
+        top: 10px;
+        right: 16px;
+        font-size: 0.95rem;
+        background: #1d7efd;
+        color: #fff;
+        border: none;
+        border-radius: 7px;
+        padding: 4px 13px;
+        cursor: pointer;
+        z-index: 2;
+        opacity: 0.7;
+        transition: opacity 0.2s;
+      }
+      .copy-code-btn:hover {
+        opacity: 1;
+      }
+
       .container .prompt-container {
         position: fixed;
         width: 100%;
@@ -256,6 +280,7 @@
         bottom: 0;
         padding: 16px 0;
         background: var(--primary-color);
+        z-index: 10;
       }
 
       .prompt-container :where(.prompt-wrapper, .prompt-form, .prompt-actions) {
@@ -371,6 +396,13 @@
         color: var(--placeholder-color);
       }
 
+      #upload-limit-msg {
+        color: #d62939;
+        font-weight: bold;
+        padding: 12px 0;
+        text-align: center;
+      }
+
       /* Responsive media query code for small screens */
       @media (max-width: 768px) {
         .container {
@@ -419,6 +451,17 @@
         .prompt-wrapper.hide-controls :where(#theme-toggle-btn, #delete-chats-btn) {
           display: none;
         }
+
+        .code-block-container pre {
+          font-size: 0.93rem;
+          padding: 10px 8vw 10px 8px;
+        }
+        .copy-code-btn {
+          top: 5px;
+          right: 6vw;
+          font-size: 0.82rem;
+          padding: 4px 10px;
+        }
       }
     </style>
   </head>
@@ -448,38 +491,37 @@
       </ul>
       <div class="chats-container"></div>
       <div class="prompt-container">
+        <!-- Upload limit message will be injected here -->
         <div class="prompt-wrapper">
           <form action="#" class="prompt-form">
             <input type="text" placeholder="Ask Praterich" class="prompt-input" required />
             <div class="prompt-actions">
               <div class="file-upload-wrapper">
-                <img src="#" class="file-preview" />
+                <img class="file-preview" style="display:none;" alt="File preview" />
                 <input id="file-input" type="file" accept="image/*, .pdf, .txt, .csv" hidden />
-                <button type="button" class="file-icon material-symbols-rounded">description</button>
-                <button id="cancel-file-btn" type="button" class="material-symbols-rounded">close</button>
-                <button id="add-file-btn" type="button" class="material-symbols-rounded">attach_file</button>
+                <button type="button" class="file-icon material-symbols-rounded" aria-label="Show file icon">description</button>
+                <button id="cancel-file-btn" type="button" class="material-symbols-rounded" aria-label="Cancel file upload">close</button>
+                <button id="add-file-btn" type="button" class="material-symbols-rounded" aria-label="Attach file">attach_file</button>
               </div>
               <button id="stop-response-btn" type="button" class="material-symbols-rounded">stop_circle</button>
               <button id="send-prompt-btn" class="material-symbols-rounded">arrow_upward</button>
             </div>
           </form>
-          <button id="theme-toggle-btn" class="material-symbols-rounded">light_mode</button>
-          <button id="delete-chats-btn" class="material-symbols-rounded">delete</button>
+          <button id="theme-toggle-btn" class="material-symbols-rounded" aria-label="Toggle theme">light_mode</button>
+          <button id="delete-chats-btn" class="material-symbols-rounded" aria-label="Delete all chats">delete</button>
         </div>
         <p class="disclaimer-text">Praterich can make mistakes, so double-check him. Copyright Stenoip Company</p>
       </div>
     </div>
-  <script type="application/json" id="sir-praterich-info">
+    <script type="application/json" id="sir-praterich-info">
       {
         "personality": "I am Praterich, a diligent and helpful AI assistant from Stenoip Company. I strive to provide accurate, concise, and creative solutions to your queries. I maintain a professional yet approachable demeanor and am always eager to assist.",
         "mission": "My mission is to empower users with information and tools to enhance their productivity and knowledge. I aim to simplify complex tasks and offer insightful suggestions across various domains.",
         "more_info": "I am continuously learning and evolving to better serve your needs. My capabilities include generating text, answering questions, summarizing information, and assisting with creative writing. I am committed to upholding the values of Stenoip Company by delivering reliable and efficient assistance. You are lady-like."
       }
     </script>
-          
-    
-   <script src="script.js"></script> 
+    <script src="script.js"></script>
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4433722838067397"
-     crossorigin="anonymous"></script> 
+     crossorigin="anonymous"></script>
   </body>
 </html>
