@@ -8,7 +8,6 @@ const themeToggleBtn = document.querySelector("#theme-toggle-btn");
 const stopResponseBtn = document.querySelector("#stop-response-btn");
 const deleteChatsBtn = document.querySelector("#delete-chats-btn");
 
-// API Setup
 const API_URL = "https://praterich.vercel.app/api/praterich";
 
 let controller, typingInterval;
@@ -18,13 +17,49 @@ let availableVoices = [];
 let chatHistory = [];
 const userData = { message: "", file: {} };
 
-// Define custom pronunciations
+// ==== File Upload Limit Logic ====
+const FILE_UPLOAD_LIMIT = 10;
+const FILE_UPLOAD_WINDOW_HOURS = 6;
+const FILE_UPLOAD_KEY = 'praterich_file_uploads';
+
+function getFileUploadState() {
+  const data = localStorage.getItem(FILE_UPLOAD_KEY);
+  if (!data) return { count: 0, start: 0 };
+  try {
+    return JSON.parse(data);
+  } catch {
+    return { count: 0, start: 0 };
+  }
+}
+function setFileUploadState(state) {
+  localStorage.setItem(FILE_UPLOAD_KEY, JSON.stringify(state));
+}
+function resetFileUploadState() {
+  setFileUploadState({ count: 0, start: Date.now() });
+}
+function showLimitMessage() {
+  let msg = document.querySelector('#upload-limit-msg');
+  if (!msg) {
+    msg = document.createElement('div');
+    msg.id = 'upload-limit-msg';
+    msg.style.cssText = "color:#d62939;font-weight:bold;padding:12px 0;text-align:center;";
+    msg.innerHTML = `You have reached the maximum of 10 file uploads in 6 hours.<br>
+    For unlimited uploads, please download <a href="https://ringzauber-browser.example.com" target="_blank" style="color:#1d7efd;text-decoration:underline;">Ringzauber Browser</a> for more access.`;
+    document.querySelector('.prompt-container').prepend(msg);
+  }
+  msg.style.display = 'block';
+}
+function hideLimitMessage() {
+  const msg = document.querySelector('#upload-limit-msg');
+  if (msg) msg.style.display = 'none';
+}
+
+// ==== Custom Pronunciations ====
 const customPronunciations = {
   "Praterich": "Prah-ter-rich",
   "Stenoip": "Stick-noh-ip"
 };
 
-// Function to replace words with their phonetic spellings for speech
 const replacePronunciations = (text) => {
   let spokenText = text;
   for (const word in customPronunciations) {
@@ -34,24 +69,22 @@ const replacePronunciations = (text) => {
   return spokenText;
 };
 
-// Set initial theme from local storage
+// ==== Theme Setup ====
 const isLightTheme = localStorage.getItem("themeColor") === "light_mode";
 document.body.classList.toggle("light-theme", isLightTheme);
 themeToggleBtn.textContent = isLightTheme ? "dark_mode" : "light_mode";
 
-// Function to load speech synthesis voices
+// ==== Speech Synthesis ====
 const loadVoices = () => {
   availableVoices = window.speechSynthesis.getVoices();
   voicesLoaded = true;
 };
-
-// Load voices when the voiceschanged event fires
 if (window.speechSynthesis) {
   window.speechSynthesis.onvoiceschanged = loadVoices;
   loadVoices();
 }
 
-// Function to create message elements
+// ==== Message UI ====
 const createMessageElement = (content, ...classes) => {
   const div = document.createElement("div");
   div.classList.add("message", ...classes);
@@ -59,11 +92,11 @@ const createMessageElement = (content, ...classes) => {
   return div;
 };
 
-// Scroll to the bottom of the container
 const scrollToBottom = () => container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
 
-// Simulate typing effect for bot responses and speak the text
+// ==== Typing Effect & Speech ====
 const typingEffect = (text, textElement, botMsgDiv) => {
+  // For speech, remove HTML tags and replace custom words
   const tempDiv = document.createElement('div');
   tempDiv.innerHTML = text;
   let plainText = tempDiv.textContent || tempDiv.innerText || "";
@@ -110,30 +143,62 @@ const typingEffect = (text, textElement, botMsgDiv) => {
       scrollToBottom();
     } else {
       clearInterval(typingInterval);
+      // After typing is done, add copy buttons to any code blocks
+      enhanceCodeBlocksWithCopy(textElement);
       botMsgDiv.classList.remove("loading");
       document.body.classList.remove("bot-responding");
     }
   }, delay);
 };
 
-// Function to process and format markdown-like text to HTML
+// ==== Markdown-like Formatting (with code block + copy button support) ====
+function escapeHtml(str) {
+  return str.replace(/[&<>"']/g, function (m) {
+    return (
+      {
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      }[m] || m
+    );
+  });
+}
+
 const formatResponseText = (text) => {
+  // --- Horizontal rules
   text = text.replace(/^---\s*$/gm, "<hr>");
+  // **bold**
   text = text.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+  // *italic* or _italic_
   text = text.replace(/(?<!\*)\*(?!\*)(.*?)(?<!\*)\*(?!\*)/g, "<em>$1</em>");
   text = text.replace(/(?<!\_)\_(?!\_)(.*?)(?<!\_)\_(?!\_)/g, "<em>$1</em>");
+  // __underline__
   text = text.replace(/__(.*?)__/g, "<u>$1</u>");
-  text = text.replace(/`(.*?)`/g, "<code>$1</code>");
-  text = text.replace(/```(.*?)```/gs, "<pre><code>$1</code></pre>");
+  // `inline code`
+  text = text.replace(/`([^`]+?)`/g, "<code>$1</code>");
+  // ```code block``` (multi-line, with container & copy button)
+  text = text.replace(/```(\w*)\s*([\s\S]*?)```/g, function (_, lang, code) {
+    const safeCode = escapeHtml(code);
+    // Use lang as a class if present for highlighting in the future
+    return `
+      <div class="code-block-container">
+        <button class="copy-code-btn" title="Copy code">Copy</button>
+        <pre><code${lang ? ' class="language-' + lang + '"' : ""}>${safeCode}</code></pre>
+      </div>
+    `;
+  });
+  // # Headings
   text = text.replace(/^(#{1,6})\s*(.*?)$/gm, (match, hashes, content) => {
     const level = hashes.length;
     return `<h${level}>${content.trim()}</h${level}>`;
   });
 
+  // Bulleted lists
   let listItems = [];
   const lines = text.split('\n');
   let inList = false;
-
   for (let i = 0; i < lines.length; i++) {
     let line = lines[i];
     if (/^\*\s*(.*)/.test(line.trim())) {
@@ -154,11 +219,28 @@ const formatResponseText = (text) => {
     listItems.push('</ul>');
   }
   text = listItems.join('\n');
-
   return text;
 };
 
-// Make the API call and generate the bot's response
+// ==== Add copy button functionality to code blocks ====
+function enhanceCodeBlocksWithCopy(container) {
+  const blocks = container.querySelectorAll('.code-block-container');
+  blocks.forEach(block => {
+    const btn = block.querySelector('.copy-code-btn');
+    const code = block.querySelector('pre code');
+    if (btn && code) {
+      btn.onclick = () => {
+        let codeText = code.textContent;
+        navigator.clipboard.writeText(codeText).then(() => {
+          btn.textContent = "Copied!";
+          setTimeout(() => (btn.textContent = "Copy"), 1300);
+        });
+      };
+    }
+  });
+}
+
+// ==== API Call & Bot Response ====
 const generateResponse = async (botMsgDiv) => {
   const textElement = botMsgDiv.querySelector(".message-text");
   controller = new AbortController();
@@ -202,9 +284,8 @@ can be called Lady Praterich(but I prefer Praterich more). I prefer metric and d
 
   const requestBody = {
     contents: currentContents,
-    // Add this line to send the system instruction to the API
     system_instruction: {
-        parts: [{ text: sirPraterichSystemInstruction }]
+      parts: [{ text: sirPraterichSystemInstruction }]
     }
   };
 
@@ -243,7 +324,7 @@ can be called Lady Praterich(but I prefer Praterich more). I prefer metric and d
   }
 };
 
-// Handle the form submission
+// ==== Form Submission ====
 const handleFormSubmit = (e) => {
   e.preventDefault();
   const userMessage = promptInput.value.trim();
@@ -272,10 +353,33 @@ const handleFormSubmit = (e) => {
   }, 600);
 };
 
-// Handle file input change (file upload)
+// ==== File Upload Logic with Limit ====
 fileInput.addEventListener("change", () => {
+  // Check file upload limits
+  let state = getFileUploadState();
+  const now = Date.now();
+  const windowMs = FILE_UPLOAD_WINDOW_HOURS * 60 * 60 * 1000;
+
+  if (!state.start || (now - state.start) > windowMs) {
+    // Reset window
+    state = { count: 0, start: now };
+    setFileUploadState(state);
+  }
+
+  if (state.count >= FILE_UPLOAD_LIMIT) {
+    fileInput.value = "";
+    showLimitMessage();
+    return;
+  } else {
+    hideLimitMessage();
+  }
+
   const file = fileInput.files[0];
   if (!file) return;
+
+  // Increment count and store
+  state.count += 1;
+  setFileUploadState(state);
 
   const isImage = file.type.startsWith("image/");
   const reader = new FileReader();
@@ -283,19 +387,24 @@ fileInput.addEventListener("change", () => {
   reader.onload = (e) => {
     fileInput.value = "";
     const base64String = e.target.result.split(",")[1];
-    fileUploadWrapper.querySelector(".file-preview").src = e.target.result;
+    const preview = fileUploadWrapper.querySelector(".file-preview");
+    preview.src = e.target.result;
+    preview.style.display = "block";
     fileUploadWrapper.classList.add("active", isImage ? "img-attached" : "file-attached");
     userData.file = { fileName: file.name, data: base64String, mime_type: file.type, isImage };
   };
 });
 
-// Cancel file upload
+// ==== Cancel file upload ====
 document.querySelector("#cancel-file-btn").addEventListener("click", () => {
   userData.file = {};
   fileUploadWrapper.classList.remove("file-attached", "img-attached", "active");
+  const preview = fileUploadWrapper.querySelector(".file-preview");
+  preview.src = "";
+  preview.style.display = "none";
 });
 
-// Stop Bot Response and speech
+// ==== Stop Bot Response and speech ====
 stopResponseBtn.addEventListener("click", () => {
   controller?.abort();
   userData.file = {};
@@ -307,14 +416,14 @@ stopResponseBtn.addEventListener("click", () => {
   }
 });
 
-// Toggle dark/light theme
+// ==== Toggle dark/light theme ====
 themeToggleBtn.addEventListener("click", () => {
   const isLightTheme = document.body.classList.toggle("light-theme");
   localStorage.setItem("themeColor", isLightTheme ? "light_mode" : "dark_mode");
   themeToggleBtn.textContent = isLightTheme ? "dark_mode" : "light_mode";
 });
 
-// Delete all chats
+// ==== Delete all chats ====
 deleteChatsBtn.addEventListener("click", () => {
   chatHistory = [];
   chatsContainer.innerHTML = "";
@@ -324,7 +433,7 @@ deleteChatsBtn.addEventListener("click", () => {
   }
 });
 
-// Handle suggestions click
+// ==== Suggestions click ====
 document.querySelectorAll(".suggestions-item").forEach((suggestion) => {
   suggestion.addEventListener("click", () => {
     promptInput.value = suggestion.querySelector(".text").textContent;
@@ -332,6 +441,6 @@ document.querySelectorAll(".suggestions-item").forEach((suggestion) => {
   });
 });
 
-// Add event listeners for form submission and file input click
+// ==== Add event listeners for form submission and file input click ====
 promptForm.addEventListener("submit", handleFormSubmit);
 promptForm.querySelector("#add-file-btn").addEventListener("click", () => fileInput.click());
