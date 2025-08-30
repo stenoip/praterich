@@ -195,6 +195,9 @@ const formatResponseText = (text) => {
     return `<h${level}>${content.trim()}</h${level}>`;
   });
 
+  // [link text](url)
+  text = text.replace(/\[([^\]]+)]\((https?:\/\/[^\)]+)\)/g, `<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>`);
+
   // Bulleted lists
   let listItems = [];
   const lines = text.split('\n');
@@ -237,6 +240,74 @@ function enhanceCodeBlocksWithCopy(container) {
         });
       };
     }
+  });
+}
+
+// ==== News fetching logic ====
+const NEWS_FEEDS = [
+  {
+    name: "BBC",
+    url: "https://feeds.bbci.co.uk/news/rss.xml",
+    api: "https://api.rss2json.com/v1/api.json?rss_url=https://feeds.bbci.co.uk/news/rss.xml"
+  },
+  {
+    name: "CNN",
+    url: "http://rss.cnn.com/rss/edition.rss",
+    api: "https://api.rss2json.com/v1/api.json?rss_url=http://rss.cnn.com/rss/edition.rss"
+  }
+];
+
+async function fetchNews() {
+  let allNews = [];
+  for (const feed of NEWS_FEEDS) {
+    try {
+      const res = await fetch(feed.api);
+      const data = await res.json();
+      if (data.status === "ok" && data.items) {
+        allNews.push({
+          source: feed.name,
+          items: data.items.slice(0, 6)
+        });
+      }
+    } catch (e) {
+      allNews.push({
+        source: feed.name,
+        items: [{ title: "Could not fetch news.", link: "#" }]
+      });
+    }
+  }
+  return allNews;
+}
+
+function newsToMarkdown(news) {
+  let md = "";
+  for (const feed of news) {
+    md += `### ${feed.source} News\n`;
+    feed.items.forEach((item) => {
+      md += `* [${item.title}](${item.link})\n`;
+    });
+    md += "\n";
+  }
+  return md;
+}
+
+async function handleNewsRequest() {
+  // Show loading message
+  const botMsgHTML = `<img class="avatar" src="https://stenoip.github.io/praterich/ladypraterich.png" /> <p class="message-text">Fetching the latest news headlines...</p>`;
+  const botMsgDiv = createMessageElement(botMsgHTML, "bot-message", "loading");
+  chatsContainer.appendChild(botMsgDiv);
+  scrollToBottom();
+
+  const news = await fetchNews();
+  let newsText = newsToMarkdown(news);
+  newsText = formatResponseText(newsText);
+
+  const textElement = botMsgDiv.querySelector(".message-text");
+  typingEffect(newsText, textElement, botMsgDiv);
+
+  chatHistory.push({
+    role: "model",
+    parts: [{ text: newsText.replace(/<[^>]+>/g, "") }]
   });
 }
 
@@ -433,9 +504,14 @@ deleteChatsBtn.addEventListener("click", () => {
   }
 });
 
-// ==== Suggestions click ====
+// ==== Suggestions click: detect news ====
 document.querySelectorAll(".suggestions-item").forEach((suggestion) => {
   suggestion.addEventListener("click", () => {
+    // News suggestion
+    if (suggestion.dataset.news === "true") {
+      handleNewsRequest();
+      return;
+    }
     promptInput.value = suggestion.querySelector(".text").textContent;
     promptForm.dispatchEvent(new Event("submit"));
   });
