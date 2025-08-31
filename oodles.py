@@ -41,7 +41,7 @@ if __name__ == "__main__":
 
 """
 ===========================
-How to use this crawler
+How to use this crawler(Powered By Oodles Search(by Stenoip Co)
 ===========================
 
 1. Make sure you have Python 3, requests, and beautifulsoup4 installed.
@@ -55,10 +55,7 @@ How to use this crawler
 
 4. Move or copy 'index.json' into your project's 'api/' directory.
 
-5. Upload and commit the new file to GitHub:
-       git add api/index.json
-       git commit -m "Update crawled website info"
-       git push
+5. Upload and commit the new file to GitHub
 
-Now your backend API will serve up-to-date site information!
+Now your Praterich AI will be able to see info.!
 """
