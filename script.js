@@ -44,7 +44,7 @@ function showLimitMessage() {
     msg.id = 'upload-limit-msg';
     msg.style.cssText = "color:#d62939;font-weight:bold;padding:12px 0;text-align:center;";
     msg.innerHTML = `You have reached the maximum of 10 file uploads in 6 hours.<br>
-    For unlimited uploads, please download <a href="https://ringzauber-browser.example.com" target="_blank" style="color:#1d7efd;text-decoration:underline;">Ringzauber Browser</a> for more access.`;
+    For unlimited uploads, please download <a href="https://stenoip.github.io/ringzauber" target="_blank" style="color:#1d7efd;text-decoration:underline;">Ringzauber Browser</a> for more access.`;
     document.querySelector('.prompt-container').prepend(msg);
   }
   msg.style.display = 'block';
