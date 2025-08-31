@@ -8,7 +8,7 @@ CRAWL_URLS = [
     "https://stenoip.github.io/",
     "https://stenoip.github.io/praterich/",
     "https://stenoip.github.io/about.html",
-    "https://stenoip.github.io/services.html"
+    "https://en.m.wikipedia.org/wiki/Canada"
 ]
 
 # List of base URLs to crawl the entire site from (recursive)
@@ -117,5 +117,5 @@ How to use this crawler(Powered By Oodles Search(by Stenoip Co)
 
 5. Upload and commit the new file to GitHub
 
-Now your Praterich AI will be able to see info.!
+Now your Praterich AI will be able to see info!
 """
