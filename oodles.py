@@ -2,6 +2,7 @@ import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
 import json
+import os
 
 # List of specific URLs to crawl (no recursion)
 CRAWL_URLS = [
@@ -53,7 +54,7 @@ def crawl_entire_site(start_urls):
         if url in crawled_urls:
             continue
         
-        print(f"Recursively crawling: {url}")
+        print(f"Oodlebot is crawling: {url}")
 
         try:
             response = requests.get(url, timeout=10)
