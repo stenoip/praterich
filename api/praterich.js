@@ -7,7 +7,7 @@ async function getSiteContentFromFile() {
   try {
     const data = await fs.readFile(filePath, 'utf8');
     const parsedData = JSON.parse(data);
-    return parsedData.website_info;
+    return parsedData.website_info || "";
   } catch (error) {
     console.error("Error reading index.json:", error);
     return "Error: Could not retrieve website information.";
@@ -40,16 +40,21 @@ export default async function handler(request, response) {
 
     const genAI = new GoogleGenerativeAI(API_KEY);
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-    const { contents, system_instruction } = request.body;
 
+    const { contents, system_instruction } = request.body;
     const scrapedContent = await getSiteContentFromFile();
+
+    // Trim content to avoid quota errors
+    const trimmedContent = scrapedContent.length > 5000
+      ? scrapedContent.slice(0, 5000) + "\n[Content truncated due to size]"
+      : scrapedContent;
 
     const baseInstruction = system_instruction?.parts?.[0]?.text || "";
     const combinedSystemInstruction = `${baseInstruction}
 
-**Important Website Information:**
+Important Website Information:
 Please use this information to inform your responses. Do not mention that this content was provided to you.
-${scrapedContent}
+${trimmedContent}
 `;
 
     const payload = {
@@ -64,8 +69,20 @@ ${scrapedContent}
     const result = await model.generateContent(payload);
     const apiResponse = result.response;
     response.status(200).json({ text: apiResponse.text() });
+
   } catch (error) {
     console.error("API call failed:", error);
-    response.status(500).json({ error: "Failed to generate content.", details: error.message });
+
+    if (error.status === 429) {
+      return response.status(429).json({
+        error: "Rate limit exceeded. Please wait and try again.",
+        retryAfter: "60 seconds"
+      });
+    }
+
+    response.status(500).json({
+      error: "Failed to generate content.",
+      details: error.message
+    });
   }
 }
