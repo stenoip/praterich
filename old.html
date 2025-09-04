@@ -136,12 +136,18 @@
       </ul>
       <div class="chats-container"></div>
       <div class="prompt-container">
-        <!-- Upload limit message will be  here -->
+        <!-- Upload limit message will be injected here -->
         <div class="prompt-wrapper">
           <form action="#" class="prompt-form">
             <input type="text" placeholder="Ask Praterich" class="prompt-input" required />
             <div class="prompt-actions">
-              
+              <div class="file-upload-wrapper">
+                <img class="file-preview" style="display:none;" alt="File preview" />
+                <input id="file-input" type="file" accept="image/*, .pdf, .txt, .csv" hidden />
+                <button type="button" class="file-icon material-symbols-rounded" aria-label="Show file icon">description</button>
+                <button id="cancel-file-btn" type="button" class="material-symbols-rounded" aria-label="Cancel file upload">close</button>
+                <button id="add-file-btn" type="button" class="material-symbols-rounded" aria-label="Attach file"></button>
+              </div>
               <button id="stop-response-btn" type="button" class="material-symbols-rounded">stop_circle</button>
               <button id="send-prompt-btn" class="material-symbols-rounded">arrow_upward</button>
             </div>
