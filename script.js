@@ -51,18 +51,19 @@ if (window.speechSynthesis) {
 var createMessageElement = (content, ...classes) => {
   var div = document.createElement("div");
   div.classList.add("message", ...classes);
-  
+  
   var messageTextElement = document.createElement("p");
   messageTextElement.classList.add("message-text");
   messageTextElement.innerHTML = content;
 
-  if (!classes.includes("loading")) {
+  // Only add the copy button for bot responses
+  if (classes.includes("bot-message") && !classes.includes("loading")) {
     var copyButtonHTML = `<span onclick="copyMessage(this)" class="icon material-symbols-rounded">content_copy</span>`;
     div.innerHTML = messageTextElement.outerHTML + copyButtonHTML;
   } else {
     div.innerHTML = messageTextElement.outerHTML;
   }
-  
+  
   return div;
 };
 
@@ -458,7 +459,7 @@ var loadChats = () => {
           var isUser = chat.role === "user";
           var messageClass = isUser ? "user-message" : "bot-message";
           var content = chat.parts[0]?.text || "";
-          
+          
           var messageDiv = document.createElement("div");
           messageDiv.classList.add("message", messageClass);
 
@@ -485,7 +486,8 @@ var loadChats = () => {
           } else {
             var avatarHTML = `<img class="avatar" src="https://stenoip.github.io/praterich/ladypraterich.png" />`;
             var formattedContent = formatResponseText(content);
-            var botText = createMessageElement(formattedContent, messageClass);
+            // Recreate the bot message with the copy button
+            var botText = createMessageElement(formattedContent, "bot-message");
             messageDiv.innerHTML = avatarHTML + botText.innerHTML;
           }
           chatsContainer.appendChild(messageDiv);
@@ -515,7 +517,7 @@ fileInput.addEventListener("change", () => {
     fileInput.value = "";
     var base64String = e.target.result.split(",")[1];
     var preview = fileUploadWrapper.querySelector(".file-preview");
-    
+    
     // Display different previews based on file type
     if (isImage) {
       preview.src = e.target.result;
@@ -567,6 +569,7 @@ themeToggleBtn.addEventListener("click", () => {
 
 // ==== Delete all chats ====
 deleteChatsBtn.addEventListener("click", () => {
+  // ADDED CONFIRMATION ALERT
   if (confirm("Are you sure you want to delete all chats? This cannot be undone.")) {
     chatHistory = [];
     chatsContainer.innerHTML = "";
