@@ -1,81 +1,44 @@
-const container = document.querySelector(".container");
-const chatsContainer = document.querySelector(".chats-container");
-const promptForm = document.querySelector(".prompt-form");
-const promptInput = promptForm.querySelector(".prompt-input");
-const fileInput = promptForm.querySelector("#file-input");
-const fileUploadWrapper = promptForm.querySelector(".file-upload-wrapper");
-const themeToggleBtn = document.querySelector("#theme-toggle-btn");
-const stopResponseBtn = document.querySelector("#stop-response-btn");
-const deleteChatsBtn = document.querySelector("#delete-chats-btn");
+var container = document.querySelector(".container");
+var chatsContainer = document.querySelector(".chats-container");
+var promptForm = document.querySelector(".prompt-form");
+var promptInput = promptForm.querySelector(".prompt-input");
+var fileInput = promptForm.querySelector("#file-input");
+var fileUploadWrapper = promptForm.querySelector(".file-upload-wrapper");
+var themeToggleBtn = document.querySelector("#theme-toggle-btn");
+var stopResponseBtn = document.querySelector("#stop-response-btn");
+var deleteChatsBtn = document.querySelector("#delete-chats-btn");
 
-const API_URL = "https://praterich.vercel.app/api/praterich";
+var API_URL = "https://praterich.vercel.app/api/praterich";
 
-let controller, typingInterval;
-let speechUtterance;
-let voicesLoaded = false;
-let availableVoices = [];
-let chatHistory = [];
-const userData = { message: "", file: {} };
-
-// ==== File Upload Limit Logic ====
-const FILE_UPLOAD_LIMIT = 10;
-const FILE_UPLOAD_WINDOW_HOURS = 6;
-const FILE_UPLOAD_KEY = 'praterich_file_uploads';
-
-function getFileUploadState() {
-  const data = localStorage.getItem(FILE_UPLOAD_KEY);
-  if (!data) return { count: 0, start: 0 };
-  try {
-    return JSON.parse(data);
-  } catch {
-    return { count: 0, start: 0 };
-  }
-}
-function setFileUploadState(state) {
-  localStorage.setItem(FILE_UPLOAD_KEY, JSON.stringify(state));
-}
-function resetFileUploadState() {
-  setFileUploadState({ count: 0, start: Date.now() });
-}
-function showLimitMessage() {
-  let msg = document.querySelector('#upload-limit-msg');
-  if (!msg) {
-    msg = document.createElement('div');
-    msg.id = 'upload-limit-msg';
-    msg.style.cssText = "color:#d62939;font-weight:bold;padding:12px 0;text-align:center;";
-    msg.innerHTML = `You have reached the maximum of 10 file uploads in 6 hours.<br>
-    For unlimited uploads, please download <a href="https://stenoip.github.io/ringzauber" target="_blank" style="color:#1d7efd;text-decoration:underline;">Ringzauber Browser</a> for more access.`;
-    document.querySelector('.prompt-container').prepend(msg);
-  }
-  msg.style.display = 'block';
-}
-function hideLimitMessage() {
-  const msg = document.querySelector('#upload-limit-msg');
-  if (msg) msg.style.display = 'none';
-}
+var controller, typingInterval;
+var speechUtterance;
+var voicesLoaded = false;
+var availableVoices = [];
+var chatHistory = [];
+var userData = { message: "", file: {} };
 
 // ==== Custom Pronunciations ====
-const customPronunciations = {
+var customPronunciations = {
   "Praterich": "Prah-ter-rich",
   "Stenoip": "Stick-noh-ip"
 };
 
-const replacePronunciations = (text) => {
-  let spokenText = text;
-  for (const word in customPronunciations) {
-    const regex = new RegExp(word, 'gi');
+var replacePronunciations = (text) => {
+  var spokenText = text;
+  for (var word in customPronunciations) {
+    var regex = new RegExp(word, 'gi');
     spokenText = spokenText.replace(regex, customPronunciations[word]);
   }
   return spokenText;
 };
 
 // ==== Theme Setup ====
-const isLightTheme = localStorage.getItem("themeColor") === "light_mode";
+var isLightTheme = localStorage.getItem("themeColor") === "light_mode";
 document.body.classList.toggle("light-theme", isLightTheme);
 themeToggleBtn.textContent = isLightTheme ? "dark_mode" : "light_mode";
 
 // ==== Speech Synthesis ====
-const loadVoices = () => {
+var loadVoices = () => {
   availableVoices = window.speechSynthesis.getVoices();
   voicesLoaded = true;
 };
@@ -85,21 +48,47 @@ if (window.speechSynthesis) {
 }
 
 // ==== Message UI ====
-const createMessageElement = (content, ...classes) => {
-  const div = document.createElement("div");
+var createMessageElement = (content, ...classes) => {
+  var div = document.createElement("div");
   div.classList.add("message", ...classes);
-  div.innerHTML = content;
+  
+  if (!classes.includes("loading")) {
+    var copyButtonHTML = `<span onclick="copyMessage(this)" class="icon material-symbols-rounded">content_copy</span>`;
+    div.innerHTML = content + copyButtonHTML;
+  } else {
+    div.innerHTML = content;
+  }
+  
   return div;
 };
 
-const scrollToBottom = () => container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
+var scrollToBottom = () => container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
+
+// ==== Copy Message Functionality ====
+function copyMessage(buttonElement) {
+  var messageElement = buttonElement.closest('.message');
+  var textElement = messageElement.querySelector('.message-text');
+
+  if (textElement) {
+    navigator.clipboard.writeText(textElement.textContent)
+      .then(() => {
+        buttonElement.textContent = 'check';
+        setTimeout(() => {
+          buttonElement.textContent = 'content_copy';
+        }, 1500);
+      })
+      .catch(err => {
+        console.error('Failed to copy text: ', err);
+      });
+  }
+}
 
 // ==== Typing Effect & Speech ====
-const typingEffect = (text, textElement, botMsgDiv) => {
+var typingEffect = (text, textElement, botMsgDiv) => {
   // For speech, remove HTML tags and replace custom words
-  const tempDiv = document.createElement('div');
+  var tempDiv = document.createElement('div');
   tempDiv.innerHTML = text;
-  let plainText = tempDiv.textContent || tempDiv.innerText || "";
+  var plainText = tempDiv.textContent || tempDiv.innerText || "";
   plainText = replacePronunciations(plainText);
 
   if (speechUtterance && window.speechSynthesis.speaking) {
@@ -113,7 +102,7 @@ const typingEffect = (text, textElement, botMsgDiv) => {
     speechUtterance.lang = 'en-US';
 
     if (voicesLoaded) {
-      let selectedVoice = availableVoices.find(voice =>
+      var selectedVoice = availableVoices.find(voice =>
         voice.lang === 'en-US' && voice.name.includes('Google US English') && voice.name.includes('Male')
       ) || availableVoices.find(voice => voice.lang === 'en-US');
 
@@ -125,14 +114,14 @@ const typingEffect = (text, textElement, botMsgDiv) => {
   }
 
   textElement.innerHTML = "";
-  let charIndex = 0;
-  const delay = 10;
+  var charIndex = 0;
+  var delay = 10;
 
   typingInterval = setInterval(() => {
     if (charIndex < text.length) {
-      let nextChar = text.charAt(charIndex);
+      var nextChar = text.charAt(charIndex);
       if (nextChar === '<') {
-        const endIndex = text.indexOf('>', charIndex);
+        var endIndex = text.indexOf('>', charIndex);
         if (endIndex !== -1) {
           nextChar = text.substring(charIndex, endIndex + 1);
           charIndex = endIndex;
@@ -143,10 +132,10 @@ const typingEffect = (text, textElement, botMsgDiv) => {
       scrollToBottom();
     } else {
       clearInterval(typingInterval);
-      // After typing is done, add copy buttons to any code blocks
       enhanceCodeBlocksWithCopy(textElement);
       botMsgDiv.classList.remove("loading");
       document.body.classList.remove("bot-responding");
+      saveChats();
     }
   }, delay);
 };
@@ -166,7 +155,7 @@ function escapeHtml(str) {
   });
 }
 
-const formatResponseText = (text) => {
+var formatResponseText = (text) => {
   // --- Horizontal rules
   text = text.replace(/^---\s*$/gm, "<hr>");
   // **bold**
@@ -180,7 +169,7 @@ const formatResponseText = (text) => {
   text = text.replace(/`([^`]+?)`/g, "<code>$1</code>");
   // ```code block``` (multi-line, with container & copy button)
   text = text.replace(/```(\w*)\s*([\s\S]*?)```/g, function (_, lang, code) {
-    const safeCode = escapeHtml(code);
+    var safeCode = escapeHtml(code);
     // Use lang as a class if present for highlighting in the future
     return `
       <div class="code-block-container">
@@ -191,7 +180,7 @@ const formatResponseText = (text) => {
   });
   // # Headings
   text = text.replace(/^(#{1,6})\s*(.*?)$/gm, (match, hashes, content) => {
-    const level = hashes.length;
+    var level = hashes.length;
     return `<h${level}>${content.trim()}</h${level}>`;
   });
 
@@ -199,11 +188,11 @@ const formatResponseText = (text) => {
   text = text.replace(/\[([^\]]+)]\((https?:\/\/[^\)]+)\)/g, `<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>`);
 
   // Bulleted lists
-  let listItems = [];
-  const lines = text.split('\n');
-  let inList = false;
-  for (let i = 0; i < lines.length; i++) {
-    let line = lines[i];
+  var listItems = [];
+  var lines = text.split('\n');
+  var inList = false;
+  for (var i = 0; i < lines.length; i++) {
+    var line = lines[i];
     if (/^\*\s*(.*)/.test(line.trim())) {
       if (!inList) {
         listItems.push('<ul>');
@@ -227,13 +216,13 @@ const formatResponseText = (text) => {
 
 // ==== Add copy button functionality to code blocks ====
 function enhanceCodeBlocksWithCopy(container) {
-  const blocks = container.querySelectorAll('.code-block-container');
+  var blocks = container.querySelectorAll('.code-block-container');
   blocks.forEach(block => {
-    const btn = block.querySelector('.copy-code-btn');
-    const code = block.querySelector('pre code');
+    var btn = block.querySelector('.copy-code-btn');
+    var code = block.querySelector('pre code');
     if (btn && code) {
       btn.onclick = () => {
-        let codeText = code.textContent;
+        var codeText = code.textContent;
         navigator.clipboard.writeText(codeText).then(() => {
           btn.textContent = "Copied!";
           setTimeout(() => (btn.textContent = "Copy"), 1300);
@@ -244,7 +233,7 @@ function enhanceCodeBlocksWithCopy(container) {
 }
 
 // ==== News fetching logic ====
-const NEWS_FEEDS = [
+var NEWS_FEEDS = [
   {
     name: "BBC",
     url: "https://feeds.bbci.co.uk/news/rss.xml",
@@ -258,11 +247,11 @@ const NEWS_FEEDS = [
 ];
 
 async function fetchNews() {
-  let allNews = [];
-  for (const feed of NEWS_FEEDS) {
+  var allNews = [];
+  for (var feed of NEWS_FEEDS) {
     try {
-      const res = await fetch(feed.api);
-      const data = await res.json();
+      var res = await fetch(feed.api);
+      var data = await res.json();
       if (data.status === "ok" && data.items) {
         allNews.push({
           source: feed.name,
@@ -280,8 +269,8 @@ async function fetchNews() {
 }
 
 function newsToMarkdown(news) {
-  let md = "";
-  for (const feed of news) {
+  var md = "";
+  for (var feed of news) {
     md += `### ${feed.source} News\n`;
     feed.items.forEach((item) => {
       md += `* [${item.title}](${item.link})\n`;
@@ -293,16 +282,16 @@ function newsToMarkdown(news) {
 
 async function handleNewsRequest() {
   // Show loading message
-  const botMsgHTML = `<img class="avatar" src="https://stenoip.github.io/praterich/ladypraterich.png" /> <p class="message-text">Fetching the latest news headlines...</p>`;
-  const botMsgDiv = createMessageElement(botMsgHTML, "bot-message", "loading");
+  var botMsgHTML = `<img class="avatar" src="https://stenoip.github.io/praterich/ladypraterich.png" /> <p class="message-text">Fetching the latest news headlines...</p>`;
+  var botMsgDiv = createMessageElement(botMsgHTML, "bot-message", "loading");
   chatsContainer.appendChild(botMsgDiv);
   scrollToBottom();
 
-  const news = await fetchNews();
-  let newsText = newsToMarkdown(news);
+  var news = await fetchNews();
+  var newsText = newsToMarkdown(news);
   newsText = formatResponseText(newsText);
 
-  const textElement = botMsgDiv.querySelector(".message-text");
+  var textElement = botMsgDiv.querySelector(".message-text");
   typingEffect(newsText, textElement, botMsgDiv);
 
   chatHistory.push({
@@ -312,11 +301,11 @@ async function handleNewsRequest() {
 }
 
 // ==== API Call & Bot Response ====
-const generateResponse = async (botMsgDiv) => {
-  const textElement = botMsgDiv.querySelector(".message-text");
+var generateResponse = async (botMsgDiv) => {
+  var textElement = botMsgDiv.querySelector(".message-text");
   controller = new AbortController();
 
-  const sirPraterichSystemInstruction = `
+  var sirPraterichSystemInstruction = `
 You are Praterich,an AI. You were developed by Stenoip Company.
 
 Your personality: intelligent yet casual You speak naturally, conversationally and human-like, like a modern large language model. You will avoid sounding scripted or overly formal. You prefer metric units and do not use Oxford commas. You never use Customary or Imperial systems.
@@ -347,7 +336,7 @@ avoid saying: Hello there! I'm Praterich, a large language model from Stenoip Co
 - For horizontal rules, use three hyphens: ---
 `;
 
-  const userContentParts = [{ text: userData.message }];
+  var userContentParts = [{ text: userData.message }];
   if (userData.file.data) {
     userContentParts.push({
       inline_data: {
@@ -357,9 +346,9 @@ avoid saying: Hello there! I'm Praterich, a large language model from Stenoip Co
     });
   }
 
-  const currentContents = [...chatHistory, { role: "user", parts: userContentParts }];
+  var currentContents = [...chatHistory, { role: "user", parts: userContentParts }];
 
-  const requestBody = {
+  var requestBody = {
     contents: currentContents,
     system_instruction: {
       parts: [{ text: sirPraterichSystemInstruction }]
@@ -367,26 +356,27 @@ avoid saying: Hello there! I'm Praterich, a large language model from Stenoip Co
   };
 
   try {
-    const response = await fetch(API_URL, {
+    var response = await fetch(API_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(requestBody),
       signal: controller.signal,
     });
 
-    const data = await response.json();
+    var data = await response.json();
 
     if (!response.ok || data.error) {
-      const errorMessage = data.error ? data.error.details : "An unknown error occurred.";
+      var errorMessage = data.error ? data.error.details : "An unknown error occurred.";
       throw new Error(errorMessage);
     }
 
-    let responseText = data.text;
+    var responseText = data.text;
     responseText = formatResponseText(responseText);
     typingEffect(responseText, textElement, botMsgDiv);
 
     chatHistory.push({ role: "user", parts: userContentParts });
     chatHistory.push({ role: "model", parts: [{ text: data.text }] });
+    saveChats();
 
   } catch (error) {
     textElement.innerHTML = error.name === "AbortError" ? "Response generation stopped." : `Error: ${error.message}`;
@@ -402,9 +392,9 @@ avoid saying: Hello there! I'm Praterich, a large language model from Stenoip Co
 };
 
 // ==== Form Submission ====
-const handleFormSubmit = (e) => {
+var handleFormSubmit = (e) => {
   e.preventDefault();
-  const userMessage = promptInput.value.trim();
+  var userMessage = promptInput.value.trim();
   if (!userMessage || document.body.classList.contains("bot-responding")) return;
 
   userData.message = userMessage;
@@ -412,59 +402,68 @@ const handleFormSubmit = (e) => {
   document.body.classList.add("chats-active", "bot-responding");
   fileUploadWrapper.classList.remove("file-attached", "img-attached", "active");
 
-  const userMsgHTML = `
+  var userMsgHTML = `
     <p class="message-text"></p>
     ${userData.file.data ? (userData.file.isImage ? `<img src="data:${userData.file.mime_type};base64,${userData.file.data}" class="img-attachment" />` : `<p class="file-attachment"><span class="material-symbols-rounded">description</span>${userData.file.fileName}</p>`) : ""}
   `;
-  const userMsgDiv = createMessageElement(userMsgHTML, "user-message");
+  var userMsgDiv = createMessageElement(userMsgHTML, "user-message");
   userMsgDiv.querySelector(".message-text").textContent = userData.message;
   chatsContainer.appendChild(userMsgDiv);
   scrollToBottom();
 
   setTimeout(() => {
-    const botMsgHTML = `<img class="avatar" src="https://stenoip.github.io/praterich/ladypraterich.png" /> <p class="message-text">Let me think</p>`;
-    const botMsgDiv = createMessageElement(botMsgHTML, "bot-message", "loading");
+    var botMsgHTML = `<img class="avatar" src="https://stenoip.github.io/praterich/ladypraterich.png" /> <p class="message-text">Let me think</p>`;
+    var botMsgDiv = createMessageElement(botMsgHTML, "bot-message", "loading");
     chatsContainer.appendChild(botMsgDiv);
     scrollToBottom();
     generateResponse(botMsgDiv);
   }, 600);
 };
 
-// ==== File Upload Logic with Limit ====
+// ==== Chat Persistence (Local Storage) ====
+var saveChats = () => {
+  localStorage.setItem('praterich_chat_history', JSON.stringify(chatHistory));
+};
+
+var loadChats = () => {
+  var savedChats = localStorage.getItem('praterich_chat_history');
+  if (savedChats) {
+    try {
+      chatHistory = JSON.parse(savedChats);
+      if (chatHistory.length > 0) {
+        document.body.classList.add("chats-active");
+        chatHistory.forEach(chat => {
+          var isUser = chat.role === "user";
+          var messageClass = isUser ? "user-message" : "bot-message";
+          var avatarHTML = isUser ? '' : `<img class="avatar" src="https://stenoip.github.io/praterich/ladypraterich.png" />`;
+          var content = chat.parts[0]?.text || "";
+          var formattedContent = isUser ? content : formatResponseText(content);
+          var messageHTML = `${avatarHTML}<p class="message-text">${formattedContent}</p>`;
+          var messageDiv = createMessageElement(messageHTML, messageClass);
+          chatsContainer.appendChild(messageDiv);
+        });
+        scrollToBottom();
+      }
+    } catch (e) {
+      console.error("Failed to parse chat history from localStorage", e);
+      localStorage.removeItem('praterich_chat_history');
+      chatHistory = [];
+    }
+  }
+};
+
+// ==== File Upload Logic ====
 fileInput.addEventListener("change", () => {
-  // Check file upload limits
-  let state = getFileUploadState();
-  const now = Date.now();
-  const windowMs = FILE_UPLOAD_WINDOW_HOURS * 60 * 60 * 1000;
-
-  if (!state.start || (now - state.start) > windowMs) {
-    // Reset window
-    state = { count: 0, start: now };
-    setFileUploadState(state);
-  }
-
-  if (state.count >= FILE_UPLOAD_LIMIT) {
-    fileInput.value = "";
-    showLimitMessage();
-    return;
-  } else {
-    hideLimitMessage();
-  }
-
-  const file = fileInput.files[0];
+  var file = fileInput.files[0];
   if (!file) return;
 
-  // Increment count and store
-  state.count += 1;
-  setFileUploadState(state);
-
-  const isImage = file.type.startsWith("image/");
-  const reader = new FileReader();
+  var isImage = file.type.startsWith("image/");
+  var reader = new FileReader();
   reader.readAsDataURL(file);
   reader.onload = (e) => {
     fileInput.value = "";
-    const base64String = e.target.result.split(",")[1];
-    const preview = fileUploadWrapper.querySelector(".file-preview");
+    var base64String = e.target.result.split(",")[1];
+    var preview = fileUploadWrapper.querySelector(".file-preview");
     preview.src = e.target.result;
     preview.style.display = "block";
     fileUploadWrapper.classList.add("active", isImage ? "img-attached" : "file-attached");
@@ -476,7 +475,7 @@ fileInput.addEventListener("change", () => {
 document.querySelector("#cancel-file-btn").addEventListener("click", () => {
   userData.file = {};
   fileUploadWrapper.classList.remove("file-attached", "img-attached", "active");
-  const preview = fileUploadWrapper.querySelector(".file-preview");
+  var preview = fileUploadWrapper.querySelector(".file-preview");
   preview.src = "";
   preview.style.display = "none";
 });
@@ -495,7 +494,7 @@ stopResponseBtn.addEventListener("click", () => {
 
 // ==== Toggle dark/light theme ====
 themeToggleBtn.addEventListener("click", () => {
-  const isLightTheme = document.body.classList.toggle("light-theme");
+  var isLightTheme = document.body.classList.toggle("light-theme");
   localStorage.setItem("themeColor", isLightTheme ? "light_mode" : "dark_mode");
   themeToggleBtn.textContent = isLightTheme ? "dark_mode" : "light_mode";
 });
@@ -504,6 +503,7 @@ themeToggleBtn.addEventListener("click", () => {
 deleteChatsBtn.addEventListener("click", () => {
   chatHistory = [];
   chatsContainer.innerHTML = "";
+  localStorage.removeItem('praterich_chat_history');
   document.body.classList.remove("chats-active", "bot-responding");
   if (speechUtterance && window.speechSynthesis.speaking) {
     window.speechSynthesis.cancel();
@@ -526,3 +526,6 @@ document.querySelectorAll(".suggestions-item").forEach((suggestion) => {
 // ==== Add event listeners for form submission and file input click ====
 promptForm.addEventListener("submit", handleFormSubmit);
 promptForm.querySelector("#add-file-btn").addEventListener("click", () => fileInput.click());
+
+// Initial chat load
+document.addEventListener("DOMContentLoaded", loadChats);
