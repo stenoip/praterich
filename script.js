@@ -52,12 +52,15 @@ var createMessageElement = (content, ...classes) => {
   var div = document.createElement("div");
   div.classList.add("message", ...classes);
   
-  if (classes.includes("loading")) {
-    div.innerHTML = content;
-  } else {
-    var messageContent = `<p class="message-text">${content}</p>`;
+  var messageTextElement = document.createElement("p");
+  messageTextElement.classList.add("message-text");
+  messageTextElement.innerHTML = content;
+
+  if (!classes.includes("loading")) {
     var copyButtonHTML = `<span onclick="copyMessage(this)" class="icon material-symbols-rounded">content_copy</span>`;
-    div.innerHTML = messageContent + copyButtonHTML;
+    div.innerHTML = messageTextElement.outerHTML + copyButtonHTML;
+  } else {
+    div.innerHTML = messageTextElement.outerHTML;
   }
   
   return div;
@@ -396,23 +399,34 @@ avoid saying: Hello there! I'm Praterich, a large language model from Stenoip Co
 var handleFormSubmit = (e) => {
   e.preventDefault();
   var userMessage = promptInput.value.trim();
-  if (!userMessage || document.body.classList.contains("bot-responding")) return;
+  if (!userMessage && !userData.file.data || document.body.classList.contains("bot-responding")) return;
 
   userData.message = userMessage;
   promptInput.value = "";
   document.body.classList.add("chats-active", "bot-responding");
 
-  // Create a temporary element to hold the user message content and file display
-  var userMsgHTML = `<p class="message-text">${userData.message}</p>`;
+  // Create and append user message element
+  var userMsgDiv = document.createElement("div");
+  userMsgDiv.classList.add("message", "user-message");
+  var userTextElement = document.createElement("p");
+  userTextElement.classList.add("message-text");
+  userTextElement.textContent = userData.message;
+  userMsgDiv.appendChild(userTextElement);
+
+  // Append file display if available
   if (userData.file.data) {
     if (userData.file.isImage) {
-      userMsgHTML += `<img src="data:${userData.file.mime_type};base64,${userData.file.data}" class="img-attachment" />`;
+      var img = document.createElement("img");
+      img.src = `data:${userData.file.mime_type};base64,${userData.file.data}`;
+      img.classList.add("img-attachment");
+      userMsgDiv.appendChild(img);
     } else {
-      userMsgHTML += `<p class="file-attachment"><span class="material-symbols-rounded">description</span>${userData.file.fileName}</p>`;
+      var fileDisplay = document.createElement("p");
+      fileDisplay.classList.add("file-attachment");
+      fileDisplay.innerHTML = `<span class="material-symbols-rounded">description</span>${userData.file.fileName}`;
+      userMsgDiv.appendChild(fileDisplay);
     }
   }
-
-  var userMsgDiv = createMessageElement(userMsgHTML, "user-message");
   chatsContainer.appendChild(userMsgDiv);
   scrollToBottom();
 
@@ -443,13 +457,16 @@ var loadChats = () => {
         chatHistory.forEach(chat => {
           var isUser = chat.role === "user";
           var messageClass = isUser ? "user-message" : "bot-message";
-          var avatarHTML = isUser ? '' : `<img class="avatar" src="https://stenoip.github.io/praterich/ladypraterich.png" />`;
           var content = chat.parts[0]?.text || "";
-          var formattedContent = isUser ? content : formatResponseText(content);
           
-          var messageDiv;
+          var messageDiv = document.createElement("div");
+          messageDiv.classList.add("message", messageClass);
+
           if (isUser) {
-            messageDiv = createMessageElement(formattedContent, messageClass);
+            var userText = document.createElement("p");
+            userText.classList.add("message-text");
+            userText.textContent = content;
+            messageDiv.appendChild(userText);
             if (chat.parts.length > 1 && chat.parts[1].inline_data) {
               var fileData = chat.parts[1].inline_data;
               if (fileData.mime_type.startsWith("image/")) {
@@ -458,17 +475,18 @@ var loadChats = () => {
                 img.classList.add("img-attachment");
                 messageDiv.appendChild(img);
               } else {
-                // For non-image files, you would need to store the file name to display it.
-                // This part is a placeholder as the original code didn't save the file name in chatHistory.
-                var fileP = document.createElement("p");
-                fileP.classList.add("file-attachment");
-                fileP.innerHTML = `<span class="material-symbols-rounded">description</span>File Attached`;
-                messageDiv.appendChild(fileP);
+                var fileDisplay = document.createElement("p");
+                fileDisplay.classList.add("file-attachment");
+                // The original code didn't save the file name, so we use a placeholder.
+                fileDisplay.innerHTML = `<span class="material-symbols-rounded">description</span>File Attached`;
+                messageDiv.appendChild(fileDisplay);
               }
             }
           } else {
-            var messageHTML = `${avatarHTML}<p class="message-text">${formattedContent}</p>`;
-            messageDiv = createMessageElement(messageHTML, messageClass);
+            var avatarHTML = `<img class="avatar" src="https://stenoip.github.io/praterich/ladypraterich.png" />`;
+            var formattedContent = formatResponseText(content);
+            var botText = createMessageElement(formattedContent, messageClass);
+            messageDiv.innerHTML = avatarHTML + botText.innerHTML;
           }
           chatsContainer.appendChild(messageDiv);
         });
@@ -488,15 +506,33 @@ fileInput.addEventListener("change", () => {
   if (!file) return;
 
   var isImage = file.type.startsWith("image/");
+  var isAudio = file.type.startsWith("audio/");
+  var isVideo = file.type.startsWith("video/");
+
   var reader = new FileReader();
   reader.readAsDataURL(file);
   reader.onload = (e) => {
     fileInput.value = "";
     var base64String = e.target.result.split(",")[1];
     var preview = fileUploadWrapper.querySelector(".file-preview");
-    preview.src = e.target.result;
-    preview.style.display = "block";
-    fileUploadWrapper.classList.add("active", isImage ? "img-attached" : "file-attached");
+    
+    // Display different previews based on file type
+    if (isImage) {
+      preview.src = e.target.result;
+      preview.style.display = "block";
+      fileUploadWrapper.classList.add("active", "img-attached");
+    } else if (isAudio) {
+      preview.style.display = "none";
+      fileUploadWrapper.classList.add("active", "file-attached");
+    } else if (isVideo) {
+      preview.style.display = "none";
+      fileUploadWrapper.classList.add("active", "file-attached");
+    } else {
+      // Default for documents, etc.
+      preview.style.display = "none";
+      fileUploadWrapper.classList.add("active", "file-attached");
+    }
+
     userData.file = { fileName: file.name, data: base64String, mime_type: file.type, isImage };
   };
 });
@@ -531,12 +567,14 @@ themeToggleBtn.addEventListener("click", () => {
 
 // ==== Delete all chats ====
 deleteChatsBtn.addEventListener("click", () => {
-  chatHistory = [];
-  chatsContainer.innerHTML = "";
-  localStorage.removeItem('praterich_chat_history');
-  document.body.classList.remove("chats-active", "bot-responding");
-  if (speechUtterance && window.speechSynthesis.speaking) {
-    window.speechSynthesis.cancel();
+  if (confirm("Are you sure you want to delete all chats? This cannot be undone.")) {
+    chatHistory = [];
+    chatsContainer.innerHTML = "";
+    localStorage.removeItem('praterich_chat_history');
+    document.body.classList.remove("chats-active", "bot-responding");
+    if (speechUtterance && window.speechSynthesis.speaking) {
+      window.speechSynthesis.cancel();
+    }
   }
 });
 
@@ -555,7 +593,11 @@ document.querySelectorAll(".suggestions-item").forEach((suggestion) => {
 
 // ==== Add event listeners for form submission and file input click ====
 promptForm.addEventListener("submit", handleFormSubmit);
+
 promptForm.querySelector("#add-file-btn").addEventListener("click", () => fileInput.click());
+
+// Add the accept attribute to the file input to show more file types
+fileInput.setAttribute("accept", "image/*,audio/*,video/*,application/pdf,text/plain,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document");
 
 // Initial chat load
 document.addEventListener("DOMContentLoaded", loadChats);
