@@ -15,19 +15,26 @@ async function getSiteContentFromFile() {
 }
 
 export default async function handler(request, response) {
-  response.setHeader('Access-Control-Allow-Origin', 'https://stenoip.github.io');
+  // These are the only allowed origins.
+  const allowedOrigins = ['https://stenoip.github.io', 'https://www.khanacademy.org/computer-programming/praterich_ai/5593365421342720'];
+  const origin = request.headers['origin'];
+
+  if (allowedOrigins.includes(origin)) {
+    response.setHeader('Access-Control-Allow-Origin', origin);
+  } else {
+    // If the origin is not in the allowed list, deny the request.
+    return response.status(403).json({ error: 'Forbidden: Unauthorized origin.' });
+  }
+
   response.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   response.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
+  // Handle pre-flight requests from the browser
   if (request.method === 'OPTIONS') {
     return response.status(200).end();
   }
 
-  const origin = request.headers['origin'];
-  if (origin !== 'https://stenoip.github.io') {
-    return response.status(403).json({ error: 'Forbidden: Unauthorized origin.' });
-  }
-
+  // Ensure the request is a POST request
   if (request.method !== "POST") {
     return response.status(405).send("Method Not Allowed");
   }
