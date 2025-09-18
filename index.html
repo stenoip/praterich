@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@32,400,0,0" />
     <link rel="icon" type="image/png" href="ladypraterich.png">
     <style>
-     @import url("https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap");
+      @import url("https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap");
       * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Poppins", sans-serif; }
       :root {
         --text-color: #edf3ff;
@@ -60,52 +60,10 @@
       .chats-container .user-message .img-attachment { margin-top: -7px; width: 50%; border-radius: 13px 3px 13px 13px; }
       .chats-container .user-message .file-attachment { display: flex; gap: 6px; align-items: center; padding: 10px; margin-top: -7px; border-radius: 13px 3px 13px 13px; background: var(--secondary-color); }
       .chats-container .user-message .file-attachment span { color: #1d7efd; }
-      
-      /* NEW CSS FOR CODE BLOCKS */
-      .code-block-container {
-        margin: 18px 0;
-        background: var(--secondary-hover-color);
-        border-radius: 8px;
-        overflow: hidden;
-      }
-      .code-block-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 8px 16px;
-        background: var(--secondary-color);
-        border-bottom: 1px solid var(--secondary-hover-color);
-      }
-      .language-label {
-        font-weight: 500;
-        font-size: 0.9rem;
-        color: var(--placeholder-color);
-      }
-      .copy-code-btn {
-        background: none;
-        color: var(--placeholder-color);
-        border: none;
-        border-radius: 7px;
-        padding: 4px 10px;
-        cursor: pointer;
-        font-size: 0.9rem;
-        transition: color 0.2s;
-      }
-      .copy-code-btn:hover {
-        color: var(--text-color);
-      }
-      .code-block-container pre {
-        margin: 0;
-        background: none;
-        font-family: monospace;
-        font-size: 1rem;
-        color: var(--text-color);
-        white-space: pre-wrap;
-        word-break: break-all;
-        padding: 16px;
-      }
-      /* END NEW CSS FOR CODE BLOCKS */
-
+      .code-block-container { position: relative; margin: 18px 0; background: var(--secondary-hover-color, #222c); border-radius: 8px; padding: 0; overflow: auto; }
+      .code-block-container pre { margin: 0; background: none; font-family: monospace; font-size: 1rem; color: #fff; white-space: pre-wrap; word-break: break-all; padding: 16px 32px 16px 16px; border-radius: 8px; }
+      .copy-code-btn { position: absolute; top: 10px; right: 16px; font-size: 0.95rem; background: #1d7efd; color: #fff; border: none; border-radius: 7px; padding: 4px 13px; cursor: pointer; z-index: 2; opacity: 0.7; transition: opacity 0.2s; }
+      .copy-code-btn:hover { opacity: 1; }
       .container .prompt-container { position: fixed; width: 100%; left: 0; bottom: 0; padding: 16px 0; background: var(--primary-color); z-index: 10; }
       .prompt-container :where(.prompt-wrapper, .prompt-form, .prompt-actions) { display: flex; gap: 12px; height: 56px; align-items: center; }
       .prompt-container .prompt-form { height: 100%; width: 100%; border-radius: 130px; background: var(--secondary-color); }
@@ -120,6 +78,7 @@
       .prompt-form #send-prompt-btn:hover { background: #0264e3; }
       .prompt-form .file-upload-wrapper :where(button, img) { display: none; border-radius: 50%; object-fit: cover; position: absolute; }
       .prompt-form .file-upload-wrapper.active #add-file-btn { display: none; }
+      .prompt-form .file-upload-wrapper #add-file-btn,
       .prompt-form .file-upload-wrapper.active.img-attached img,
       .prompt-form .file-upload-wrapper.active.file-attached .file-icon,
       .prompt-form .file-upload-wrapper.active:hover #cancel-file-btn { display: block; }
