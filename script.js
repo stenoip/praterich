@@ -9,7 +9,7 @@ var themeToggleBtn = document.querySelector("#theme-toggle-btn");
 var stopResponseBtn = document.querySelector("#stop-response-btn");
 var deleteChatsBtn = document.querySelector("#delete-chats-btn");
 
-var API_URL = "https://praterich.vercel.app/api/praterich";
+var API_URL = "[https://praterich.vercel.app/api/praterich](https://praterich.vercel.app/api/praterich)";
 
 var controller, typingInterval;
 var speechUtterance;
@@ -187,14 +187,18 @@ var formatResponseText = (text) => {
   text = text.replace(/__(.*?)__/g, "<u>$1</u>");
   // `inline code`
   text = text.replace(/`([^`]+?)`/g, "<code>$1</code>");
-  // ```code block``` (multi-line, with container & copy button)
+
+  // NEW: ```code block``` with language and copy button
   text = text.replace(/```(\w*)\s*([\s\S]*?)```/g, function (_, lang, code) {
-    var safeCode = escapeHtml(code);
-    // Use lang as a class if present for highlighting in the future
+    var safeCode = escapeHtml(code).trim();
+    var languageLabel = lang ? lang.toUpperCase() : "CODE";
     return `
       <div class="code-block-container">
-        <button class="copy-code-btn" title="Copy code">Copy</button>
-        <pre><code${lang ? ' class="language-' + lang + '"' : ""}>${safeCode}</code></pre>
+        <div class="code-block-header">
+          <span class="language-label">${languageLabel}</span>
+          <button class="copy-code-btn" title="Copy code">Copy</button>
+        </div>
+        <pre><code class="language-${lang}">${safeCode}</code></pre>
       </div>
     `;
   });
@@ -257,13 +261,13 @@ function enhanceCodeBlocksWithCopy(container) {
 var NEWS_FEEDS = [
   {
     name: "BBC",
-    url: "https://feeds.bbci.co.uk/news/rss.xml",
-    api: "https://api.rss2json.com/v1/api.json?rss_url=https://feeds.bbci.co.uk/news/rss.xml"
+    url: "[https://feeds.bbci.co.uk/news/rss.xml](https://feeds.bbci.co.uk/news/rss.xml)",
+    api: "[https://api.rss2json.com/v1/api.json?rss_url=https://feeds.bbci.co.uk/news/rss.xml](https://api.rss2json.com/v1/api.json?rss_url=https://feeds.bbci.co.uk/news/rss.xml)"
   },
   {
     name: "CNN",
-    url: "http://rss.cnn.com/rss/edition.rss",
-    api: "https://api.rss2json.com/v1/api.json?rss_url=http://rss.cnn.com/rss/edition.rss"
+    url: "[http://rss.cnn.com/rss/edition.rss](http://rss.cnn.com/rss/edition.rss)",
+    api: "[https://api.rss2json.com/v1/api.json?rss_url=http://rss.cnn.com/rss/edition.rss](https://api.rss2json.com/v1/api.json?rss_url=http://rss.cnn.com/rss/edition.rss)"
   }
 ];
 
