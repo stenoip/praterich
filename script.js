@@ -9,7 +9,8 @@ var themeToggleBtn = document.querySelector("#theme-toggle-btn");
 var stopResponseBtn = document.querySelector("#stop-response-btn");
 var deleteChatsBtn = document.querySelector("#delete-chats-btn");
 
-var API_URL = "[https://praterich.vercel.app/api/praterich](https://praterich.vercel.app/api/praterich)";
+// IMPORTANT: Updated API URL to match the new server-side endpoint
+var API_URL = "https://praterich.vercel.app/api/praterich";
 
 var controller, typingInterval;
 var speechUtterance;
@@ -261,13 +262,13 @@ function enhanceCodeBlocksWithCopy(container) {
 var NEWS_FEEDS = [
   {
     name: "BBC",
-    url: "[https://feeds.bbci.co.uk/news/rss.xml](https://feeds.bbci.co.uk/news/rss.xml)",
-    api: "[https://api.rss2json.com/v1/api.json?rss_url=https://feeds.bbci.co.uk/news/rss.xml](https://api.rss2json.com/v1/api.json?rss_url=https://feeds.bbci.co.uk/news/rss.xml)"
+    url: "https://feeds.bbci.co.uk/news/rss.xml",
+    api: "https://api.rss2json.com/v1/api.json?rss_url=https://feeds.bbci.co.uk/news/rss.xml"
   },
   {
     name: "CNN",
-    url: "[http://rss.cnn.com/rss/edition.rss](http://rss.cnn.com/rss/edition.rss)",
-    api: "[https://api.rss2json.com/v1/api.json?rss_url=http://rss.cnn.com/rss/edition.rss](https://api.rss2json.com/v1/api.json?rss_url=http://rss.cnn.com/rss/edition.rss)"
+    url: "http://rss.cnn.com/rss/edition.rss",
+    api: "https://api.rss2json.com/v1/api.json?rss_url=http://rss.cnn.com/rss/edition.rss"
   }
 ];
 
@@ -389,6 +390,12 @@ avoid saying: Hello there! I'm Praterich, a large language model from Stenoip Co
       body: JSON.stringify(requestBody),
       signal: controller.signal,
     });
+
+    // Check if the response is JSON before parsing
+    const contentType = response.headers.get("content-type");
+    if (!contentType || !contentType.includes("application/json")) {
+      throw new Error("API did not return a valid JSON response. Possible server error.");
+    }
 
     var data = await response.json();
 
@@ -515,7 +522,6 @@ var loadChats = () => {
           chatsContainer.appendChild(messageDiv);
         });
         scrollToBottom();
-      }
     } catch (e) {
       console.error("Failed to parse chat history from localStorage", e);
       localStorage.removeItem('praterich_chat_history');
