@@ -1,3 +1,4 @@
+// ==== DOM Elements ====
 var container = document.querySelector(".container");
 var chatsContainer = document.querySelector(".chats-container");
 var promptForm = document.querySelector(".prompt-form");
@@ -56,16 +57,23 @@ var createMessageElement = (content, ...classes) => {
   messageTextElement.classList.add("message-text");
   messageTextElement.innerHTML = content;
 
-  // Only add the copy button for bot responses
-  if (classes.includes("bot-message") && !classes.includes("loading")) {
-    var copyButtonHTML = `<span onclick="copyMessage(this)" class="icon material-symbols-rounded">content_copy</span>`;
-    div.innerHTML = messageTextElement.outerHTML + copyButtonHTML;
-  } else {
-    div.innerHTML = messageTextElement.outerHTML;
+  div.appendChild(messageTextElement);
+
+  // Create the copy button but hide it initially for loading messages
+  if (classes.includes("bot-message")) {
+    var copyButton = document.createElement("span");
+    copyButton.classList.add("icon", "material-symbols-rounded", "copy-button");
+    copyButton.textContent = "content_copy";
+    copyButton.setAttribute("onclick", "copyMessage(this)");
+
+    if (classes.includes("loading")) {
+      copyButton.style.display = "none";
+    }
+    div.appendChild(copyButton);
   }
-  
   return div;
 };
+
 
 var scrollToBottom = () => container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
 
@@ -140,6 +148,11 @@ var typingEffect = (text, textElement, botMsgDiv) => {
       enhanceCodeBlocksWithCopy(textElement);
       botMsgDiv.classList.remove("loading");
       document.body.classList.remove("bot-responding");
+      // Show the copy button once the response is complete
+      var copyButton = botMsgDiv.querySelector('.copy-button');
+      if (copyButton) {
+        copyButton.style.display = "inline-block";
+      }
       saveChats();
     }
   }, delay);
@@ -161,6 +174,8 @@ function escapeHtml(str) {
 }
 
 var formatResponseText = (text) => {
+  // Explicitly handle newlines for paragraph breaks
+  text = text.replace(/\n\n/g, '<br><br>');
   // --- Horizontal rules
   text = text.replace(/^---\s*$/gm, "<hr>");
   // **bold**
@@ -188,7 +203,8 @@ var formatResponseText = (text) => {
     var level = hashes.length;
     return `<h${level}>${content.trim()}</h${level}>`;
   });
-
+  // Blockquotes
+  text = text.replace(/^>\s*(.*)$/gm, "<blockquote>$1</blockquote>");
   // [link text](url)
   text = text.replace(/\[([^\]]+)]\((https?:\/\/[^\)]+)\)/g, `<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>`);
 
@@ -339,6 +355,8 @@ avoid saying: Hello there! I'm Praterich, a large language model from Stenoip Co
   * Item 2
 - For headings, use hash symbols: ## My Heading, ### Subheading, etc. (up to 6 hash symbols).
 - For horizontal rules, use three hyphens: ---
+- For indents and paragraphs, use newlines. For a new line, simply press enter. For a new paragraph, press enter twice.
+- For blockquotes, use the > symbol at the beginning of the line. For example: > This is a blockquote.
 `;
 
   var userContentParts = [{ text: userData.message }];
