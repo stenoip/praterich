@@ -9,7 +9,6 @@ var themeToggleBtn = document.querySelector("#theme-toggle-btn");
 var stopResponseBtn = document.querySelector("#stop-response-btn");
 var deleteChatsBtn = document.querySelector("#delete-chats-btn");
 
-// IMPORTANT: Updated API URL to match the new server-side endpoint
 var API_URL = "https://praterich.vercel.app/api/praterich";
 
 var controller, typingInterval;
@@ -188,18 +187,14 @@ var formatResponseText = (text) => {
   text = text.replace(/__(.*?)__/g, "<u>$1</u>");
   // `inline code`
   text = text.replace(/`([^`]+?)`/g, "<code>$1</code>");
-
-  // NEW: ```code block``` with language and copy button
+  // ```code block``` (multi-line, with container & copy button)
   text = text.replace(/```(\w*)\s*([\s\S]*?)```/g, function (_, lang, code) {
-    var safeCode = escapeHtml(code).trim();
-    var languageLabel = lang ? lang.toUpperCase() : "CODE";
+    var safeCode = escapeHtml(code);
+    // Use lang as a class if present for highlighting in the future
     return `
       <div class="code-block-container">
-        <div class="code-block-header">
-          <span class="language-label">${languageLabel}</span>
-          <button class="copy-code-btn" title="Copy code">Copy</button>
-        </div>
-        <pre><code class="language-${lang}">${safeCode}</code></pre>
+        <button class="copy-code-btn" title="Copy code">Copy</button>
+        <pre><code${lang ? ' class="language-' + lang + '"' : ""}>${safeCode}</code></pre>
       </div>
     `;
   });
@@ -391,12 +386,6 @@ avoid saying: Hello there! I'm Praterich, a large language model from Stenoip Co
       signal: controller.signal,
     });
 
-    // Check if the response is JSON before parsing
-    const contentType = response.headers.get("content-type");
-    if (!contentType || !contentType.includes("application/json")) {
-      throw new Error("API did not return a valid JSON response. Possible server error.");
-    }
-
     var data = await response.json();
 
     if (!response.ok || data.error) {
@@ -522,6 +511,7 @@ var loadChats = () => {
           chatsContainer.appendChild(messageDiv);
         });
         scrollToBottom();
+      }
     } catch (e) {
       console.error("Failed to parse chat history from localStorage", e);
       localStorage.removeItem('praterich_chat_history');
