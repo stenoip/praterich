@@ -1,7 +1,7 @@
 // SECURITY WARNING: API key here is NOT secure. 
 // For production, this should be proxied through a secure backend server.
 var ELEVENLABS_API_KEY = "ab12c7932f11bc026ec632505945aadaa3270446d8a17089a570c63a421a86e9";
-var PRATERICH_VOICE_ID = "pNInz6obpgDQGcFJFVnf";
+var PRATERICH_VOICE_ID = "st7NwhTPEzqo2riw7qWC";
 
 // ====================================================================
 // DOM Elements and Global Variables
