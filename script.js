@@ -1,7 +1,9 @@
 // SECURITY WARNING: API key here is NOT secure. 
 // For production, this should be proxied through a secure backend server.
 var ELEVENLABS_API_KEY = "ab12c7932f11bc026ec632505945aadaa3270446d8a17089a570c63a421a86e9";
-var PRATERICH_VOICE_ID = "st7NwhTPEzqo2riw7qWC";
+// Using the stable "Adam" voice ID for reliable testing. 
+// Replace with your custom "Praterich" ID once you verify it's active.
+var PRATERICH_VOICE_ID = "pNInz6obpgDQGcFJFVnf"; 
 
 // ====================================================================
 // DOM Elements and Global Variables
@@ -19,7 +21,7 @@ var deleteChatsBtn = document.querySelector("#delete-chats-btn");
 
 var API_URL = "https://praterich.vercel.app/api/praterich";
 
-var controller, typingInterval;
+var controller, typingInterval, audioTimeout; // Added audioTimeout
 var audioContext;
 var chatHistory = [];
 var userData = { message: "", file: {} };
@@ -127,7 +129,8 @@ var playElevenLabsAudio = async (text) => {
         });
 
         if (!response.ok) {
-            console.error('ElevenLabs API Error:', response.status, response.statusText);
+            const errorBody = await response.json().catch(() => ({}));
+            console.error('ElevenLabs API Error:', response.status, response.statusText, errorBody);
             return;
         }
 
@@ -159,17 +162,22 @@ var typingEffect = (text, textElement, botMsgDiv) => {
   var plainText = tempDiv.textContent || tempDiv.innerText || "";
   plainText = replacePronunciations(plainText);
 
-  // 🛑 CORE LOGIC: Start audio immediately, before the typing loop.
-  // This ensures the voice begins while the text is still generating.
+  // 1. Clear any existing timeouts or audio
+  clearInterval(typingInterval);
+  clearTimeout(audioTimeout); // Clear previous delay
   if (audioContext) {
     audioContext.close();
     audioContext = null;
   }
 
+  // 🛑 CORE LOGIC: Set a 3-second delay (3000ms) before starting audio.
   if (plainText.length > 0) {
-    playElevenLabsAudio(plainText);
+    audioTimeout = setTimeout(() => {
+      playElevenLabsAudio(plainText);
+    }, 3000); // 3-second delay
   }
   
+  // 2. Start the typing effect immediately
   textElement.innerHTML = "";
   var charIndex = 0;
   var delay = 10;
@@ -177,6 +185,7 @@ var typingEffect = (text, textElement, botMsgDiv) => {
   typingInterval = setInterval(() => {
     if (charIndex < text.length) {
       var nextChar = text.charAt(charIndex);
+      // Handle HTML tags for formatting
       if (nextChar === '<') {
         var endIndex = text.indexOf('>', charIndex);
         if (endIndex !== -1) {
@@ -188,6 +197,7 @@ var typingEffect = (text, textElement, botMsgDiv) => {
       charIndex++;
       scrollToBottom();
     } else {
+      // Finish up
       clearInterval(typingInterval);
       enhanceCodeBlocksWithCopy(textElement);
       botMsgDiv.classList.remove("loading");
@@ -355,7 +365,7 @@ async function handleNewsRequest() {
   newsText = formatResponseText(newsText);
 
   var textElement = botMsgDiv.querySelector(".message-text");
-  // Note: typingEffect will start the audio immediately
+  // Note: typingEffect will start the audio with a delay
   typingEffect(newsText, textElement, botMsgDiv);
 
   chatHistory.push({
@@ -449,14 +459,20 @@ avoid saying: Hello there! I'm Praterich, a large language model from Stenoip Co
     textElement.innerHTML = error.name === "AbortError" ? "Response generation stopped." : `Error: ${error.message}`;
     textElement.style.color = "#d62939";
     botMsgDiv.classList.remove("loading");
-    document.body.classList.remove("bot-responding");
+    
+    // 💡 CRITICAL FIX: Ensure the bot-responding class is removed on error
+    document.body.classList.remove("bot-responding");
+    // 💡 CRITICAL FIX: Ensure userData is cleared on error so the user can try again
+    userData.file = {};
+
     // Stop ElevenLabs audio on error
     if (audioContext) {
       audioContext.close();
       audioContext = null;
     }
   } finally {
-    userData.file = {};
+    // This is now redundant but kept for safety in case of unexpected execution flow
+    // userData.file = {}; 
   }
 };
 
@@ -467,7 +483,8 @@ avoid saying: Hello there! I'm Praterich, a large language model from Stenoip Co
 var handleFormSubmit = (e) => {
   e.preventDefault();
   var userMessage = promptInput.value.trim();
-  if (!userMessage && !userData.file.data || document.body.classList.contains("bot-responding")) return;
+  // Check if message is empty AND no file is attached, OR bot is currently responding
+  if ((!userMessage && !userData.file.data) || document.body.classList.contains("bot-responding")) return;
 
   userData.message = userMessage;
   promptInput.value = "";
@@ -630,6 +647,7 @@ stopResponseBtn.addEventListener("click", () => {
   controller?.abort();
   userData.file = {};
   clearInterval(typingInterval);
+  clearTimeout(audioTimeout); // Clear the delay timeout
   chatsContainer.querySelector(".bot-message.loading")?.classList.remove("loading");
   document.body.classList.remove("bot-responding");
   
@@ -655,7 +673,8 @@ deleteChatsBtn.addEventListener("click", () => {
     chatsContainer.innerHTML = "";
     localStorage.removeItem('praterich_chat_history');
     document.body.classList.remove("chats-active", "bot-responding");
-    // Stop ElevenLabs audio
+    // Stop ElevenLabs audio and delay
+    clearTimeout(audioTimeout);
     if (audioContext) {
       audioContext.close();
       audioContext = null;
