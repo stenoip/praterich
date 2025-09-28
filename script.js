@@ -1,9 +1,8 @@
+
 // SECURITY WARNING: API key here is NOT secure. 
 // For production, this should be proxied through a secure backend server.
 var ELEVENLABS_API_KEY = "ab12c7932f11bc026ec632505945aadaa3270446d8a17089a570c63a421a86e9";
-// Using the stable "Adam" voice ID for reliable testing. 
-// Replace with your custom "Praterich" ID once you verify it's active.
-var PRATERICH_VOICE_ID = "pNInz6obpgDQGcFJFVnf"; 
+var PRATERICH_VOICE_ID = "ksryVoNAGZT8GxWCTiVm";
 
 // ====================================================================
 // DOM Elements and Global Variables
@@ -21,7 +20,7 @@ var deleteChatsBtn = document.querySelector("#delete-chats-btn");
 
 var API_URL = "https://praterich.vercel.app/api/praterich";
 
-var controller, typingInterval, audioTimeout; // Added audioTimeout
+var controller, typingInterval;
 var audioContext;
 var chatHistory = [];
 var userData = { message: "", file: {} };
@@ -101,54 +100,53 @@ function copyMessage(buttonElement) {
 // ====================================================================
 
 var playElevenLabsAudio = async (text) => {
-    // 1. Stop any currently playing audio
-    if (audioContext) {
-        audioContext.close();
-        audioContext = null;
-    }
-    
-    // 2. Setup the request body
-    const requestBody = {
-        text: text,
-        model_id: "eleven_multilingual_v2", // A high-quality model
-        voice_settings: {
-            stability: 0.5,
-            similarity_boost: 0.75
-        }
-    };
-    
-    try {
-        const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${PRATERICH_VOICE_ID}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'xi-api-key': ELEVENLABS_API_KEY,
-                'Accept': 'audio/mpeg'
-            },
-            body: JSON.stringify(requestBody)
-        });
+    // 1. Stop any currently playing audio
+    if (audioContext) {
+        audioContext.close();
+        audioContext = null;
+    }
+    
+    // 2. Setup the request body
+    const requestBody = {
+        text: text,
+        model_id: "eleven_multilingual_v2", // A high-quality model
+        voice_settings: {
+            stability: 0.5,
+            similarity_boost: 0.75
+        }
+    };
+    
+    try {
+        const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${PRATERICH_VOICE_ID}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'xi-api-key': ELEVENLABS_API_KEY,
+                'Accept': 'audio/mpeg'
+            },
+            body: JSON.stringify(requestBody)
+        });
 
-        if (!response.ok) {
-            const errorBody = await response.json().catch(() => ({}));
-            console.error('ElevenLabs API Error:', response.status, response.statusText, errorBody);
-            return;
-        }
+        if (!response.ok) {
+            console.error('ElevenLabs API Error:', response.status, response.statusText);
+            return;
+        }
 
-        // 3. Get the audio data as an ArrayBuffer
-        const audioData = await response.arrayBuffer();
-        
-        // 4. Decode and play the audio using Web Audio API
-        audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        audioContext.decodeAudioData(audioData, (buffer) => {
-            const source = audioContext.createBufferSource();
-            source.buffer = buffer;
-            source.connect(audioContext.destination);
-            source.start(0);
-        });
+        // 3. Get the audio data as an ArrayBuffer
+        const audioData = await response.arrayBuffer();
+        
+        // 4. Decode and play the audio using Web Audio API
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        audioContext.decodeAudioData(audioData, (buffer) => {
+            const source = audioContext.createBufferSource();
+            source.buffer = buffer;
+            source.connect(audioContext.destination);
+            source.start(0);
+        });
 
-    } catch (error) {
-        console.error('Failed to generate or play ElevenLabs audio:', error);
-    }
+    } catch (error) {
+        console.error('Failed to generate or play ElevenLabs audio:', error);
+    }
 };
 
 // ====================================================================
@@ -162,22 +160,16 @@ var typingEffect = (text, textElement, botMsgDiv) => {
   var plainText = tempDiv.textContent || tempDiv.innerText || "";
   plainText = replacePronunciations(plainText);
 
-  // 1. Clear any existing timeouts or audio
-  clearInterval(typingInterval);
-  clearTimeout(audioTimeout); // Clear previous delay
+  //  Stop old audio and start ElevenLabs TTS
   if (audioContext) {
     audioContext.close();
     audioContext = null;
   }
 
-  // 🛑 CORE LOGIC: Set a 3-second delay (3000ms) before starting audio.
   if (plainText.length > 0) {
-    audioTimeout = setTimeout(() => {
-      playElevenLabsAudio(plainText);
-    }, 3000); // 3-second delay
+    playElevenLabsAudio(plainText);
   }
-  
-  // 2. Start the typing effect immediately
+  
   textElement.innerHTML = "";
   var charIndex = 0;
   var delay = 10;
@@ -185,7 +177,6 @@ var typingEffect = (text, textElement, botMsgDiv) => {
   typingInterval = setInterval(() => {
     if (charIndex < text.length) {
       var nextChar = text.charAt(charIndex);
-      // Handle HTML tags for formatting
       if (nextChar === '<') {
         var endIndex = text.indexOf('>', charIndex);
         if (endIndex !== -1) {
@@ -197,7 +188,6 @@ var typingEffect = (text, textElement, botMsgDiv) => {
       charIndex++;
       scrollToBottom();
     } else {
-      // Finish up
       clearInterval(typingInterval);
       enhanceCodeBlocksWithCopy(textElement);
       botMsgDiv.classList.remove("loading");
@@ -365,7 +355,6 @@ async function handleNewsRequest() {
   newsText = formatResponseText(newsText);
 
   var textElement = botMsgDiv.querySelector(".message-text");
-  // Note: typingEffect will start the audio with a delay
   typingEffect(newsText, textElement, botMsgDiv);
 
   chatHistory.push({
@@ -459,20 +448,14 @@ avoid saying: Hello there! I'm Praterich, a large language model from Stenoip Co
     textElement.innerHTML = error.name === "AbortError" ? "Response generation stopped." : `Error: ${error.message}`;
     textElement.style.color = "#d62939";
     botMsgDiv.classList.remove("loading");
-    
-    // 💡 CRITICAL FIX: Ensure the bot-responding class is removed on error
-    document.body.classList.remove("bot-responding");
-    // 💡 CRITICAL FIX: Ensure userData is cleared on error so the user can try again
-    userData.file = {};
-
+    document.body.classList.remove("bot-responding");
     // Stop ElevenLabs audio on error
     if (audioContext) {
       audioContext.close();
       audioContext = null;
     }
   } finally {
-    // This is now redundant but kept for safety in case of unexpected execution flow
-    // userData.file = {}; 
+    userData.file = {};
   }
 };
 
@@ -483,8 +466,7 @@ avoid saying: Hello there! I'm Praterich, a large language model from Stenoip Co
 var handleFormSubmit = (e) => {
   e.preventDefault();
   var userMessage = promptInput.value.trim();
-  // Check if message is empty AND no file is attached, OR bot is currently responding
-  if ((!userMessage && !userData.file.data) || document.body.classList.contains("bot-responding")) return;
+  if (!userMessage && !userData.file.data || document.body.classList.contains("bot-responding")) return;
 
   userData.message = userMessage;
   promptInput.value = "";
@@ -647,10 +629,9 @@ stopResponseBtn.addEventListener("click", () => {
   controller?.abort();
   userData.file = {};
   clearInterval(typingInterval);
-  clearTimeout(audioTimeout); // Clear the delay timeout
   chatsContainer.querySelector(".bot-message.loading")?.classList.remove("loading");
   document.body.classList.remove("bot-responding");
-  
+  
   // 🛑 Stop ElevenLabs playback
   if (audioContext) {
     audioContext.close();
@@ -673,8 +654,7 @@ deleteChatsBtn.addEventListener("click", () => {
     chatsContainer.innerHTML = "";
     localStorage.removeItem('praterich_chat_history');
     document.body.classList.remove("chats-active", "bot-responding");
-    // Stop ElevenLabs audio and delay
-    clearTimeout(audioTimeout);
+    // Stop ElevenLabs audio
     if (audioContext) {
       audioContext.close();
       audioContext = null;
@@ -704,15 +684,16 @@ fileInput.setAttribute("accept", "image/*,audio/*,video/*,application/pdf,text/p
 
 
 promptInput.addEventListener("keydown", (e) => {
-    // Check for the 'Enter' key and ensure Shift is NOT pressed
-    if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault(); // Stop the default behavior (e.g., adding a new line in a textarea)
-        
-        // Dispatch the 'submit' event on the form to run handleFormSubmit
-        promptForm.dispatchEvent(new Event("submit"));
-    }
+    // Check for the 'Enter' key and ensure Shift is NOT pressed
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault(); // Stop the default behavior (e.g., adding a new line in a textarea)
+        
+        // Dispatch the 'submit' event on the form to run handleFormSubmit
+        promptForm.dispatchEvent(new Event("submit"));
+    }
 });
 
 
 // Initial chat load
 document.addEventListener("DOMContentLoaded", loadChats);
+ 
