@@ -1,3 +1,13 @@
+
+// SECURITY WARNING: API key here is NOT secure. 
+// For production, this should be proxied through a secure backend server.
+var ELEVENLABS_API_KEY = "ab12c7932f11bc026ec632505945aadaa3270446d8a17089a570c63a421a86e9";
+var PRATERICH_VOICE_ID = "gyeuMTz1KvJp8hqXmFe9";
+
+// ====================================================================
+// DOM Elements and Global Variables
+// ====================================================================
+
 var container = document.querySelector(".container");
 var chatsContainer = document.querySelector(".chats-container");
 var promptForm = document.querySelector(".prompt-form");
@@ -11,13 +21,14 @@ var deleteChatsBtn = document.querySelector("#delete-chats-btn");
 var API_URL = "https://praterich.vercel.app/api/praterich";
 
 var controller, typingInterval;
-var speechUtterance;
-var voicesLoaded = false;
-var availableVoices = [];
+var audioContext;
 var chatHistory = [];
 var userData = { message: "", file: {} };
 
-// ==== Custom Pronunciations ====
+// ====================================================================
+// Custom Pronunciations
+// ====================================================================
+
 var customPronunciations = {
   "Praterich": "Prah-ter-rich",
   "Stenoip": "Stick-noh-ip"
@@ -32,22 +43,18 @@ var replacePronunciations = (text) => {
   return spokenText;
 };
 
-// ==== Theme Setup ====
+// ====================================================================
+// Theme Setup
+// ====================================================================
+
 var isLightTheme = localStorage.getItem("themeColor") === "light_mode";
 document.body.classList.toggle("light-theme", isLightTheme);
 themeToggleBtn.textContent = isLightTheme ? "dark_mode" : "light_mode";
 
-// ==== Speech Synthesis ====
-var loadVoices = () => {
-  availableVoices = window.speechSynthesis.getVoices();
-  voicesLoaded = true;
-};
-if (window.speechSynthesis) {
-  window.speechSynthesis.onvoiceschanged = loadVoices;
-  loadVoices();
-}
+// ====================================================================
+// Message UI & Utility
+// ====================================================================
 
-// ==== Message UI ====
 var createMessageElement = (content, ...classes) => {
   var div = document.createElement("div");
   div.classList.add("message", ...classes);
@@ -88,7 +95,64 @@ function copyMessage(buttonElement) {
   }
 }
 
-// ==== Typing Effect & Speech ====
+// ====================================================================
+// ElevenLabs TTS Logic
+// ====================================================================
+
+var playElevenLabsAudio = async (text) => {
+    // 1. Stop any currently playing audio
+    if (audioContext) {
+        audioContext.close();
+        audioContext = null;
+    }
+    
+    // 2. Setup the request body
+    const requestBody = {
+        text: text,
+        model_id: "eleven_multilingual_v2", // A high-quality model
+        voice_settings: {
+            stability: 0.5,
+            similarity_boost: 0.75
+        }
+    };
+    
+    try {
+        const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${PRATERICH_VOICE_ID}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'xi-api-key': ELEVENLABS_API_KEY,
+                'Accept': 'audio/mpeg'
+            },
+            body: JSON.stringify(requestBody)
+        });
+
+        if (!response.ok) {
+            console.error('ElevenLabs API Error:', response.status, response.statusText);
+            return;
+        }
+
+        // 3. Get the audio data as an ArrayBuffer
+        const audioData = await response.arrayBuffer();
+        
+        // 4. Decode and play the audio using Web Audio API
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        audioContext.decodeAudioData(audioData, (buffer) => {
+            const source = audioContext.createBufferSource();
+            source.buffer = buffer;
+            source.connect(audioContext.destination);
+            source.start(0);
+        });
+
+    } catch (error) {
+        console.error('Failed to generate or play ElevenLabs audio:', error);
+    }
+};
+
+// ====================================================================
+// Typing Effect & Speech
+// ====================================================================
+
 var typingEffect = (text, textElement, botMsgDiv) => {
   // For speech, remove HTML tags and replace custom words
   var tempDiv = document.createElement('div');
@@ -96,28 +160,16 @@ var typingEffect = (text, textElement, botMsgDiv) => {
   var plainText = tempDiv.textContent || tempDiv.innerText || "";
   plainText = replacePronunciations(plainText);
 
-  if (speechUtterance && window.speechSynthesis.speaking) {
-    window.speechSynthesis.cancel();
+  //  Stop old audio and start ElevenLabs TTS
+  if (audioContext) {
+    audioContext.close();
+    audioContext = null;
   }
 
-  if (window.speechSynthesis && plainText.length > 0) {
-    speechUtterance = new SpeechSynthesisUtterance(plainText);
-    speechUtterance.rate = 1.0;
-    speechUtterance.pitch = 1.0;
-    speechUtterance.lang = 'en-US';
-
-    if (voicesLoaded) {
-      var selectedVoice = availableVoices.find(voice =>
-        voice.lang === 'en-US' && voice.name.includes('Google US English') && voice.name.includes('Male')
-      ) || availableVoices.find(voice => voice.lang === 'en-US');
-
-      if (selectedVoice) {
-        speechUtterance.voice = selectedVoice;
-      }
-    }
-    window.speechSynthesis.speak(speechUtterance);
+  if (plainText.length > 0) {
+    playElevenLabsAudio(plainText);
   }
-
+  
   textElement.innerHTML = "";
   var charIndex = 0;
   var delay = 10;
@@ -145,7 +197,10 @@ var typingEffect = (text, textElement, botMsgDiv) => {
   }, delay);
 };
 
-// ==== Markdown-like Formatting (with code block + copy button support) ====
+// ====================================================================
+// Markdown Formatting Logic
+// ====================================================================
+
 function escapeHtml(str) {
   return str.replace(/[&<>"']/g, function (m) {
     return (
@@ -237,7 +292,10 @@ function enhanceCodeBlocksWithCopy(container) {
   });
 }
 
-// ==== News fetching logic ====
+// ====================================================================
+// News fetching logic
+// ====================================================================
+
 var NEWS_FEEDS = [
   {
     name: "BBC",
@@ -305,7 +363,10 @@ async function handleNewsRequest() {
   });
 }
 
-// ==== API Call & Bot Response ====
+// ====================================================================
+// API Call & Bot Response
+// ====================================================================
+
 var generateResponse = async (botMsgDiv) => {
   var textElement = botMsgDiv.querySelector(".message-text");
   controller = new AbortController();
@@ -388,15 +449,20 @@ avoid saying: Hello there! I'm Praterich, a large language model from Stenoip Co
     textElement.style.color = "#d62939";
     botMsgDiv.classList.remove("loading");
     document.body.classList.remove("bot-responding");
-    if (speechUtterance && window.speechSynthesis.speaking) {
-      window.speechSynthesis.cancel();
+    // Stop ElevenLabs audio on error
+    if (audioContext) {
+      audioContext.close();
+      audioContext = null;
     }
   } finally {
     userData.file = {};
   }
 };
 
-// ==== Form Submission ====
+// ====================================================================
+// Form Submission
+// ====================================================================
+
 var handleFormSubmit = (e) => {
   e.preventDefault();
   var userMessage = promptInput.value.trim();
@@ -443,7 +509,10 @@ var handleFormSubmit = (e) => {
   }, 600);
 };
 
-// ==== Chat Persistence (Local Storage) ====
+// ====================================================================
+// Chat Persistence (Local Storage)
+// ====================================================================
+
 var saveChats = () => {
   localStorage.setItem('praterich_chat_history', JSON.stringify(chatHistory));
 };
@@ -502,7 +571,10 @@ var loadChats = () => {
   }
 };
 
-// ==== File Upload Logic ====
+// ====================================================================
+// File Upload Logic
+// ====================================================================
+
 fileInput.addEventListener("change", () => {
   var file = fileInput.files[0];
   if (!file) return;
@@ -548,6 +620,10 @@ document.querySelector("#cancel-file-btn").addEventListener("click", () => {
   preview.style.display = "none";
 });
 
+// ====================================================================
+// Event Handlers
+// ====================================================================
+
 // ==== Stop Bot Response and speech ====
 stopResponseBtn.addEventListener("click", () => {
   controller?.abort();
@@ -555,8 +631,11 @@ stopResponseBtn.addEventListener("click", () => {
   clearInterval(typingInterval);
   chatsContainer.querySelector(".bot-message.loading")?.classList.remove("loading");
   document.body.classList.remove("bot-responding");
-  if (speechUtterance && window.speechSynthesis.speaking) {
-    window.speechSynthesis.cancel();
+  
+  // 🛑 Stop ElevenLabs playback
+  if (audioContext) {
+    audioContext.close();
+    audioContext = null;
   }
 });
 
@@ -575,8 +654,10 @@ deleteChatsBtn.addEventListener("click", () => {
     chatsContainer.innerHTML = "";
     localStorage.removeItem('praterich_chat_history');
     document.body.classList.remove("chats-active", "bot-responding");
-    if (speechUtterance && window.speechSynthesis.speaking) {
-      window.speechSynthesis.cancel();
+    // Stop ElevenLabs audio
+    if (audioContext) {
+      audioContext.close();
+      audioContext = null;
     }
   }
 });
@@ -596,11 +677,23 @@ document.querySelectorAll(".suggestions-item").forEach((suggestion) => {
 
 // ==== Add event listeners for form submission and file input click ====
 promptForm.addEventListener("submit", handleFormSubmit);
-
 promptForm.querySelector("#add-file-btn").addEventListener("click", () => fileInput.click());
 
 // Add the accept attribute to the file input to show more file types
 fileInput.setAttribute("accept", "image/*,audio/*,video/*,application/pdf,text/plain,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document");
 
+
+promptInput.addEventListener("keydown", (e) => {
+    // Check for the 'Enter' key and ensure Shift is NOT pressed
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault(); // Stop the default behavior (e.g., adding a new line in a textarea)
+        
+        // Dispatch the 'submit' event on the form to run handleFormSubmit
+        promptForm.dispatchEvent(new Event("submit"));
+    }
+});
+
+
 // Initial chat load
 document.addEventListener("DOMContentLoaded", loadChats);
+ 
