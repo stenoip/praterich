@@ -1,4 +1,3 @@
-
 // SECURITY WARNING: API key here is NOT secure. 
 // For production, this should be proxied through a secure backend server.
 var ELEVENLABS_API_KEY = "ab12c7932f11bc026ec632505945aadaa3270446d8a17089a570c63a421a86e9";
@@ -100,53 +99,53 @@ function copyMessage(buttonElement) {
 // ====================================================================
 
 var playElevenLabsAudio = async (text) => {
-    // 1. Stop any currently playing audio
-    if (audioContext) {
-        audioContext.close();
-        audioContext = null;
-    }
-    
-    // 2. Setup the request body
-    const requestBody = {
-        text: text,
-        model_id: "eleven_multilingual_v2", // A high-quality model
-        voice_settings: {
-            stability: 0.5,
-            similarity_boost: 0.75
-        }
-    };
-    
-    try {
-        const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${PRATERICH_VOICE_ID}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'xi-api-key': ELEVENLABS_API_KEY,
-                'Accept': 'audio/mpeg'
-            },
-            body: JSON.stringify(requestBody)
-        });
+    // 1. Stop any currently playing audio
+    if (audioContext) {
+        audioContext.close();
+        audioContext = null;
+    }
+    
+    // 2. Setup the request body
+    const requestBody = {
+        text: text,
+        model_id: "eleven_multilingual_v2", // A high-quality model
+        voice_settings: {
+            stability: 0.5,
+            similarity_boost: 0.75
+        }
+    };
+    
+    try {
+        const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${PRATERICH_VOICE_ID}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'xi-api-key': ELEVENLABS_API_KEY,
+                'Accept': 'audio/mpeg'
+            },
+            body: JSON.stringify(requestBody)
+        });
 
-        if (!response.ok) {
-            console.error('ElevenLabs API Error:', response.status, response.statusText);
-            return;
-        }
+        if (!response.ok) {
+            console.error('ElevenLabs API Error:', response.status, response.statusText);
+            return;
+        }
 
-        // 3. Get the audio data as an ArrayBuffer
-        const audioData = await response.arrayBuffer();
-        
-        // 4. Decode and play the audio using Web Audio API
-        audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        audioContext.decodeAudioData(audioData, (buffer) => {
-            const source = audioContext.createBufferSource();
-            source.buffer = buffer;
-            source.connect(audioContext.destination);
-            source.start(0);
-        });
+        // 3. Get the audio data as an ArrayBuffer
+        const audioData = await response.arrayBuffer();
+        
+        // 4. Decode and play the audio using Web Audio API
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        audioContext.decodeAudioData(audioData, (buffer) => {
+            const source = audioContext.createBufferSource();
+            source.buffer = buffer;
+            source.connect(audioContext.destination);
+            source.start(0);
+        });
 
-    } catch (error) {
-        console.error('Failed to generate or play ElevenLabs audio:', error);
-    }
+    } catch (error) {
+        console.error('Failed to generate or play ElevenLabs audio:', error);
+    }
 };
 
 // ====================================================================
@@ -160,7 +159,8 @@ var typingEffect = (text, textElement, botMsgDiv) => {
   var plainText = tempDiv.textContent || tempDiv.innerText || "";
   plainText = replacePronunciations(plainText);
 
-  //  Stop old audio and start ElevenLabs TTS
+  // 🛑 CORE LOGIC: Start audio immediately, before the typing loop.
+  // This ensures the voice begins while the text is still generating.
   if (audioContext) {
     audioContext.close();
     audioContext = null;
@@ -169,7 +169,7 @@ var typingEffect = (text, textElement, botMsgDiv) => {
   if (plainText.length > 0) {
     playElevenLabsAudio(plainText);
   }
-  
+  
   textElement.innerHTML = "";
   var charIndex = 0;
   var delay = 10;
@@ -355,6 +355,7 @@ async function handleNewsRequest() {
   newsText = formatResponseText(newsText);
 
   var textElement = botMsgDiv.querySelector(".message-text");
+  // Note: typingEffect will start the audio immediately
   typingEffect(newsText, textElement, botMsgDiv);
 
   chatHistory.push({
@@ -631,7 +632,7 @@ stopResponseBtn.addEventListener("click", () => {
   clearInterval(typingInterval);
   chatsContainer.querySelector(".bot-message.loading")?.classList.remove("loading");
   document.body.classList.remove("bot-responding");
-  
+  
   // 🛑 Stop ElevenLabs playback
   if (audioContext) {
     audioContext.close();
@@ -684,16 +685,15 @@ fileInput.setAttribute("accept", "image/*,audio/*,video/*,application/pdf,text/p
 
 
 promptInput.addEventListener("keydown", (e) => {
-    // Check for the 'Enter' key and ensure Shift is NOT pressed
-    if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault(); // Stop the default behavior (e.g., adding a new line in a textarea)
-        
-        // Dispatch the 'submit' event on the form to run handleFormSubmit
-        promptForm.dispatchEvent(new Event("submit"));
-    }
+    // Check for the 'Enter' key and ensure Shift is NOT pressed
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault(); // Stop the default behavior (e.g., adding a new line in a textarea)
+        
+        // Dispatch the 'submit' event on the form to run handleFormSubmit
+        promptForm.dispatchEvent(new Event("submit"));
+    }
 });
 
 
 // Initial chat load
 document.addEventListener("DOMContentLoaded", loadChats);
- 
