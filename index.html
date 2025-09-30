@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@32,400,0,0" />
     <link rel="icon" type="image/png" href="ladypraterich.png">
     <style>
-      @import url("https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap");
+     @import url("https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap");
       * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Poppins", sans-serif; }
       
       /* --- FRUTIGER AERO THEME VARIABLES --- */
@@ -326,6 +326,19 @@
       .chats-container .message.loading .avatar { animation: rotate 3s linear infinite; }
       @keyframes rotate { 100% { transform: rotate(360deg); } }
       .chats-container .bot-message ul { list-style-type: disc; padding-left: 20px; margin: 10px 0; }
+       #upload-limit-msg { color: #d62939; font-weight: bold; padding: 12px 0; text-align: center; }
+      @media (max-width: 768px) {
+        .container { padding: 20px 0 100px; }
+        .app-header :is(.heading, .sub-heading) { font-size: 2rem; line-height: 1.4; }
+        .app-header .sub-heading { font-size: 1.7rem; }
+        .container .chats-container { gap: 15px; }
+        .chats-container .bot-message { margin: 4px auto; }
+        .prompt-container :where(.prompt-wrapper, .prompt-form, .prompt-actions) { gap: 8px; height: 53px; }
+        .prompt-container button { width: 53px; }
+        .prompt-form :is(.file-upload-wrapper, button, img) { height: 42px; width: 42px; }
+        .prompt-form .prompt-input { padding-left: 20px; }
+        .prompt-form .file-upload-wrapper.active #cancel-file-btn { opacity: 0; }
+        .prompt-wrapper.hide-controls :where(#theme-toggle-btn, #delete-chats-btn) { display: none; }
     </style>
   </head>
   <body>
