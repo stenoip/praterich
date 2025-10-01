@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -339,6 +340,24 @@
         .prompt-form .prompt-input { padding-left: 20px; }
         .prompt-form .file-upload-wrapper.active #cancel-file-btn { opacity: 0; }
         .prompt-wrapper.hide-controls :where(#theme-toggle-btn, #delete-chats-btn) { display: none; }
+        .prompt-wrapper button { width: 56px; height: 100%; flex-shrink: 0; cursor: pointer; border-radius: 50%; font-size: 1.4rem; border: none; color: var(--text-color); background: var(--secondary-color); transition: 0.3s ease; }
+      .prompt-wrapper :is(button:hover, #cancel-file-btn, .file-icon) { background: var(--secondary-hover-color); }
+      .prompt-form .prompt-actions { gap: 5px; margin-right: 7px; }
+      .prompt-wrapper .prompt-form :where(.file-upload-wrapper, button, img) { position: relative; height: 45px; width: 45px; }
+      .prompt-form .prompt-actions #send-prompt-btn { color: #fff; display: none; background: #1d7efd; }
+      .prompt-form .prompt-input:valid ~ .prompt-actions #send-prompt-btn { display: block; }
+      .prompt-form #send-prompt-btn:hover { background: #0264e3; }
+      .prompt-form .file-upload-wrapper :where(button, img) { display: none; border-radius: 50%; object-fit: cover; position: absolute; }
+      .prompt-form .file-upload-wrapper.active #add-file-btn { display: none; }
+      .prompt-form .file-upload-wrapper #add-file-btn,
+      .prompt-form .file-upload-wrapper.active.img-attached img,
+      .prompt-form .file-upload-wrapper.active.file-attached .file-icon,
+      .prompt-form .file-upload-wrapper.active:hover #cancel-file-btn { display: block; }
+      .prompt-form :is(#stop-response-btn:hover, #cancel-file-btn) { color: #d62939; }
+      .prompt-wrapper .prompt-form .file-icon { color: #1d7efd; }
+      .prompt-form #stop-response-btn,
+      body.bot-responding .prompt-form .file-upload-wrapper { display: none; }
+      body.bot-responding .prompt-form #stop-response-btn { display: block; }
     </style>
   </head>
   <body>
