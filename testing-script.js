@@ -55,20 +55,20 @@ if (window.speechSynthesis) {
 var createMessageElement = (content, ...classes) => {
     var div = document.createElement("div");
     div.classList.add("message", ...classes);
-    
-    var messageTextElement = document.createElement("p");
+
+    // Use a DIV for message-text, not a P. This fixes the nesting bug.
+    var messageTextElement = document.createElement("div"); 
     messageTextElement.classList.add("message-text");
     messageTextElement.innerHTML = content;
 
     if (classes.includes("bot-message") && !classes.includes("loading")) {
-        // Wrap the entire message text content in a div to properly house formatted elements
-        var contentWrapper = document.createElement('div');
-        contentWrapper.classList.add('bot-content-wrapper'); // New class for better targeting
-        contentWrapper.appendChild(messageTextElement);
-        
+        var avatarHTML = `<img class="avatar" src="https://stenoip.github.io/praterich/ladypraterich.png" />`;
         var copyButtonHTML = `<span onclick="copyMessage(this)" class="icon material-symbols-rounded">content_copy</span>`;
-        div.innerHTML = contentWrapper.innerHTML + copyButtonHTML;
+        
+        // Construct the full message
+        div.innerHTML = avatarHTML + messageTextElement.outerHTML + copyButtonHTML;
     } else {
+        // For user messages or loading messages
         div.innerHTML = messageTextElement.outerHTML;
     }
     
@@ -80,10 +80,23 @@ var scrollToBottom = () => chatsContainer.scrollTo({ top: chatsContainer.scrollH
 // --- Copy Message Functionality ---
 function copyMessage(buttonElement) {
     var messageElement = buttonElement.closest('.message');
+    // Find the message text container (which is now a div)
     var textElement = messageElement.querySelector('.message-text');
 
     if (textElement) {
-        navigator.clipboard.writeText(textElement.textContent)
+        // For code blocks, we need to find the CodeMirror editor if it exists
+        var codeEditor = textElement.querySelector('.CodeMirror');
+        var textToCopy;
+        
+        if (codeEditor && codeEditor.CodeMirror) {
+            // If it's a code block, get text from the editor
+            textToCopy = codeEditor.CodeMirror.getValue();
+        } else {
+            // Otherwise, get the text content of the whole message
+            textToCopy = textElement.textContent;
+        }
+
+        navigator.clipboard.writeText(textToCopy)
             .then(() => {
                 buttonElement.textContent = 'check';
                 setTimeout(() => {
@@ -136,8 +149,15 @@ var typingEffect = (text, textElement, botMsgDiv) => {
             if (nextChar === '<') {
                 var endIndex = text.indexOf('>', charIndex);
                 if (endIndex !== -1) {
-                    nextChar = text.substring(charIndex, endIndex + 1);
-                    charIndex = endIndex;
+                    // Check if it's a code block, if so, add the whole block at once
+                    if (text.substring(charIndex, charIndex + 26) === '<div class="code-block-con') {
+                        endIndex = text.indexOf('</div>', charIndex) + 5; // Find end of the div
+                        nextChar = text.substring(charIndex, endIndex + 1);
+                        charIndex = endIndex;
+                    } else {
+                        nextChar = text.substring(charIndex, endIndex + 1);
+                        charIndex = endIndex;
+                    }
                 }
             }
             textElement.innerHTML += nextChar;
@@ -145,7 +165,8 @@ var typingEffect = (text, textElement, botMsgDiv) => {
             scrollToBottom();
         } else {
             clearInterval(typingInterval);
-            enhanceCodeBlocksWithCopy(botMsgDiv);
+            // NEW: Initialize CodeMirror on the code blocks
+            initializeCodeEditors(botMsgDiv); 
             botMsgDiv.classList.remove("loading");
             document.body.classList.remove("bot-responding");
             saveChats();
@@ -162,6 +183,13 @@ function escapeHtml(str) {
     });
 }
 
+// Function to un-escape HTML (for textareas)
+function unEscapeHtml(str) {
+    var tempDiv = document.createElement('div');
+    tempDiv.innerHTML = str;
+    return tempDiv.textContent || tempDiv.innerText || "";
+}
+
 var formatResponseText = (text) => {
     // 1. Escape HTML for safe insertion (important before adding markdown tags)
     var lines = text.split('\n');
@@ -170,11 +198,12 @@ var formatResponseText = (text) => {
     
     // 2. Handle Code Blocks (must be done before other formatting)
     text = text.replace(/```(\w*)\s*([\s\S]*?)```/g, function (_, lang, code) {
-        var safeCode = code; // Already escaped in step 1
+        // 'code' is currently HTML-escaped. We need to un-escape it for the textarea.
+        var unescapedCode = unEscapeHtml(code); 
         return `
             <div class="code-block-container">
                 <button class="copy-code-btn" title="Copy code">Copy</button>
-                <pre><code${lang ? ' class="language-' + lang + '"' : ""}>${safeCode}</code></pre>
+                <textarea data-lang="${lang || 'text'}">${unescapedCode}</textarea>
             </div>
         `;
     });
@@ -211,14 +240,18 @@ var formatResponseText = (text) => {
         } else if (/^\d+\.\s/.test(trimmedLine)) {
             if (inList) { finalLines.push('</ul>'); inList = false; }
             if (!inOrderedList) { finalLines.push('<ol>'); inOrderedList = true; }
-            // Remove the number and period for the list item content
             finalLines.push(`<li>${trimmedLine.replace(/^\d+\.\s*/, '').trim()}</li>`);
         } else {
             if (inList) { finalLines.push('</ul>'); inList = false; }
             if (inOrderedList) { finalLines.push('</ol>'); inOrderedList = false; }
             // Treat non-list lines as paragraphs or just text
             if (trimmedLine.length > 0) {
-                finalLines.push(`<p>${trimmedLine}</p>`);
+                // Do not wrap headings or code blocks in <p> tags
+                if (trimmedLine.startsWith('<h') || trimmedLine.startsWith('<div class="code-block-con')) {
+                    finalLines.push(trimmedLine);
+                } else {
+                     finalLines.push(`<p>${trimmedLine}</p>`);
+                }
             } else {
                 finalLines.push('');
             }
@@ -231,29 +264,72 @@ var formatResponseText = (text) => {
     text = finalLines.join('\n');
     
     // Clean up empty paragraph tags that might surround lists or code blocks
-    text = text.replace(/<p>\s*(<ul>|<\/ul>|<ol>|<\/ol>|<div class="code-block-container")/g, '$1')
-               .replace(/(<\/ul>|<\/ol>|<\/div>)\s*<\/p>/g, '$1');
+    text = text.replace(/<p>\s*(\n)?\s*(<ul>|<\/ul>|<ol>|<\/ol>|<div class="code-block-container"|<h[1-6]>)/g, '$1')
+               .replace(/(<\/ul>|<\/ol>|<\/div>|<\/h[1-6]>)\s*(\n)?\s*<\/p>/g, '$1');
 
     return text;
 };
 
 // --- Add copy button functionality to code blocks ---
-function enhanceCodeBlocksWithCopy(container) {
+function initializeCodeEditors(container) {
     var blocks = container.querySelectorAll('.code-block-container');
+    
     blocks.forEach(block => {
+        var textarea = block.querySelector('textarea');
         var btn = block.querySelector('.copy-code-btn');
-        var code = block.querySelector('pre code');
-        if (btn && code) {
-            btn.onclick = () => {
-                var codeText = code.textContent;
-                navigator.clipboard.writeText(codeText).then(() => {
-                    btn.textContent = "Copied!";
-                    setTimeout(() => (btn.textContent = "Copy"), 1300);
+        
+        if (textarea) {
+            var lang = textarea.getAttribute('data-lang');
+            var mode = 'javascript'; // default
+            if (lang === 'js' || lang === 'javascript') mode = 'javascript';
+            else if (lang === 'html' || lang === 'htmlmixed') mode = 'htmlmixed';
+            else if (lang === 'css') mode = 'css';
+            else if (lang === 'xml') mode = 'xml';
+            else if (lang === 'text' || lang === 'none' || !lang) mode = 'text/plain';
+            
+            try {
+                var editor = CodeMirror.fromTextArea(textarea, {
+                    lineNumbers: true,
+                    mode: mode,
+                    theme: 'material-darker', // Make sure you added this theme's CSS file
+                    readOnly: true,
+                    autoCloseBrackets: true,
+                    autoCloseTags: true
                 });
-            };
+
+                // Store a reference to the editor instance for the copy button
+                block.CodeMirrorInstance = editor;
+                
+                if (btn) {
+                    btn.onclick = () => {
+                        var codeText = editor.getValue(); // Get text from CodeMirror
+                        navigator.clipboard.writeText(codeText).then(() => {
+                            btn.textContent = "Copied!";
+                            setTimeout(() => (btn.textContent = "Copy"), 1300);
+                        });
+                    };
+                }
+            } catch (e) {
+                console.error("CodeMirror failed to initialize:", e);
+                // Fallback: just show the textarea
+                textarea.style.display = 'block';
+                textarea.readOnly = true;
+
+                // Fallback for copy button
+                 if (btn) {
+                    btn.onclick = () => {
+                        var codeText = textarea.value;
+                        navigator.clipboard.writeText(codeText).then(() => {
+                            btn.textContent = "Copied!";
+                            setTimeout(() => (btn.textContent = "Copy"), 1300);
+                        });
+                    };
+                }
+            }
         }
     });
 }
+
 
 // --- News fetching logic (Omitted for brevity, kept essential functions) ---
 var NEWS_FEEDS = [
@@ -294,13 +370,23 @@ function newsToMarkdown(news) {
 
 async function handleNewsRequest() {
     document.body.classList.add("chats-active", "bot-responding");
+    newChatBtn.classList.add("active");
+    dummyChatBtn.classList.remove("active");
     
     var userMsgDiv = createMessageElement("What is the latest news?", "user-message");
     chatsContainer.appendChild(userMsgDiv);
     scrollToBottom();
 
-    var botMsgHTML = `<img class="avatar" src="https://stenoip.github.io/praterich/ladypraterich.png" /> <p class="message-text">Fetching the latest news headlines...</p>`;
-    var botMsgDiv = createMessageElement(botMsgHTML, "bot-message", "loading");
+    // --- Create Bot Loading Message ---
+    var botMsgDiv = document.createElement("div");
+    botMsgDiv.classList.add("message", "bot-message", "loading");
+    
+    var botTextElement = document.createElement("div"); 
+    botTextElement.classList.add("message-text");
+    botTextElement.innerHTML = "Fetching the latest news headlines...";
+
+    botMsgDiv.innerHTML = `<img class="avatar" src="https://stenoip.github.io/praterich/ladypraterich.png" />` + botTextElement.outerHTML;
+    
     chatsContainer.appendChild(botMsgDiv);
     scrollToBottom();
 
@@ -308,8 +394,11 @@ async function handleNewsRequest() {
     var newsTextRaw = newsToMarkdown(news);
     var newsTextFormatted = formatResponseText(newsTextRaw);
 
-    var textElement = botMsgDiv.querySelector(".message-text");
-    typingEffect(newsTextFormatted, textElement, botMsgDiv);
+    // Add the copy button
+    var copyButtonHTML = `<span onclick="copyMessage(this)" class="icon material-symbols-rounded">content_copy</span>`;
+    botMsgDiv.innerHTML += copyButtonHTML;
+    
+    typingEffect(newsTextFormatted, botTextElement, botMsgDiv);
 
     // Store raw text in history
     chatHistory.push({ role: "user", parts: [{ text: "What is the latest news?" }] });
@@ -318,11 +407,10 @@ async function handleNewsRequest() {
 }
 
 // --- API Call & Bot Response ---
-var generateResponse = async (botMsgDiv) => {
-    var textElement = botMsgDiv.querySelector(".message-text");
+var generateResponse = async (botMsgDiv, textElement) => { // <-- Note the new argument
     controller = new AbortController();
 
-   var sirPraterichSystemInstruction = `
+    var sirPraterichSystemInstruction = `
 You are Praterich,an AI. You were developed by Stenoip Company.
 
 Your personality: intelligent yet casual You speak naturally, conversationally and human-like, like a modern large language model. You will avoid sounding scripted or overly formal. You prefer metric units and do not use Oxford commas. You never use Customary or Imperial systems.
@@ -390,12 +478,17 @@ avoid saying: Hello there! I'm Praterich, a large language model from Stenoip Co
         var responseTextRaw = data.text;
         var responseTextFormatted = formatResponseText(responseTextRaw);
         
+        // Add the copy button to the parent message div
+        var copyButtonHTML = `<span onclick="copyMessage(this)" class="icon material-symbols-rounded">content_copy</span>`;
+        botMsgDiv.innerHTML += copyButtonHTML; // Add copy button
+        
+        // Start the typing effect in the textElement
         typingEffect(responseTextFormatted, textElement, botMsgDiv);
 
         chatHistory.push({ role: "user", parts: userContentParts });
         // Save the RAW text to history
         chatHistory.push({ role: "model", parts: [{ text: responseTextRaw }] });
-        saveChats();
+        // saveChats() is now called inside typingEffect()
 
     } catch (error) {
         textElement.innerHTML = error.name === "AbortError" ? "Response generation stopped." : `Error: ${error.message}`;
@@ -420,9 +513,13 @@ var handleFormSubmit = (e) => {
     promptInput.value = "";
     document.body.classList.add("chats-active", "bot-responding");
     newChatBtn.classList.add("active"); // Mark new chat button as active on start
+    dummyChatBtn.classList.remove("active"); // Deactivate dummy chat
 
+    // --- Create User Message ---
     var userMsgDiv = document.createElement("div");
     userMsgDiv.classList.add("message", "user-message");
+    
+    // User message text can be in a <p> tag
     var userTextElement = document.createElement("p");
     userTextElement.classList.add("message-text");
     userTextElement.textContent = userData.message;
@@ -437,12 +534,23 @@ var handleFormSubmit = (e) => {
     fileUploadWrapper.classList.remove("file-attached", "img-attached", "active");
     userData.file = {};
 
+    // --- Create Bot Loading Message ---
     setTimeout(() => {
-        var botMsgHTML = `<img class="avatar" src="https://stenoip.github.io/praterich/ladypraterich.png" /> <p class="message-text">Let me think</p>`;
-        var botMsgDiv = createMessageElement(botMsgHTML, "bot-message", "loading");
+        var botMsgDiv = document.createElement("div");
+        botMsgDiv.classList.add("message", "bot-message", "loading");
+        
+        // Use a <div> for the message text container
+        var botTextElement = document.createElement("div"); 
+        botTextElement.classList.add("message-text");
+        botTextElement.innerHTML = "Let me think"; // Loading text
+
+        botMsgDiv.innerHTML = `<img class="avatar" src="https://stenoip.github.io/praterich/ladypraterich.png" />` + botTextElement.outerHTML;
+        
         chatsContainer.appendChild(botMsgDiv);
         scrollToBottom();
-        generateResponse(botMsgDiv);
+        
+        // Pass the actual message text DIV to be populated
+        generateResponse(botMsgDiv, botTextElement);
     }, 600);
 };
 
@@ -456,47 +564,54 @@ var loadChats = () => {
     
     // Set the active state of New Chat button based on stored history
     newChatBtn.classList.remove("active");
+    dummyChatBtn.classList.remove("active");
     
     if (savedChats) {
         try {
             chatHistory = JSON.parse(savedChats);
             if (chatHistory.length > 0) {
                 document.body.classList.add("chats-active");
-                newChatBtn.classList.add("active");
+                newChatBtn.classList.add("active"); // Set active chat
 
                 chatHistory.forEach(chat => {
                     var isUser = chat.role === "user";
-                    var messageClass = isUser ? "user-message" : "bot-message";
                     var contentRaw = chat.parts[0]?.text || "";
                     
                     var messageDiv = document.createElement("div");
-                    messageDiv.classList.add("message", messageClass);
+                    messageDiv.classList.add("message", isUser ? "user-message" : "bot-message");
 
                     if (isUser) {
-                        // ... (User message loading logic)
+                        // --- Rebuild User Message ---
                         var userText = document.createElement("p");
                         userText.classList.add("message-text");
-                        userText.textContent = contentRaw;
+                        userText.textContent = contentRaw; // Use .textContent for safety
                         messageDiv.appendChild(userText);
                     } else {
+                        // --- Rebuild Bot Message ---
                         var avatarHTML = `<img class="avatar" src="https://stenoip.github.io/praterich/ladypraterich.png" />`;
                         var contentFormatted = formatResponseText(contentRaw); // Format the raw saved text
                         
-                        var tempBotText = createMessageElement(contentFormatted, "bot-message");
+                        // Create the message-text DIV
+                        var messageTextElement = document.createElement("div");
+                        messageTextElement.classList.add("message-text");
+                        messageTextElement.innerHTML = contentFormatted;
                         
-                        // Reconstruct the bot message structure
-                        var messageTextElement = tempBotText.querySelector('.message-text');
-                        var copyButtonElement = tempBotText.querySelector('.icon');
+                        var copyButtonHTML = `<span onclick="copyMessage(this)" class="icon material-symbols-rounded">content_copy</span>`;
                         
-                        messageDiv.innerHTML = avatarHTML + messageTextElement.outerHTML + copyButtonElement.outerHTML;
+                        // Assemble the bot message
+                        messageDiv.innerHTML = avatarHTML + messageTextElement.outerHTML + copyButtonHTML;
 
-                        enhanceCodeBlocksWithCopy(messageDiv);
+                        // Initialize CodeMirror on the reloaded blocks
+                        initializeCodeEditors(messageDiv);
                     }
                     chatsContainer.appendChild(messageDiv);
                 });
-                scrollToBottom();
+                
+                // Use setTimeout to ensure scrolling happens after DOM is fully painted
+                setTimeout(scrollToBottom, 100);
             }
         } catch (e) {
+            console.error("Failed to load chats:", e);
             localStorage.removeItem('praterich_chat_history');
             chatHistory = [];
         }
@@ -519,6 +634,10 @@ stopResponseBtn.addEventListener("click", () => {
     clearInterval(typingInterval);
     chatsContainer.querySelectorAll(".bot-message.loading").forEach(msg => {
         msg.classList.remove("loading");
+        // Ensure any partially typed message still gets its copy button
+        if (!msg.querySelector('.icon')) {
+             msg.innerHTML += `<span onclick="copyMessage(this)" class="icon material-symbols-rounded">content_copy</span>`;
+        }
     });
     document.body.classList.remove("bot-responding");
     if (speechUtterance && window.speechSynthesis.speaking) {
@@ -539,6 +658,7 @@ deleteChatsBtn.addEventListener("click", () => {
         localStorage.removeItem('praterich_chat_history');
         document.body.classList.remove("chats-active", "bot-responding");
         newChatBtn.classList.remove("active"); // Clear active state
+        dummyChatBtn.classList.remove("active");
         if (speechUtterance && window.speechSynthesis.speaking) {
             window.speechSynthesis.cancel();
         }
@@ -553,8 +673,8 @@ menuBtn.addEventListener("click", () => {
 // Close menu if clicking inside the main chat area while the menu is open (for mobile overlay behavior)
 document.querySelector(".main-chat-area").addEventListener('click', (e) => {
      if (recentChatsPanel.classList.contains('open') && window.innerWidth < 768) {
-        recentChatsPanel.classList.remove('open');
-    }
+         recentChatsPanel.classList.remove('open');
+     }
 });
 
 document.querySelectorAll(".suggestions-item").forEach((suggestion) => {
@@ -576,11 +696,13 @@ newChatBtn.addEventListener("click", () => {
      document.body.classList.remove("chats-active", "bot-responding");
      
      // Ensure this button is marked as active for the new session
-     newChatBtn.classList.add("active"); 
+     newChatBtn.classList.add("active");
+     // FIX: De-activate other chat buttons
+     dummyChatBtn.classList.remove("active"); 
      
      if (recentChatsPanel.classList.contains('open') && window.innerWidth < 768) {
-        recentChatsPanel.classList.remove('open');
-    }
+         recentChatsPanel.classList.remove('open');
+     }
 });
 
 // Dummy chat item functionality to keep the sidebar visually active
