@@ -3,517 +3,422 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Praterich AI</title>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/material-darker.min.css"> <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/hint/show-hint.min.css">
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/htmlmixed/htmlmixed.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/css/css.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/xml/xml.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/hint/show-hint.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/hint/html-hint.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/hint/javascript-hint.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closebrackets.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closetag.min.js"></script>
+    <title>Praterich A.I. Chatbot</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
-        
-        /* === Root Colors & Theme Setup === */
+        /* FRUTIGER AERO STYLING */
         :root {
-            /* Frutiger Aero Colors */
-            --color-aero-blue: #a3c7ff;
-            --color-glass-light: rgba(255, 255, 255, 0.75);
-            --color-glass-dark: rgba(255, 255, 255, 0.2);
-            --color-shadow-light: rgba(0, 0, 0, 0.2);
-            --color-shadow-dark: rgba(0, 0, 0, 0.4);
-            --color-water-blue: #007bff;
-            --color-bg-primary: #f0f0f0;
-            --color-bg-secondary: #e0e0e0;
-            --color-text: #1a1a1a;
-            --color-input-bg: #fff;
-            --color-border: #bbbbbb;
-        }
-
-        /* Dark Theme Override */
-        body.light-theme {
-            --color-aero-blue: #5587cb;
-            --color-glass-light: rgba(0, 0, 0, 0.2);
-            --color-glass-dark: rgba(0, 0, 0, 0.6);
-            --color-shadow-light: rgba(255, 255, 255, 0.1);
-            --color-shadow-dark: rgba(255, 255, 255, 0.3);
-            --color-bg-primary: #121212;
-            --color-bg-secondary: #1e1e1e;
-            --color-text: #e0e0e0;
-            --color-input-bg: #2d2d2d;
-            --color-border: #333333;
-        }
-
-        /* === Base Styling (Full Screen) === */
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-
-        html, body {
-            height: 100%;
-            overflow: hidden;
+            --glass-color: rgba(255, 255, 255, 0.4); /* More transparent */
+            --glass-border: rgba(255, 255, 255, 0.7);
+            --water-color: #88d0ff;
+            --sky-color: #e0f2ff;
+            --shadow-color: rgba(0, 0, 0, 0.15);
+            --light-blue: #007bff;
+            --dark-blue: #0056b3;
+            --sidebar-width: 250px;
         }
 
         body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, var(--sky-color) 0%, var(--water-color) 100%);
             display: flex;
-            background: linear-gradient(135deg, var(--color-aero-blue) 0%, var(--color-bg-primary) 100%);
-            background-attachment: fixed;
-            color: var(--color-text);
-            transition: background-color 0.3s, color 0.3s;
-            position: relative;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            overflow: hidden; /* Hide body scrollbar */
         }
 
-        /* === Main Application Wrapper === */
-        .app-wrapper {
+        #app-wrapper {
             display: flex;
-            flex-grow: 1;
             width: 100%;
-            height: 100%;
-            position: relative;
-            background: var(--color-glass-light);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
+            max-width: 1000px;
+            height: 80vh; /* Set a fixed height for the chat interface */
+            min-height: 600px;
+            border-radius: 20px;
+            box-shadow: 0 15px 40px var(--shadow-color), inset 0 0 0 2px var(--glass-border);
+            overflow: hidden;
+            background: var(--glass-color); /* Glassy background for the whole wrapper */
+            backdrop-filter: blur(15px); /* Stronger blur */
+            border: 1px solid var(--glass-border);
         }
 
-        /* === Recent Chats Panel (Open/Close functionality) === */
-        .recent-chats-panel {
-            width: 280px;
-            min-width: 280px;
-            background: var(--color-bg-secondary);
-            border-right: 1px solid var(--color-border);
-            padding: 15px;
+        /* --- SIDEBAR --- */
+        #sidebar {
+            width: var(--sidebar-width);
+            background: rgba(255, 255, 255, 0.3); /* Slightly more transparent */
+            border-right: 1px solid var(--glass-border);
             display: flex;
             flex-direction: column;
-            overflow-y: auto;
-            position: absolute; 
-            height: 100%;
             transition: transform 0.3s ease-in-out;
-            z-index: 50;
-            transform: translateX(-100%);
+            transform: translateX(0);
+        }
+
+        #sidebar-header {
+            padding: 15px;
+            font-size: 1.2em;
+            font-weight: 700;
+            color: var(--dark-blue);
+            text-shadow: 0 1px 1px var(--glass-color);
+        }
+
+        #new-chat-button {
+            background-color: var(--light-blue);
+            color: white;
+            padding: 10px;
+            margin: 10px 15px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background-color 0.3s;
+        }
+
+        #new-chat-button:hover {
+            background-color: var(--dark-blue);
+        }
+
+        #chat-list {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 0 15px 15px;
         }
         
-        .recent-chats-panel.open {
-            transform: translateX(0);
-            box-shadow: 4px 0 10px var(--color-shadow-dark);
-        }
-
-        /* Desktop: Always open the panel */
-        @media (min-width: 768px) {
-            .recent-chats-panel {
-                position: relative;
-                transform: translateX(0);
-                box-shadow: none;
-            }
-        }
-
-        .recent-chats-panel h2 {
-            font-size: 1.2rem;
-            margin-bottom: 15px;
-            color: var(--color-water-blue);
-            text-shadow: 0 1px 0 var(--color-shadow-light);
-        }
-
-        .chat-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 10px;
-            margin-bottom: 8px;
-            border-radius: 8px;
-            background: var(--color-bg-primary);
-            box-shadow: inset 0 1px 1px var(--color-glass-dark), 0 1px 3px var(--color-shadow-light);
-            cursor: pointer;
-            transition: background 0.2s, transform 0.1s;
-            overflow: hidden;
-            white-space: nowrap;
-            text-overflow: ellipsis;
-            font-size: 0.9rem;
-            color: var(--color-text);
-        }
-
-        .chat-item:hover {
-            background: var(--color-aero-blue);
-            transform: translateY(-1px);
-        }
-
-        .chat-item.active {
-            background: var(--color-water-blue);
-            color: white;
-            box-shadow: 0 2px 5px rgba(0, 123, 255, 0.4);
-        }
-
-        /* === Main Chat Area === */
-        .main-chat-area {
-            flex-grow: 1;
-            display: flex;
-            flex-direction: column;
-            position: relative;
-            width: 100%;
-        }
-
-        /* === Header/Toolbar === */
-        .header {
-            padding: 10px 20px;
-            border-bottom: 1px solid var(--color-border);
-            background: var(--color-bg-secondary);
+        .chat-session {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            box-shadow: 0 2px 4px var(--color-shadow-light);
-            min-height: 56px;
+            padding: 8px 10px;
+            margin-bottom: 5px;
+            border-radius: 8px;
+            cursor: pointer;
+            color: #333;
+            transition: all 0.2s;
+            font-size: 0.9em;
+            background: rgba(255, 255, 255, 0.1);
         }
 
-        .header .title-group {
-            display: flex;
-            align-items: center;
-            gap: 15px;
+        .chat-session:hover {
+            background: rgba(255, 255, 255, 0.5);
         }
 
-        .header h1 {
-            font-size: 1.8rem;
-            text-shadow: 1px 1px 2px var(--color-shadow-light);
-            color: var(--color-water-blue);
+        .chat-session.active {
+            background-color: var(--light-blue);
+            color: white;
+            font-weight: 600;
         }
-        
-        /* Menu button visibility */
-        #menu-btn { display: block; }
-        @media (min-width: 768px) { #menu-btn { display: none; } }
 
-        .header .actions button {
+        .chat-title {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            flex-grow: 1;
+        }
+
+        .delete-chat {
             background: none;
             border: none;
+            color: inherit;
+            margin-left: 10px;
             cursor: pointer;
-            padding: 8px;
+            opacity: 0.6;
+            transition: opacity 0.2s;
+        }
+
+        .delete-chat:hover {
+            opacity: 1;
+            color: #ff4d4d;
+        }
+
+        /* --- MAIN CHAT AREA --- */
+        #chat-container {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* HEADER */
+        #chat-header {
+            background-color: rgba(0, 123, 255, 0.9); /* Opaque blue for contrast */
+            color: white;
+            padding: 15px 20px;
+            font-size: 1.5em;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 2px 5px var(--shadow-color);
+        }
+        
+        #praterich-icon {
+            width: 30px;
+            height: 30px;
             border-radius: 50%;
-            transition: background-color 0.2s, transform 0.1s;
-            color: var(--color-text);
+            object-fit: cover;
+            border: 2px solid white;
         }
 
-        .header .actions button:hover {
-            background-color: var(--color-glass-dark);
-            transform: scale(1.05);
-        }
-
-        /* === Chats Container === */
-        .chats-container {
+        /* CHAT WINDOW */
+        #chat-window {
             flex-grow: 1;
             padding: 20px;
             overflow-y: auto;
-            position: relative;
-        }
-
-        /* === Initial State (Title/Suggestions) === */
-        .initial-state {
             display: flex;
             flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            height: 100%;
-            text-align: center;
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            z-index: 1;
-        }
-
-        body.chats-active .initial-state { display: none; }
-
-        .initial-state h2 {
-            font-size: 2rem;
-            margin-bottom: 20px;
-            color: var(--color-water-blue);
-            text-shadow: 2px 2px 4px var(--color-shadow-light);
-        }
-
-        .suggestions {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
             gap: 15px;
-            max-width: 600px;
-            margin-top: 20px;
-            padding: 0 10px;
+            background: rgba(255, 255, 255, 0.1); /* Very light glass for message area */
         }
 
-        .suggestions-item {
-            background: var(--color-glass-light);
-            padding: 12px 18px;
-            border-radius: 15px;
-            border: 1px solid var(--color-border);
-            box-shadow: 0 4px 6px var(--color-shadow-light);
-            cursor: pointer;
-            transition: background 0.2s, transform 0.1s;
-            font-size: 0.9rem;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .suggestions-item:hover {
-            background: var(--color-aero-blue);
-            transform: translateY(-2px);
-            box-shadow: 0 6px 10px var(--color-shadow-light);
-        }
-
-        /* === Message Styling === */
         .message {
             display: flex;
-            margin-bottom: 15px;
-            align-items: flex-start;
-            /* Prevents the message container from ever causing horizontal scroll */
-            overflow: hidden; 
-        }
-
-        .user-message { justify-content: flex-end; }
-
-        .avatar {
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            margin-right: 10px;
-            box-shadow: 0 0 4px var(--color-shadow-dark);
-            border: 2px solid white;
-            flex-shrink: 0;
-        }
-
-        .user-message .message-text, .bot-message .message-text {
             max-width: 85%;
+        }
+
+        .user-message {
+            justify-content: flex-end;
+            margin-left: auto;
+        }
+
+        .ai-message {
+            justify-content: flex-start;
+        }
+
+        .message-content {
             padding: 12px 18px;
-            border-radius: 18px;
-            box-shadow: 0 2px 4px var(--color-shadow-light);
+            border-radius: 20px;
+            box-shadow: 0 4px 10px var(--shadow-color);
+            word-wrap: break-word;
             position: relative;
-            line-height: 1.6;
-            /* Important for text and content wrapping */
-            word-wrap: break-word; 
-            overflow: hidden;
+            backdrop-filter: blur(5px);
+        }
+
+        .user-message .message-content {
+            background-color: #007bff;
+            color: white;
+            border-bottom-right-radius: 5px;
+        }
+
+        .ai-message .message-content {
+            background-color: var(--glass-color);
+            color: #333;
+            border: 1px solid var(--glass-border);
+            border-bottom-left-radius: 5px;
+        }
+
+        /* TYPING INDICATOR */
+        #typing-indicator {
+            padding: 10px 20px;
+            color: #555;
+            font-style: italic;
+            display: none;
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        /* INPUT AREA */
+        #input-area {
+            display: flex;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.7);
+            border-top: 1px solid var(--glass-border);
+            gap: 10px;
+        }
+
+        #user-input {
+            flex-grow: 1;
+            padding: 10px 15px;
+            border: 1px solid #ccc;
+            border-radius: 15px;
+            font-size: 1em;
+            outline: none;
+            transition: all 0.3s;
+            background-color: white; /* Ensure input field is white */
         }
         
-        @media (min-width: 768px) {
-            .user-message .message-text, .bot-message .message-text { max-width: 70%; }
+        #user-input:focus {
+            box-shadow: 0 0 5px var(--light-blue);
+            border-color: var(--light-blue);
         }
 
-        .user-message .message-text {
-            background: linear-gradient(145deg, #0093ff, var(--color-water-blue));
+        /* Glassy Input Buttons */
+        .input-button {
+            background-color: rgba(255, 255, 255, 0.3); /* Transparent background */
+            backdrop-filter: blur(5px);
+            border: 1px solid var(--glass-border);
+            color: var(--dark-blue);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            cursor: pointer;
+            font-size: 1.1em;
+            box-shadow: 0 4px 8px var(--shadow-color);
+            transition: background-color 0.3s, transform 0.1s;
+        }
+        /* Make send button more blue/prominent */
+        #send-button {
+            background-color: var(--light-blue);
             color: white;
-            margin-left: auto;
-            border-bottom-right-radius: 4px;
+            border: 1px solid var(--light-blue);
         }
 
-        .bot-message .message-text {
-            background: var(--color-glass-light);
-            border: 1px solid var(--color-glass-dark);
-            color: var(--color-text);
-            margin-right: 10px;
-            border-bottom-left-radius: 4px;
+        .input-button:hover {
+            background-color: rgba(255, 255, 255, 0.7);
+            color: var(--light-blue);
+        }
+        #send-button:hover {
+            background-color: var(--dark-blue);
+            color: white;
+        }
+        .input-button:active {
+            transform: scale(0.95);
         }
 
-        /* === Content inside Chat Bubble Formatting (Fix for horizontal scroll) === */
-        .bot-message .message-text h1,
-        .bot-message .message-text h2,
-        .bot-message .message-text h3 { margin-top: 10px; margin-bottom: 5px; }
-
-        /* Fix for bullet points and lists */
-        .bot-message .message-text ul,
-        .bot-message .message-text ol {
-            padding-left: 20px; /* Indent the list */
+        /* OUTPUT STYLING (For Markdown Content) */
+        .ai-message .message-content ul,
+        .ai-message .message-content ol {
+            padding-left: 20px;
             margin: 10px 0;
-            /* Crucial for ensuring list content stays within the bubble */
-            width: 100%; 
-            overflow: hidden;
-        }
-        .bot-message .message-text li {
-            margin-bottom: 5px;
-            padding-left: 5px;
-            /* Ensure text wraps correctly in list items */
-            word-wrap: break-word; 
         }
 
-        /* Fix for code blocks causing horizontal scroll */
-        .bot-message .message-text pre {
-            background: var(--color-bg-secondary);
+        .ai-message .message-content pre {
+            background: rgba(0, 0, 0, 0.08);
             padding: 10px;
             border-radius: 5px;
-            margin: 10px 0;
-            overflow-x: auto; /* Allows code blocks to scroll horizontally internally */
-            max-width: 100%;
-        }
-        .bot-message .message-text code {
-            font-family: Consolas, monospace;
+            overflow-x: auto;
             font-size: 0.9em;
-            white-space: pre-wrap; /* Ensures code wraps */
+            margin: 8px 0;
+        }
+
+        .ai-message .message-content code {
+            background: rgba(0, 0, 0, 0.08);
+            padding: 2px 4px;
+            border-radius: 3px;
         }
         
-        .bot-message .icon {
-            cursor: pointer;
-            font-size: 18px;
-            margin-top: 5px;
-            margin-left: 10px;
-            color: var(--color-border);
-            transition: color 0.2s;
+        .ai-message .message-content strong {
+            font-weight: 700;
         }
 
-        .bot-message.loading .message-text {
-            background: linear-gradient(90deg, var(--color-aero-blue) 25%, #fff 50%, var(--color-aero-blue) 75%);
-            background-size: 200% 100%;
-            animation: loading-shine 1.5s infinite;
-            min-width: 120px;
-            color: transparent;
-        }
-        @keyframes loading-shine {
-            0% { background-position: 200% 0; }
-            100% { background-position: -200% 0; }
-        }
-
-        /* === Prompt Form === */
-        .prompt-form-wrapper {
-            padding: 10px 15px;
-            border-top: 1px solid var(--color-border);
-            background: var(--color-bg-secondary);
-            box-shadow: 0 -2px 5px var(--color-shadow-light);
-        }
-
-        .prompt-form {
+        /* ACTION BUTTONS ON AI MESSAGE */
+        .ai-message-actions {
+            position: absolute;
+            top: -15px;
+            right: 0px;
+            opacity: 0;
+            transition: opacity 0.3s;
             display: flex;
             gap: 5px;
-            background: var(--color-input-bg);
-            border-radius: 25px;
-            padding: 5px;
-            border: 1px solid var(--color-border);
-            box-shadow: inset 0 1px 3px var(--color-shadow-dark);
         }
 
-        .prompt-input {
-            flex-grow: 1;
-            border: none;
-            padding: 8px 12px;
-            font-size: 1rem;
-            background: transparent;
-            color: var(--color-text);
-            resize: none;
-            outline: none;
+        .ai-message:hover .ai-message-actions {
+            opacity: 1;
         }
 
-        .prompt-form button {
-            background: linear-gradient(180deg, #fff 0%, var(--color-water-blue) 100%);
-            border: 1px solid var(--color-water-blue);
-            color: white;
-            padding: 10px 15px;
-            border-radius: 20px;
+        .action-button {
+            background: rgba(255, 255, 255, 0.8);
+            color: #333;
+            border: 1px solid var(--glass-border);
+            border-radius: 50%;
+            width: 25px;
+            height: 25px;
+            font-size: 0.8em;
             cursor: pointer;
-            transition: all 0.2s;
-            box-shadow: 0 2px 4px var(--color-shadow-light);
-            display: flex;
-            align-items: center;
-            min-width: 45px;
+            box-shadow: 0 2px 5px var(--shadow-color);
+            transition: background-color 0.2s;
         }
-        
-        .file-upload-wrapper { display: none; align-items: center; gap: 10px; padding: 0 10px; border-right: 1px solid var(--color-border); }
-        .file-upload-wrapper.active { display: flex; }
-        .file-preview { max-width: 40px; max-height: 40px; border-radius: 6px; object-fit: cover; border: 1px solid var(--color-border); }
-        #stop-response-btn { background: #d62939; color: white; padding: 5px 10px; border-radius: 5px; display: none; }
-        body.bot-responding #stop-response-btn { display: block; }
-
-        /* === Copyright Footer === */
-        .copyright {
-            position: fixed;
-            bottom: 5px;
-            left: 50%;
-            transform: translateX(-50%);
-            font-size: 0.75rem;
-            color: var(--color-shadow-dark);
-            z-index: 50;
+        .action-button:hover {
+            background-color: white;
         }
 
+        /* --- MOBILE-FRIENDLY ADJUSTMENTS --- */
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            #app-wrapper {
+                height: 95vh;
+                min-height: 95vh;
+                max-width: 100%;
+                border-radius: 10px;
+            }
+
+            /* Sidebar toggle setup */
+            #sidebar {
+                position: absolute;
+                height: 100%;
+                z-index: 10;
+                transform: translateX(-100%);
+                box-shadow: 5px 0 10px var(--shadow-color);
+            }
+            
+            /* Show the sidebar when active */
+            #sidebar.open {
+                transform: translateX(0);
+            }
+
+            #chat-header {
+                padding-left: 50px; /* Make space for a menu button */
+            }
+            
+            #menu-toggle-button {
+                display: block;
+                position: absolute;
+                left: 10px;
+                top: 50%;
+                transform: translateY(-50%);
+            }
+
+            .message {
+                max-width: 90%;
+            }
+
+            #input-area {
+                padding: 10px;
+            }
+        }
     </style>
 </head>
 <body>
 
-    <div class="app-wrapper">
-        <div class="recent-chats-panel">
-            <h2>Recent Chats</h2>
-            <div id="new-chat-btn" class="chat-item active">
-                <span class="material-symbols-rounded">add_circle</span> New Chat
+<div id="app-wrapper">
+    <div id="sidebar">
+        <div id="sidebar-header">Chat History</div>
+        <button id="new-chat-button"><i class="fas fa-plus"></i> New Chat</button>
+        <div id="chat-list">
             </div>
-            <div class="chat-item dummy-chat">
-                <span class="material-symbols-rounded">chat</span> Debugging JS
-            </div>
-
-            <button id="delete-chats-btn" class="suggestions-item" style="margin-top: auto; background-color: #d62939; color: white;">
-                <span class="icon material-symbols-rounded">delete</span> Delete All Chats
-            </button>
-        </div>
-
-        <div class="main-chat-area">
-            <header class="header">
-                <div class="title-group">
-                    <button id="menu-btn" title="Menu" class="material-symbols-rounded">menu</button>
-                    <h1>Praterich</h1>
-                </div>
-                <div class="actions">
-                    <button id="theme-toggle-btn" title="Toggle Theme" class="material-symbols-rounded">dark_mode</button>
-                    <button id="stop-response-btn" title="Stop Response">
-                        <span class="material-symbols-rounded">stop_circle</span> Stop
-                    </button>
-                </div>
-            </header>
-
-            <div class="chats-container">
-                <div class="initial-state">
-                    <h2>Hello, I'm Praterich.</h2>
-                    <p>What can I help you with today? Curiosity, creativity, chaos, or just killing time?</p>
-
-                    <div class="suggestions">
-                        <div class="suggestions-item" data-news="false">
-                            <span class="icon material-symbols-rounded">edit_square</span>
-                            <span class="text">Write a short story about a robot who loves rain.</span>
-                        </div>
-                        <div class="suggestions-item" data-news="false">
-                            <span class="icon material-symbols-rounded">function</span>
-                            <span class="text">Explain the concept of 'closures' in JavaScript.</span>
-                        </div>
-                        <div class="suggestions-item" data-news="true">
-                            <span class="icon material-symbols-rounded">newspaper</span>
-                            <span class="text">What is the latest news?</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="prompt-form-wrapper">
-                <form class="prompt-form">
-                    <div class="file-upload-wrapper">
-                        <input type="file" id="file-input" hidden>
-                        <button type="button" id="add-file-btn" title="Attach File">
-                            <span class="material-symbols-rounded">attach_file</span>
-                        </button>
-                        <button type="button" id="cancel-file-btn" title="Cancel Attachment">
-                            <span class="material-symbols-rounded">close</span>
-                        </button>
-                        <img src="" alt="File Preview" class="file-preview" style="display: none;">
-                    </div>
-                    <input type="text" class="prompt-input" placeholder="Ask Praterich anything..." autofocus required>
-                    <button type="submit" title="Send Message">
-                        <span class="material-symbols-rounded">send</span>
-                    </button>
-                </form>
-            </div>
-        </div>
     </div>
 
-    <p class="copyright">Copyright &copy; Stenoip Company. All rights reserved.</p>
+    <div id="chat-container">
+        <div id="chat-header">
+            <button id="menu-toggle-button" class="input-button"><i class="fas fa-bars"></i></button>
+            <img id="praterich-icon" src="ladypraterich.png" alt="Praterich A.I. Icon" onerror="this.onerror=null; this.src='https://via.placeholder.com/30/007bff/ffffff?text=P';">
+            <span>Praterich A.I.</span>
+        </div>
 
-    <script src="testing-script.js"></script>
+        <div id="chat-window">
+            </div>
+        
+        <div id="typing-indicator">Praterich A.I. is typing...</div>
+
+        <div id="input-area">
+            <input type="file" id="file-upload" style="display: none;" accept="*">
+            
+            <button id="upload-button" class="input-button" title="Upload File">
+                <i class="fas fa-paperclip"></i>
+            </button>
+
+            <input type="text" id="user-input" placeholder="Type your message here...">
+            
+            <button id="send-button" class="input-button" title="Send">
+                <i class="fas fa-paper-plane"></i>
+            </button>
+        </div>
+    </div>
+</div>
+
+<script src="testing-script.js"></script>
+
 
 </body>
 </html>
