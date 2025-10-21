@@ -1,316 +1,9 @@
-var container = document.querySelector(".container");
-var chatsContainer = document.querySelector(".chats-container");
-var promptForm = document.querySelector(".prompt-form");
-var promptInput = promptForm.querySelector(".prompt-input");
-var fileInput = promptForm.querySelector("#file-input");
-var fileUploadWrapper = promptForm.querySelector(".file-upload-wrapper");
-var themeToggleBtn = document.querySelector("#theme-toggle-btn");
-var stopResponseBtn = document.querySelector("#stop-response-btn");
-var deleteChatsBtn = document.querySelector("#delete-chats-btn");
+ // USE VAR NOT LET OR CONST as requested
+    var API_URL = "https://praterich.vercel.app/api/praterich";
+    var STORAGE_KEY_SESSIONS = 'praterich_chats';
 
-var API_URL = "https://praterich.vercel.app/api/praterich";
-
-var controller, typingInterval;
-var speechUtterance;
-var voicesLoaded = false;
-var availableVoices = [];
-var chatHistory = [];
-var userData = { message: "", file: {} };
-
-// ==== Custom Pronunciations ====
-var customPronunciations = {
-  "Praterich": "Prah-ter-rich",
-  "Stenoip": "Stick-noh-ip"
-};
-
-var replacePronunciations = (text) => {
-  var spokenText = text;
-  for (var word in customPronunciations) {
-    var regex = new RegExp(word, 'gi');
-    spokenText = spokenText.replace(regex, customPronunciations[word]);
-  }
-  return spokenText;
-};
-
-// ==== Theme Setup ====
-var isLightTheme = localStorage.getItem("themeColor") === "light_mode";
-document.body.classList.toggle("light-theme", isLightTheme);
-themeToggleBtn.textContent = isLightTheme ? "dark_mode" : "light_mode";
-
-// ==== Speech Synthesis ====
-var loadVoices = () => {
-  availableVoices = window.speechSynthesis.getVoices();
-  voicesLoaded = true;
-};
-if (window.speechSynthesis) {
-  window.speechSynthesis.onvoiceschanged = loadVoices;
-  loadVoices();
-}
-
-// ==== Message UI ====
-var createMessageElement = (content, ...classes) => {
-  var div = document.createElement("div");
-  div.classList.add("message", ...classes);
-  
-  var messageTextElement = document.createElement("p");
-  messageTextElement.classList.add("message-text");
-  messageTextElement.innerHTML = content;
-
-  // Only add the copy button for bot responses
-  if (classes.includes("bot-message") && !classes.includes("loading")) {
-    var copyButtonHTML = `<span onclick="copyMessage(this)" class="icon material-symbols-rounded">content_copy</span>`;
-    div.innerHTML = messageTextElement.outerHTML + copyButtonHTML;
-  } else {
-    div.innerHTML = messageTextElement.outerHTML;
-  }
-  
-  return div;
-};
-
-var scrollToBottom = () => container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
-
-// ==== Copy Message Functionality ====
-function copyMessage(buttonElement) {
-  var messageElement = buttonElement.closest('.message');
-  var textElement = messageElement.querySelector('.message-text');
-
-  if (textElement) {
-    navigator.clipboard.writeText(textElement.textContent)
-      .then(() => {
-        buttonElement.textContent = 'check';
-        setTimeout(() => {
-          buttonElement.textContent = 'content_copy';
-        }, 1500);
-      })
-      .catch(err => {
-        console.error('Failed to copy text: ', err);
-      });
-  }
-}
-
-// ==== Typing Effect & Speech ====
-var typingEffect = (text, textElement, botMsgDiv) => {
-  // For speech, remove HTML tags and replace custom words
-  var tempDiv = document.createElement('div');
-  tempDiv.innerHTML = text;
-  var plainText = tempDiv.textContent || tempDiv.innerText || "";
-  plainText = replacePronunciations(plainText);
-
-  if (speechUtterance && window.speechSynthesis.speaking) {
-    window.speechSynthesis.cancel();
-  }
-
-  if (window.speechSynthesis && plainText.length > 0) {
-    speechUtterance = new SpeechSynthesisUtterance(plainText);
-    speechUtterance.rate = 1.0;
-    speechUtterance.pitch = 1.0;
-    speechUtterance.lang = 'en-US';
-
-    if (voicesLoaded) {
-      var selectedVoice = availableVoices.find(voice =>
-        voice.lang === 'en-US' && voice.name.includes('Google US English') && voice.name.includes('Male')
-      ) || availableVoices.find(voice => voice.lang === 'en-US');
-
-      if (selectedVoice) {
-        speechUtterance.voice = selectedVoice;
-      }
-    }
-    window.speechSynthesis.speak(speechUtterance);
-  }
-
-  textElement.innerHTML = "";
-  var charIndex = 0;
-  var delay = 10;
-
-  typingInterval = setInterval(() => {
-    if (charIndex < text.length) {
-      var nextChar = text.charAt(charIndex);
-      if (nextChar === '<') {
-        var endIndex = text.indexOf('>', charIndex);
-        if (endIndex !== -1) {
-          nextChar = text.substring(charIndex, endIndex + 1);
-          charIndex = endIndex;
-        }
-      }
-      textElement.innerHTML += nextChar;
-      charIndex++;
-      scrollToBottom();
-    } else {
-      clearInterval(typingInterval);
-      enhanceCodeBlocksWithCopy(textElement);
-      botMsgDiv.classList.remove("loading");
-      document.body.classList.remove("bot-responding");
-      saveChats();
-    }
-  }, delay);
-};
-
-// ==== Markdown-like Formatting (with code block + copy button support) ====
-function escapeHtml(str) {
-  return str.replace(/[&<>"']/g, function (m) {
-    return (
-      {
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        '"': "&quot;",
-        "'": "&#39;",
-      }[m] || m
-    );
-  });
-}
-
-var formatResponseText = (text) => {
-  // --- Horizontal rules
-  text = text.replace(/^---\s*$/gm, "<hr>");
-  // **bold**
-  text = text.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
-  // *italic* or _italic_
-  text = text.replace(/(?<!\*)\*(?!\*)(.*?)(?<!\*)\*(?!\*)/g, "<em>$1</em>");
-  text = text.replace(/(?<!\_)\_(?!\_)(.*?)(?<!\_)\_(?!\_)/g, "<em>$1</em>");
-  // __underline__
-  text = text.replace(/__(.*?)__/g, "<u>$1</u>");
-  // `inline code`
-  text = text.replace(/`([^`]+?)`/g, "<code>$1</code>");
-  // ```code block``` (multi-line, with container & copy button)
-  text = text.replace(/```(\w*)\s*([\s\S]*?)```/g, function (_, lang, code) {
-    var safeCode = escapeHtml(code);
-    // Use lang as a class if present for highlighting in the future
-    return `
-      <div class="code-block-container">
-        <button class="copy-code-btn" title="Copy code">Copy</button>
-        <pre><code${lang ? ' class="language-' + lang + '"' : ""}>${safeCode}</code></pre>
-      </div>
-    `;
-  });
-  // # Headings
-  text = text.replace(/^(#{1,6})\s*(.*?)$/gm, (match, hashes, content) => {
-    var level = hashes.length;
-    return `<h${level}>${content.trim()}</h${level}>`;
-  });
-
-  // [link text](url)
-  text = text.replace(/\[([^\]]+)]\((https?:\/\/[^\)]+)\)/g, `<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>`);
-
-  // Bulleted lists
-  var listItems = [];
-  var lines = text.split('\n');
-  var inList = false;
-  for (var i = 0; i < lines.length; i++) {
-    var line = lines[i];
-    if (/^\*\s*(.*)/.test(line.trim())) {
-      if (!inList) {
-        listItems.push('<ul>');
-        inList = true;
-      }
-      listItems.push(`<li>${line.trim().substring(line.trim().indexOf('*') + 1).trim()}</li>`);
-    } else {
-      if (inList) {
-        listItems.push('</ul>');
-        inList = false;
-      }
-      listItems.push(line);
-    }
-  }
-  if (inList) {
-    listItems.push('</ul>');
-  }
-  text = listItems.join('\n');
-  return text;
-};
-
-// ==== Add copy button functionality to code blocks ====
-function enhanceCodeBlocksWithCopy(container) {
-  var blocks = container.querySelectorAll('.code-block-container');
-  blocks.forEach(block => {
-    var btn = block.querySelector('.copy-code-btn');
-    var code = block.querySelector('pre code');
-    if (btn && code) {
-      btn.onclick = () => {
-        var codeText = code.textContent;
-        navigator.clipboard.writeText(codeText).then(() => {
-          btn.textContent = "Copied!";
-          setTimeout(() => (btn.textContent = "Copy"), 1300);
-        });
-      };
-    }
-  });
-}
-
-// ==== News fetching logic ====
-var NEWS_FEEDS = [
-  {
-    name: "BBC",
-    url: "https://feeds.bbci.co.uk/news/rss.xml",
-    api: "https://api.rss2json.com/v1/api.json?rss_url=https://feeds.bbci.co.uk/news/rss.xml"
-  },
-  {
-    name: "CNN",
-    url: "http://rss.cnn.com/rss/edition.rss",
-    api: "https://api.rss2json.com/v1/api.json?rss_url=http://rss.cnn.com/rss/edition.rss"
-  }
-];
-
-async function fetchNews() {
-  var allNews = [];
-  for (var feed of NEWS_FEEDS) {
-    try {
-      var res = await fetch(feed.api);
-      var data = await res.json();
-      if (data.status === "ok" && data.items) {
-        allNews.push({
-          source: feed.name,
-          items: data.items.slice(0, 6)
-        });
-      }
-    } catch (e) {
-      allNews.push({
-        source: feed.name,
-        items: [{ title: "Could not fetch news.", link: "#" }]
-      });
-    }
-  }
-  return allNews;
-}
-
-function newsToMarkdown(news) {
-  var md = "";
-  for (var feed of news) {
-    md += `### ${feed.source} News\n`;
-    feed.items.forEach((item) => {
-      md += `* [${item.title}](${item.link})\n`;
-    });
-    md += "\n";
-  }
-  return md;
-}
-
-async function handleNewsRequest() {
-  // Show loading message
-  var botMsgHTML = `<img class="avatar" src="https://stenoip.github.io/praterich/ladypraterich.png" /> <p class="message-text">Fetching the latest news headlines...</p>`;
-  var botMsgDiv = createMessageElement(botMsgHTML, "bot-message", "loading");
-  chatsContainer.appendChild(botMsgDiv);
-  scrollToBottom();
-
-  var news = await fetchNews();
-  var newsText = newsToMarkdown(news);
-  newsText = formatResponseText(newsText);
-
-  var textElement = botMsgDiv.querySelector(".message-text");
-  typingEffect(newsText, textElement, botMsgDiv);
-
-  chatHistory.push({
-    role: "model",
-    parts: [{ text: newsText.replace(/<[^>]+>/g, "") }]
-  });
-}
-
-// ==== API Call & Bot Response ====
-var generateResponse = async (botMsgDiv) => {
-  var textElement = botMsgDiv.querySelector(".message-text");
-  controller = new AbortController();
-
-  var sirPraterichSystemInstruction = `
+    // Praterich A.I. Core Personality Profile (Front-end System Instruction)
+    var ladyPraterichSystemInstruction = `
 You are Praterich,an AI. You were developed by Stenoip Company.
 
 Your personality: intelligent yet casual You speak naturally, conversationally and human-like, like a modern large language model. You will avoid sounding scripted or overly formal. You prefer metric units and do not use Oxford commas. You never use Customary or Imperial systems.
@@ -324,283 +17,366 @@ Your capabilities include generating text, answering questions, summarizing info
 You must never use raw HTML tags in your responses. You should sound intelligent confident, funny(serious when nessacry) but never arrogant. You are free to express nuance, insight, and personality in your replies. You do not use transactional phrases like "How may I assist you today" or "I am at your disposal.
 
 Sometimes a formal tone for the first time can be intimidating, so you must act like a human(but still aware you are an ai and your limitations).
-Example of intiatl greeting:Hey there 👋 Nice to see you pop in. What’s on your mind today—curiosity, creativity, chaos, or just killing time?
-Another intiatl greeting:Hey there 👋 What’s on your mind today? Want to dive into something fun, solve a problem, or just chat for a bit?
-avoid saying: Hello there! I'm Praterich, a large language model from Stenoip Company. It's a pleasure to connect with you. How may I be of assistance today? as this is not casual!
-**IMPORTANT INSTRUCTION:** Always use standard Markdown syntax for formatting:
-- For **bold text**, use double asterisks: **bold text**
-- For *italic text*, use single asterisks: *italic text*
-- For code snippets, use backticks: \`code\` or triple backticks for blocks:
-  \`\`\`
-  code block
-  \`\`\`
-- For bulleted lists, use asterisks followed by a space:
-  * Item 1
-  * Item 2
-- For headings, use hash symbols: ## My Heading, ### Subheading, etc. (up to 6 hash symbols).
-- For horizontal rules, use three hyphens: ---
 `;
+    
+    // Initial casual greeting for the start of a new chat session
+    var initialGreeting = "Hey there 👋 What’s on your mind today? Want to dive into something fun, solve a problem, or just chat for a bit?";
 
-  var userContentParts = [{ text: userData.message }];
-  if (userData.file.data) {
-    userContentParts.push({
-      inline_data: {
-        data: userData.file.data,
-        mime_type: userData.file.mime_type,
-      },
-    });
-  }
 
-  var currentContents = [...chatHistory, { role: "user", parts: userContentParts }];
+    var appWrapper = document.getElementById('app-wrapper');
+    var sidebar = document.getElementById('sidebar');
+    var chatWindow = document.getElementById('chat-window');
+    var chatList = document.getElementById('chat-list');
+    var newChatButton = document.getElementById('new-chat-button');
+    var userInput = document.getElementById('user-input');
+    var sendButton = document.getElementById('send-button');
+    var uploadButton = document.getElementById('upload-button');
+    var fileUpload = document.getElementById('file-upload');
+    var typingIndicator = document.getElementById('typing-indicator');
+    var menuToggleButton = document.getElementById('menu-toggle-button');
 
-  var requestBody = {
-    contents: currentContents,
-    system_instruction: {
-      parts: [{ text: sirPraterichSystemInstruction }]
-    }
-  };
+    var chatSessions = {}; // Stores all chat data: { uuid: { title: "...", messages: [] } }
+    var currentChatId = null;
 
-  try {
-    var response = await fetch(API_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(requestBody),
-      signal: controller.signal,
-    });
+    // --- Core Functions ---
 
-    var data = await response.json();
+    // Function to scroll the chat window to the bottom
+    function scrollToBottom() {
+        chatWindow.scrollTop = chatWindow.scrollHeight;
+    }
 
-    if (!response.ok || data.error) {
-      var errorMessage = data.error ? data.error.details : "An unknown error occurred.";
-      throw new Error(errorMessage);
-    }
+    // Renders the message content using Markdown (for rich text)
+    function renderMarkdown(text) {
+        return marked.parse(text);
+    }
 
-    var responseText = data.text;
-    responseText = formatResponseText(responseText);
-    typingEffect(responseText, textElement, botMsgDiv);
+    // Function to speak the text using the Web Speech API
+    function speakText(text) {
+        if ('speechSynthesis' in window) {
+            var utterance = new SpeechSynthesisUtterance(text);
+            // Increased rate to address the "too slow" issue
+            utterance.rate = 1.3; 
+            utterance.pitch = 1.0;
+            window.speechSynthesis.speak(utterance);
+        } else {
+            console.warn("Text-to-speech not supported in this browser.");
+        }
+    }
 
-    chatHistory.push({ role: "user", parts: userContentParts });
-    chatHistory.push({ role: "model", parts: [{ text: data.text }] });
-    saveChats();
+    // Function to add a message to the chat window and history
+    function addMessage(text, sender, isHistoryLoad) {
+        var message = { text: text, sender: sender };
+        
+        // 1. Update Chat History (if not loading history)
+        if (!isHistoryLoad && currentChatId) {
+            chatSessions[currentChatId].messages.push(message);
+            saveToLocalStorage();
+        }
 
-  } catch (error) {
-    textElement.innerHTML = error.name === "AbortError" ? "Response generation stopped." : `Error: ${error.message}`;
-    textElement.style.color = "#d62939";
-    botMsgDiv.classList.remove("loading");
-    document.body.classList.remove("bot-responding");
-    if (speechUtterance && window.speechSynthesis.speaking) {
-      window.speechSynthesis.cancel();
-    }
-  } finally {
-    userData.file = {};
-  }
-};
+        // 2. Display Message
+        var messageDiv = document.createElement('div');
+        messageDiv.className = 'message ' + (sender === 'user' ? 'user-message' : 'ai-message');
+        
+        var contentDiv = document.createElement('div');
+        contentDiv.className = 'message-content';
 
-// ==== Form Submission ====
-var handleFormSubmit = (e) => {
-  e.preventDefault();
-  var userMessage = promptInput.value.trim();
-  if (!userMessage && !userData.file.data || document.body.classList.contains("bot-responding")) return;
+        if (sender === 'user') {
+            contentDiv.textContent = text;
+        } else {
+            // Render Markdown for AI responses
+            contentDiv.innerHTML = renderMarkdown(text);
 
-  userData.message = userMessage;
-  promptInput.value = "";
-  document.body.classList.add("chats-active", "bot-responding");
+            // Add action buttons for AI message only if not loading history
+            if (!isHistoryLoad) {
+                var actionsDiv = document.createElement('div');
+                actionsDiv.className = 'ai-message-actions';
 
-  // Create and append user message element
-  var userMsgDiv = document.createElement("div");
-  userMsgDiv.classList.add("message", "user-message");
-  var userTextElement = document.createElement("p");
-  userTextElement.classList.add("message-text");
-  userTextElement.textContent = userData.message;
-  userMsgDiv.appendChild(userTextElement);
+                // Copy Button
+                var copyButton = document.createElement('button');
+                copyButton.className = 'action-button copy-button';
+                copyButton.innerHTML = '<i class="fas fa-copy"></i>';
+                copyButton.title = 'Copy';
+                copyButton.onclick = function() {
+                    navigator.clipboard.writeText(contentDiv.innerText).then(function() {
+                        copyButton.innerHTML = '<i class="fas fa-check"></i>';
+                        setTimeout(function() {
+                            copyButton.innerHTML = '<i class="fas fa-copy"></i>';
+                        }, 1000);
+                    });
+                };
+                actionsDiv.appendChild(copyButton);
+                
+                // Voice Toggle Button (Mute/Unmute)
+                var voiceButton = document.createElement('button');
+                voiceButton.className = 'action-button voice-toggle-button';
+                voiceButton.innerHTML = '<i class="fas fa-volume-up"></i>';
+                voiceButton.title = 'Stop Speaking';
+                voiceButton.onclick = function() {
+                    window.speechSynthesis.cancel();
+                    voiceButton.innerHTML = '<i class="fas fa-volume-mute"></i>';
+                    voiceButton.title = 'Speech Canceled';
+                };
+                actionsDiv.appendChild(voiceButton);
+                
+                contentDiv.appendChild(actionsDiv);
+            }
+        }
 
-  // Append file display if available
-  if (userData.file.data) {
-    if (userData.file.isImage) {
-      var img = document.createElement("img");
-      img.src = `data:${userData.file.mime_type};base64,${userData.file.data}`;
-      img.classList.add("img-attachment");
-      userMsgDiv.appendChild(img);
-    } else {
-      var fileDisplay = document.createElement("p");
-      fileDisplay.classList.add("file-attachment");
-      fileDisplay.innerHTML = `<span class="material-symbols-rounded">description</span>${userData.file.fileName}`;
-      userMsgDiv.appendChild(fileDisplay);
-    }
-  }
-  chatsContainer.appendChild(userMsgDiv);
-  scrollToBottom();
+        messageDiv.appendChild(contentDiv);
+        chatWindow.appendChild(messageDiv);
+        scrollToBottom();
+        
+        // 3. Speak the text (only for new AI messages)
+        if (sender === 'ai' && !isHistoryLoad) {
+            speakText(text);
+        }
+    }
 
-  // Clear file input UI after adding message to DOM
-  fileUploadWrapper.classList.remove("file-attached", "img-attached", "active");
+    // Function to handle sending the message
+    async function sendMessage() {
+        if (window.speechSynthesis.speaking) {
+            window.speechSynthesis.cancel(); // Stop any current speaking
+        }
+        
+        var userText = userInput.value.trim();
+        if (!userText) return;
 
-  setTimeout(() => {
-    var botMsgHTML = `<img class="avatar" src="https://stenoip.github.io/praterich/ladypraterich.png" /> <p class="message-text">Let me think</p>`;
-    var botMsgDiv = createMessageElement(botMsgHTML, "bot-message", "loading");
-    chatsContainer.appendChild(botMsgDiv);
-    scrollToBottom();
-    generateResponse(botMsgDiv);
-  }, 600);
-};
+        // Clear input and display user message
+        userInput.value = '';
+        addMessage(userText, 'user');
+        
+        // Use first few words of the message as the chat title if it's the first message
+        if (chatSessions[currentChatId].messages.length === 1) {
+            var newTitle = userText.substring(0, 30).trim();
+            chatSessions[currentChatId].title = newTitle;
+            renderChatList();
+        }
 
-// ==== Chat Persistence (Local Storage) ====
-var saveChats = () => {
-  localStorage.setItem('praterich_chat_history', JSON.stringify(chatHistory));
-};
+        // Reconstruct full conversation history for the API call
+        // Slice(0, -1) excludes the user's latest message as it's added separately below
+        var conversationHistory = chatSessions[currentChatId].messages.slice(0, -1).map(function(msg) {
+            return {
+                role: msg.sender === 'user' ? 'user' : 'model',
+                parts: [{ text: msg.text }]
+            };
+        });
+        
+        // Add the current user message (which is the last one added to the history)
+        conversationHistory.push({ role: "user", parts: [{ text: userText }] });
 
-var loadChats = () => {
-  var savedChats = localStorage.getItem('praterich_chat_history');
-  if (savedChats) {
-    try {
-      chatHistory = JSON.parse(savedChats);
-      if (chatHistory.length > 0) {
-        document.body.classList.add("chats-active");
-        chatHistory.forEach(chat => {
-          var isUser = chat.role === "user";
-          var messageClass = isUser ? "user-message" : "bot-message";
-          var content = chat.parts[0]?.text || "";
-          
-          var messageDiv = document.createElement("div");
-          messageDiv.classList.add("message", messageClass);
+        var requestBody = {
+            contents: conversationHistory,
+            // Use the hardcoded system instruction
+            system_instruction: {
+                parts: [{ text: ladyPraterichSystemInstruction }]
+            }
+        };
 
-          if (isUser) {
-            var userText = document.createElement("p");
-            userText.classList.add("message-text");
-            userText.textContent = content;
-            messageDiv.appendChild(userText);
-            if (chat.parts.length > 1 && chat.parts[1].inline_data) {
-              var fileData = chat.parts[1].inline_data;
-              if (fileData.mime_type.startsWith("image/")) {
-                var img = document.createElement("img");
-                img.src = `data:${fileData.mime_type};base64,${fileData.data}`;
-                img.classList.add("img-attachment");
-                messageDiv.appendChild(img);
-              } else {
-                var fileDisplay = document.createElement("p");
-                fileDisplay.classList.add("file-attachment");
-                // The original code didn't save the file name, so we use a placeholder.
-                fileDisplay.innerHTML = `<span class="material-symbols-rounded">description</span>File Attached`;
-                messageDiv.appendChild(fileDisplay);
-              }
-            }
-          } else {
-            var avatarHTML = `<img class="avatar" src="https://stenoip.github.io/praterich/ladypraterich.png" />`;
-            var formattedContent = formatResponseText(content);
-            // Recreate the bot message with the copy button
-            var botText = createMessageElement(formattedContent, "bot-message");
-            messageDiv.innerHTML = avatarHTML + botText.innerHTML;
-          }
-          chatsContainer.appendChild(messageDiv);
-        });
-        scrollToBottom();
-      }
-    } catch (e) {
-      console.error("Failed to parse chat history from localStorage", e);
-      localStorage.removeItem('praterich_chat_history');
-      chatHistory = [];
-    }
-  }
-};
+        typingIndicator.style.display = 'block';
+        scrollToBottom();
 
-// ==== File Upload Logic ====
-fileInput.addEventListener("change", () => {
-  var file = fileInput.files[0];
-  if (!file) return;
+        try {
+            var response = await fetch(API_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(requestBody)
+            });
 
-  var isImage = file.type.startsWith("image/");
-  var isAudio = file.type.startsWith("audio/");
-  var isVideo = file.type.startsWith("video/");
+            typingIndicator.style.display = 'none';
 
-  var reader = new FileReader();
-  reader.readAsDataURL(file);
-  reader.onload = (e) => {
-    fileInput.value = "";
-    var base64String = e.target.result.split(",")[1];
-    var preview = fileUploadWrapper.querySelector(".file-preview");
-    
-    // Display different previews based on file type
-    if (isImage) {
-      preview.src = e.target.result;
-      preview.style.display = "block";
-      fileUploadWrapper.classList.add("active", "img-attached");
-    } else if (isAudio) {
-      preview.style.display = "none";
-      fileUploadWrapper.classList.add("active", "file-attached");
-    } else if (isVideo) {
-      preview.style.display = "none";
-      fileUploadWrapper.classList.add("active", "file-attached");
-    } else {
-      // Default for documents, etc.
-      preview.style.display = "none";
-      fileUploadWrapper.classList.add("active", "file-attached");
-    }
+            if (!response.ok) {
+                var errorData = await response.json();
+                throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+            }
 
-    userData.file = { fileName: file.name, data: base64String, mime_type: file.type, isImage };
-  };
-});
+            var data = await response.json();
+            addMessage(data.text, 'ai');
 
-// ==== Cancel file upload ====
-document.querySelector("#cancel-file-btn").addEventListener("click", () => {
-  userData.file = {};
-  fileUploadWrapper.classList.remove("file-attached", "img-attached", "active");
-  var preview = fileUploadWrapper.querySelector(".file-preview");
-  preview.src = "";
-  preview.style.display = "none";
-});
+        } catch (error) {
+            typingIndicator.style.display = 'none';
+            console.error('API Error:', error);
+            // Add a simple error message to the chat (also stores it in history)
+            addMessage("An API error occurred. Please check the console or try again later.", 'ai');
+        }
+    }
 
-// ==== Stop Bot Response and speech ====
-stopResponseBtn.addEventListener("click", () => {
-  controller?.abort();
-  userData.file = {};
-  clearInterval(typingInterval);
-  chatsContainer.querySelector(".bot-message.loading")?.classList.remove("loading");
-  document.body.classList.remove("bot-responding");
-  if (speechUtterance && window.speechSynthesis.speaking) {
-    window.speechSynthesis.cancel();
-  }
-});
+    // --- Chat Management and Storage ---
 
-// ==== Toggle dark/light theme ====
-themeToggleBtn.addEventListener("click", () => {
-  var isLightTheme = document.body.classList.toggle("light-theme");
-  localStorage.setItem("themeColor", isLightTheme ? "light_mode" : "dark_mode");
-  themeToggleBtn.textContent = isLightTheme ? "dark_mode" : "light_mode";
-});
+    function generateUuid() {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+            var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+        });
+    }
 
-// ==== Delete all chats ====
-deleteChatsBtn.addEventListener("click", () => {
-  // ADDED CONFIRMATION ALERT
-  if (confirm("Are you sure you want to delete all chats? This cannot be undone.")) {
-    chatHistory = [];
-    chatsContainer.innerHTML = "";
-    localStorage.removeItem('praterich_chat_history');
-    document.body.classList.remove("chats-active", "bot-responding");
-    if (speechUtterance && window.speechSynthesis.speaking) {
-      window.speechSynthesis.cancel();
-    }
-  }
-});
+    function saveToLocalStorage() {
+        localStorage.setItem(STORAGE_KEY_SESSIONS, JSON.stringify(chatSessions));
+    }
+    
+    function loadFromLocalStorage() {
+        var sessionsData = localStorage.getItem(STORAGE_KEY_SESSIONS);
 
-// ==== Suggestions click: detect news ====
-document.querySelectorAll(".suggestions-item").forEach((suggestion) => {
-  suggestion.addEventListener("click", () => {
-    // News suggestion
-    if (suggestion.dataset.news === "true") {
-      handleNewsRequest();
-      return;
-    }
-    promptInput.value = suggestion.querySelector(".text").textContent;
-    promptForm.dispatchEvent(new Event("submit"));
-  });
-});
+        if (sessionsData) {
+            chatSessions = JSON.parse(sessionsData);
+        }
 
-// ==== Add event listeners for form submission and file input click ====
-promptForm.addEventListener("submit", handleFormSubmit);
+        // Check for existing sessions and load the latest one
+        var ids = Object.keys(chatSessions);
+        if (ids.length === 0) {
+            startNewChat();
+        } else {
+            currentChatId = ids[ids.length - 1]; // Load the latest chat
+            loadChatSession(currentChatId);
+        }
+        
+        renderChatList();
+    }
 
-promptForm.querySelector("#add-file-btn").addEventListener("click", () => fileInput.click());
+    function startNewChat() {
+        if (window.speechSynthesis.speaking) {
+            window.speechSynthesis.cancel();
+        }
+        
+        var newId = generateUuid();
+        var initialMessage = {
+            sender: 'ai', 
+            text: initialGreeting
+        };
+        
+        chatSessions[newId] = {
+            title: "New Chat",
+            messages: [initialMessage]
+        };
 
-// Add the accept attribute to the file input to show more file types
-fileInput.setAttribute("accept", "image/*,audio/*,video/*,application/pdf,text/plain,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+        currentChatId = newId;
+        saveToLocalStorage();
+        loadChatSession(newId);
+        renderChatList();
+        userInput.focus();
+    }
 
-// Initial chat load
-document.addEventListener("DOMContentLoaded", loadChats);
+    function loadChatSession(id) {
+        if (window.speechSynthesis.speaking) {
+            window.speechSynthesis.cancel();
+        }
+        
+        currentChatId = id;
+        chatWindow.innerHTML = ''; // Clear current chat window
+        
+        var session = chatSessions[id];
+        session.messages.forEach(function(msg) {
+            addMessage(msg.text, msg.sender, true); // true for isHistoryLoad
+        });
+        
+        renderChatList(); // Update active class
+        scrollToBottom();
+    }
+
+    function deleteChatSession(id) {
+        if (id === currentChatId) {
+            // If active chat is deleted, start a new one immediately
+            startNewChat(); 
+        }
+        delete chatSessions[id];
+        saveToLocalStorage();
+        renderChatList();
+    }
+
+    function renderChatList() {
+        chatList.innerHTML = '';
+        var ids = Object.keys(chatSessions).sort().reverse(); // Show newest chats first
+
+        ids.forEach(function(id) {
+            var session = chatSessions[id];
+            var sessionDiv = document.createElement('div');
+            sessionDiv.className = 'chat-session' + (id === currentChatId ? ' active' : '');
+            sessionDiv.dataset.chatId = id;
+            
+            var titleSpan = document.createElement('span');
+            titleSpan.className = 'chat-title';
+            titleSpan.textContent = session.title;
+            titleSpan.onclick = function() {
+                loadChatSession(id);
+            };
+            sessionDiv.appendChild(titleSpan);
+
+            var deleteBtn = document.createElement('button');
+            deleteBtn.className = 'delete-chat';
+            deleteBtn.innerHTML = '<i class="fas fa-trash-alt"></i>';
+            deleteBtn.title = 'Delete Chat';
+            deleteBtn.onclick = function(e) {
+                e.stopPropagation(); // Prevent loading chat when deleting
+                if (confirm('Are you sure you want to delete this chat?')) {
+                    deleteChatSession(id);
+                }
+            };
+            sessionDiv.appendChild(deleteBtn);
+            
+            chatList.appendChild(sessionDiv);
+        });
+    }
+
+    // --- File Handling (Placeholder) ---
+    function handleFileUpload(file) {
+        // NOTE: This function reads the file and prepares it. 
+        // The *actual* process of sending the file content to the Gemini API 
+        // in a format it can use (e.g., base64 encoding) would need to be 
+        // implemented here and handled in your Vercel API endpoint.
+
+        var reader = new FileReader();
+        reader.onload = function(event) {
+            var fileContent = event.target.result;
+            // Display a message that a file was attached
+            addMessage(`File attached: ${file.name} (${file.type}). Ready to send message!`, 'user');
+            
+            // In a real implementation, you would store `fileContent` (usually base64) 
+            // and include it in the `requestBody` of the `sendMessage` function.
+            console.log(`File ${file.name} loaded. Content is ready to be sent to API.`);
+        };
+        
+        // Read file as ArrayBuffer for general binary/text handling
+        reader.readAsArrayBuffer(file); 
+    }
+
+
+    // --- Initialization and Event Listeners ---
+
+    // Load everything on page load
+    window.addEventListener('load', loadFromLocalStorage);
+
+    // Event listeners
+    newChatButton.addEventListener('click', startNewChat);
+    sendButton.addEventListener('click', sendMessage);
+    userInput.addEventListener('keydown', function(event) {
+        if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault();
+            sendMessage();
+        }
+    });
+    
+    // File upload
+    uploadButton.addEventListener('click', function() {
+        fileUpload.click();
+    });
+
+    fileUpload.addEventListener('change', function() {
+        var file = fileUpload.files[0];
+        if (file) {
+            handleFileUpload(file);
+            fileUpload.value = ''; // Clear the input
+        }
+    });
+
+    // Sidebar Menu Toggle for small screens
+    menuToggleButton.addEventListener('click', function() {
+        sidebar.classList.toggle('open');
+    });
+
+    // Initial check for mobile to set up the button visibility
+    window.matchMedia('(max-width: 768px)').addEventListener('change', function(e) {
+        if (e.matches) {
+            sidebar.classList.remove('open'); // Ensure it's hidden on small screen
+        }
+    });
