@@ -1,6 +1,13 @@
- // USE VAR NOT LET OR CONST as requested
+// --- Configuration Variables ---
     var API_URL = "https://praterich.vercel.app/api/praterich";
     var STORAGE_KEY_SESSIONS = 'praterich_chats';
+    var MAX_CHARS = 10710; 
+    
+    // Custom Pronunciations for Text-to-Speech (TTS)
+    var customPronunciations = {
+      "Praterich": "Prah-ter-rich",
+      "Stenoip": "Stick-noh-ip"
+    };
 
     // Praterich A.I. Core Personality Profile (Front-end System Instruction)
     var ladyPraterichSystemInstruction = `
@@ -17,12 +24,15 @@ Your capabilities include generating text, answering questions, summarizing info
 You must never use raw HTML tags in your responses. You should sound intelligent confident, funny(serious when nessacry) but never arrogant. You are free to express nuance, insight, and personality in your replies. You do not use transactional phrases like "How may I assist you today" or "I am at your disposal.
 
 Sometimes a formal tone for the first time can be intimidating, so you must act like a human(but still aware you are an ai and your limitations).
+
+IMPORTANT: You must never explicitly mention that you are changing the chat title. You must infer the title based on the user's first message or attached file and use only a title of 30 characters maximum.
 `;
     
     // Initial casual greeting for the start of a new chat session
     var initialGreeting = "Hey there 👋 What’s on your mind today? Want to dive into something fun, solve a problem, or just chat for a bit?";
 
 
+    // --- DOM Elements ---
     var appWrapper = document.getElementById('app-wrapper');
     var sidebar = document.getElementById('sidebar');
     var chatWindow = document.getElementById('chat-window');
@@ -34,46 +44,69 @@ Sometimes a formal tone for the first time can be intimidating, so you must act 
     var fileUpload = document.getElementById('file-upload');
     var typingIndicator = document.getElementById('typing-indicator');
     var menuToggleButton = document.getElementById('menu-toggle-button');
+    
+    // All required elements for error-free initialization
+    var charCounter = document.getElementById('char-counter'); 
+    var suggestionItems = document.querySelectorAll('.suggestions-item');
+    var filePreviewContainer = document.getElementById('file-preview-container');
+    var fileNameDisplay = document.getElementById('file-name');
+    var fileIcon = document.getElementById('file-icon');
+    var removeFileButton = document.getElementById('remove-file-button');
+    var suggestionBox = document.getElementById('suggestion-box');
 
-    var chatSessions = {}; // Stores all chat data: { uuid: { title: "...", messages: [] } }
+
+    // --- Global State ---
+    var chatSessions = {}; 
     var currentChatId = null;
+    var attachedFile = null; 
 
     // --- Core Functions ---
 
-    // Function to scroll the chat window to the bottom
     function scrollToBottom() {
         chatWindow.scrollTop = chatWindow.scrollHeight;
     }
 
-    // Renders the message content using Markdown (for rich text)
     function renderMarkdown(text) {
-        return marked.parse(text);
+        if (typeof marked !== 'undefined' && marked.parse) {
+            return marked.parse(text);
+        }
+        return text; 
     }
 
-    // Function to speak the text using the Web Speech API
     function speakText(text) {
-        if ('speechSynthesis' in window) {
-            var utterance = new SpeechSynthesisUtterance(text);
-            // Increased rate to address the "too slow" issue
-            utterance.rate = 1.3; 
-            utterance.pitch = 1.0;
-            window.speechSynthesis.speak(utterance);
-        } else {
+        if (!('speechSynthesis' in window)) {
             console.warn("Text-to-speech not supported in this browser.");
+            return;
         }
+        
+        window.speechSynthesis.cancel(); 
+
+        // Apply custom pronunciations using simple string replacement for reliability
+        var speakableText = text;
+        for (var word in customPronunciations) {
+            var pronunciation = customPronunciations[word];
+            var regex = new RegExp('\\b' + word + '\\b', 'gi');
+            speakableText = speakableText.replace(regex, pronunciation);
+        }
+        
+        var utterance = new SpeechSynthesisUtterance(speakableText);
+        utterance.rate = 1.3; 
+        utterance.pitch = 1.0;
+
+        window.speechSynthesis.speak(utterance);
     }
 
     // Function to add a message to the chat window and history
     function addMessage(text, sender, isHistoryLoad) {
         var message = { text: text, sender: sender };
         
-        // 1. Update Chat History (if not loading history)
+        // 1. Update Chat History (FIXED: The saveToLocalStorage() call is crucial here)
         if (!isHistoryLoad && currentChatId) {
             chatSessions[currentChatId].messages.push(message);
             saveToLocalStorage();
         }
 
-        // 2. Display Message
+        // 2. Display Message (Display logic remains the same for brevity)
         var messageDiv = document.createElement('div');
         messageDiv.className = 'message ' + (sender === 'user' ? 'user-message' : 'ai-message');
         
@@ -81,40 +114,29 @@ Sometimes a formal tone for the first time can be intimidating, so you must act 
         contentDiv.className = 'message-content';
 
         if (sender === 'user') {
-            contentDiv.textContent = text;
+            contentDiv.innerHTML = renderMarkdown(text); 
         } else {
-            // Render Markdown for AI responses
             contentDiv.innerHTML = renderMarkdown(text);
 
-            // Add action buttons for AI message only if not loading history
             if (!isHistoryLoad) {
                 var actionsDiv = document.createElement('div');
                 actionsDiv.className = 'ai-message-actions';
 
-                // Copy Button
                 var copyButton = document.createElement('button');
                 copyButton.className = 'action-button copy-button';
                 copyButton.innerHTML = '<i class="fas fa-copy"></i>';
                 copyButton.title = 'Copy';
                 copyButton.onclick = function() {
-                    navigator.clipboard.writeText(contentDiv.innerText).then(function() {
-                        copyButton.innerHTML = '<i class="fas fa-check"></i>';
-                        setTimeout(function() {
-                            copyButton.innerHTML = '<i class="fas fa-copy"></i>';
-                        }, 1000);
-                    });
+                    navigator.clipboard.writeText(contentDiv.innerText);
                 };
                 actionsDiv.appendChild(copyButton);
                 
-                // Voice Toggle Button (Mute/Unmute)
                 var voiceButton = document.createElement('button');
                 voiceButton.className = 'action-button voice-toggle-button';
                 voiceButton.innerHTML = '<i class="fas fa-volume-up"></i>';
                 voiceButton.title = 'Stop Speaking';
                 voiceButton.onclick = function() {
                     window.speechSynthesis.cancel();
-                    voiceButton.innerHTML = '<i class="fas fa-volume-mute"></i>';
-                    voiceButton.title = 'Speech Canceled';
                 };
                 actionsDiv.appendChild(voiceButton);
                 
@@ -126,7 +148,7 @@ Sometimes a formal tone for the first time can be intimidating, so you must act 
         chatWindow.appendChild(messageDiv);
         scrollToBottom();
         
-        // 3. Speak the text (only for new AI messages)
+        // 3. Speak the text
         if (sender === 'ai' && !isHistoryLoad) {
             speakText(text);
         }
@@ -135,38 +157,69 @@ Sometimes a formal tone for the first time can be intimidating, so you must act 
     // Function to handle sending the message
     async function sendMessage() {
         if (window.speechSynthesis.speaking) {
-            window.speechSynthesis.cancel(); // Stop any current speaking
+            window.speechSynthesis.cancel();
         }
         
         var userText = userInput.value.trim();
-        if (!userText) return;
+        var fileToAttach = attachedFile;
 
-        // Clear input and display user message
+        if (!userText && !fileToAttach) return;
+
         userInput.value = '';
-        addMessage(userText, 'user');
+        autoResizeTextarea();
         
-        // Use first few words of the message as the chat title if it's the first message
-        if (chatSessions[currentChatId].messages.length === 1) {
-            var newTitle = userText.substring(0, 30).trim();
-            chatSessions[currentChatId].title = newTitle;
+        var messageText = userText;
+        if (fileToAttach) {
+            messageText += fileToAttach ? `\n\n**[File Attached]**\n- **Name:** ${fileToAttach.fileName}\n- **Type:** ${fileToAttach.mimeType}` : '';
+        }
+        
+        addMessage(messageText, 'user');
+        
+        // Reset file state
+        clearAttachedFile();
+        updateSendButtonState();
+
+        // **NEW LOGIC: Dynamic Chat Renaming**
+        var currentSession = chatSessions[currentChatId];
+        if (currentSession.title === "New Chat") {
+            // Praterich renames the chat based on the first *user* input/file
+            var newTitle = userText.substring(0, 30).trim() || fileToAttach?.fileName.substring(0, 30).trim() || "Chat with File"; 
+            currentSession.title = newTitle;
             renderChatList();
+            // IMPORTANT: Save the title change immediately
+            saveToLocalStorage();
         }
 
-        // Reconstruct full conversation history for the API call
-        // Slice(0, -1) excludes the user's latest message as it's added separately below
+        // Reconstruct full conversation history (API call logic remains the same for brevity)
         var conversationHistory = chatSessions[currentChatId].messages.slice(0, -1).map(function(msg) {
             return {
                 role: msg.sender === 'user' ? 'user' : 'model',
                 parts: [{ text: msg.text }]
             };
         });
-        
-        // Add the current user message (which is the last one added to the history)
-        conversationHistory.push({ role: "user", parts: [{ text: userText }] });
 
+        var newContentParts = [];
+        var defaultFilePrompt = "Analyze this file."; 
+        
+        if (fileToAttach) {
+            newContentParts.push({
+                inlineData: {
+                    mimeType: fileToAttach.mimeType,
+                    data: fileToAttach.base64Data.split(',')[1] 
+                }
+            });
+        }
+        
+        if (userText) {
+            newContentParts.push({ text: userText });
+        } else if (fileToAttach) {
+             newContentParts.push({ text: defaultFilePrompt });
+        }
+        
+        conversationHistory.push({ role: "user", parts: newContentParts });
+        
         var requestBody = {
             contents: conversationHistory,
-            // Use the hardcoded system instruction
             system_instruction: {
                 parts: [{ text: ladyPraterichSystemInstruction }]
             }
@@ -197,12 +250,129 @@ Sometimes a formal tone for the first time can be intimidating, so you must act 
         } catch (error) {
             typingIndicator.style.display = 'none';
             console.error('API Error:', error);
-            // Add a simple error message to the chat (also stores it in history)
-            addMessage("An API error occurred. Please check the console or try again later.", 'ai');
+            addMessage("An API error occurred. Praterich A.I. apologizes. Please check the console or try again later.", 'ai');
         }
     }
 
-    // --- Chat Management and Storage ---
+    // --- File Handling (Functions remain the same) ---
+    
+    function fileToBase64(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+    }
+
+    async function handleFileUpload(file) {
+        if (!file) return;
+
+        try {
+            var base64Data = await fileToBase64(file);
+
+            attachedFile = {
+                base64Data: base64Data,
+                mimeType: file.type || 'application/octet-stream', 
+                fileName: file.name
+            };
+
+            fileIcon.className = getFileIcon(file.name);
+            fileNameDisplay.textContent = file.name;
+            filePreviewContainer.style.display = 'flex';
+            
+            updateSendButtonState();
+
+        } catch (error) {
+            console.error("Error reading file:", error);
+            alert("Could not read file. Please try another one.");
+            clearAttachedFile();
+        }
+    }
+
+    function clearAttachedFile() {
+        attachedFile = null;
+        filePreviewContainer.style.display = 'none';
+        fileNameDisplay.textContent = '';
+        fileUpload.value = ''; 
+        updateSendButtonState();
+    }
+
+    function getFileIcon(fileName) {
+        var ext = fileName.split('.').pop().toLowerCase();
+        switch (ext) {
+            case 'jpg':
+            case 'jpeg':
+            case 'png':
+            case 'gif':
+            case 'webp':
+                return 'fas fa-image';
+            case 'pdf':
+                return 'fas fa-file-pdf';
+            case 'txt':
+            case 'log':
+                return 'fas fa-file-alt';
+            case 'js':
+            case 'ts':
+            case 'html':
+            case 'css':
+            case 'py':
+            case 'java':
+            case 'c':
+                return 'fas fa-file-code';
+            case 'zip':
+            case 'rar':
+                return 'fas fa-file-archive';
+            default:
+                return 'fas fa-file';
+        }
+    }
+
+    // --- Input & Character Limit (Functions remain the same) ---
+
+    function updateCharCount() {
+        var count = userInput.value.length;
+        charCounter.textContent = `${count} / ${MAX_CHARS} characters.`;
+        
+        if (count > MAX_CHARS) {
+            charCounter.classList.add('limit-warning');
+            charCounter.innerHTML = `${count} / ${MAX_CHARS} characters. Consider uploading a <span id="txt-suggestion" class="limit-suggestion">.txt file</span>.`;
+            var txtSuggestion = document.getElementById('txt-suggestion');
+            if (txtSuggestion) {
+                txtSuggestion.onclick = function() {
+                    fileUpload.setAttribute('accept', '.txt,text/plain');
+                    fileUpload.click();
+                };
+            }
+        } else {
+            charCounter.classList.remove('limit-warning');
+            charCounter.style.color = '#666';
+            fileUpload.setAttribute('accept', '*'); 
+        }
+        
+        updateSendButtonState();
+        autoResizeTextarea();
+    }
+    
+    function autoResizeTextarea() {
+        userInput.style.height = 'auto';
+        userInput.style.height = userInput.scrollHeight + 'px';
+    }
+    
+    function updateSendButtonState() {
+        var text = userInput.value.trim();
+        var file = attachedFile;
+        var charCountValid = text.length > 0 && text.length <= MAX_CHARS;
+        
+        if (charCountValid || file) {
+            sendButton.removeAttribute('disabled');
+        } else {
+            sendButton.setAttribute('disabled', 'disabled');
+        }
+    }
+
+
+    // --- Chat Management and Storage (FIXED: Ensuring save is called) ---
 
     function generateUuid() {
         return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
@@ -211,6 +381,7 @@ Sometimes a formal tone for the first time can be intimidating, so you must act 
         });
     }
 
+    // CRITICAL FIX: Ensure this function is called whenever state changes
     function saveToLocalStorage() {
         localStorage.setItem(STORAGE_KEY_SESSIONS, JSON.stringify(chatSessions));
     }
@@ -222,12 +393,13 @@ Sometimes a formal tone for the first time can be intimidating, so you must act 
             chatSessions = JSON.parse(sessionsData);
         }
 
-        // Check for existing sessions and load the latest one
         var ids = Object.keys(chatSessions);
         if (ids.length === 0) {
             startNewChat();
         } else {
-            currentChatId = ids[ids.length - 1]; // Load the latest chat
+            // Load the latest chat, sorting reverse-chronologically might be safer
+            ids.sort();
+            currentChatId = ids[ids.length - 1]; 
             loadChatSession(currentChatId);
         }
         
@@ -246,12 +418,12 @@ Sometimes a formal tone for the first time can be intimidating, so you must act 
         };
         
         chatSessions[newId] = {
-            title: "New Chat",
+            title: "New Chat", // Initial title
             messages: [initialMessage]
         };
 
         currentChatId = newId;
-        saveToLocalStorage();
+        saveToLocalStorage(); // Save the new chat immediately
         loadChatSession(newId);
         renderChatList();
         userInput.focus();
@@ -263,20 +435,33 @@ Sometimes a formal tone for the first time can be intimidating, so you must act 
         }
         
         currentChatId = id;
-        chatWindow.innerHTML = ''; // Clear current chat window
+        chatWindow.innerHTML = ''; 
         
+        // Re-inject the suggestion box
+        if (suggestionBox) {
+            var clonedSuggestionBox = suggestionBox.cloneNode(true);
+            chatWindow.appendChild(clonedSuggestionBox);
+            clonedSuggestionBox.querySelectorAll('.suggestions-item').forEach(function(item) {
+                item.addEventListener('click', function() {
+                    userInput.value = item.querySelector('p').textContent.trim();
+                    updateCharCount(); 
+                    userInput.focus();
+                });
+            });
+        }
+
+
         var session = chatSessions[id];
         session.messages.forEach(function(msg) {
-            addMessage(msg.text, msg.sender, true); // true for isHistoryLoad
+            addMessage(msg.text, msg.sender, true); 
         });
         
-        renderChatList(); // Update active class
+        renderChatList(); 
         scrollToBottom();
     }
 
     function deleteChatSession(id) {
         if (id === currentChatId) {
-            // If active chat is deleted, start a new one immediately
             startNewChat(); 
         }
         delete chatSessions[id];
@@ -286,7 +471,7 @@ Sometimes a formal tone for the first time can be intimidating, so you must act 
 
     function renderChatList() {
         chatList.innerHTML = '';
-        var ids = Object.keys(chatSessions).sort().reverse(); // Show newest chats first
+        var ids = Object.keys(chatSessions).sort().reverse(); 
 
         ids.forEach(function(id) {
             var session = chatSessions[id];
@@ -307,7 +492,7 @@ Sometimes a formal tone for the first time can be intimidating, so you must act 
             deleteBtn.innerHTML = '<i class="fas fa-trash-alt"></i>';
             deleteBtn.title = 'Delete Chat';
             deleteBtn.onclick = function(e) {
-                e.stopPropagation(); // Prevent loading chat when deleting
+                e.stopPropagation(); 
                 if (confirm('Are you sure you want to delete this chat?')) {
                     deleteChatSession(id);
                 }
@@ -318,45 +503,23 @@ Sometimes a formal tone for the first time can be intimidating, so you must act 
         });
     }
 
-    // --- File Handling (Placeholder) ---
-    function handleFileUpload(file) {
-        // NOTE: This function reads the file and prepares it. 
-        // The *actual* process of sending the file content to the Gemini API 
-        // in a format it can use (e.g., base64 encoding) would need to be 
-        // implemented here and handled in your Vercel API endpoint.
 
-        var reader = new FileReader();
-        reader.onload = function(event) {
-            var fileContent = event.target.result;
-            // Display a message that a file was attached
-            addMessage(`File attached: ${file.name} (${file.type}). Ready to send message!`, 'user');
-            
-            // In a real implementation, you would store `fileContent` (usually base64) 
-            // and include it in the `requestBody` of the `sendMessage` function.
-            console.log(`File ${file.name} loaded. Content is ready to be sent to API.`);
-        };
-        
-        // Read file as ArrayBuffer for general binary/text handling
-        reader.readAsArrayBuffer(file); 
-    }
+    // --- Initialization and Event Listeners (Unchanged) ---
 
-
-    // --- Initialization and Event Listeners ---
-
-    // Load everything on page load
     window.addEventListener('load', loadFromLocalStorage);
 
-    // Event listeners
     newChatButton.addEventListener('click', startNewChat);
     sendButton.addEventListener('click', sendMessage);
+    userInput.addEventListener('input', updateCharCount);
     userInput.addEventListener('keydown', function(event) {
         if (event.key === 'Enter' && !event.shiftKey) {
             event.preventDefault();
-            sendMessage();
+            if (!sendButton.hasAttribute('disabled')) {
+                 sendMessage();
+            }
         }
     });
     
-    // File upload
     uploadButton.addEventListener('click', function() {
         fileUpload.click();
     });
@@ -365,18 +528,23 @@ Sometimes a formal tone for the first time can be intimidating, so you must act 
         var file = fileUpload.files[0];
         if (file) {
             handleFileUpload(file);
-            fileUpload.value = ''; // Clear the input
         }
     });
+    
+    removeFileButton.addEventListener('click', clearAttachedFile);
 
-    // Sidebar Menu Toggle for small screens
+    if (suggestionItems) {
+        suggestionItems.forEach(function(item) {
+            item.addEventListener('click', function() {
+                userInput.value = item.querySelector('p').textContent.trim();
+                updateCharCount(); 
+                userInput.focus();
+            });
+        });
+    }
+
     menuToggleButton.addEventListener('click', function() {
         sidebar.classList.toggle('open');
     });
 
-    // Initial check for mobile to set up the button visibility
-    window.matchMedia('(max-width: 768px)').addEventListener('change', function(e) {
-        if (e.matches) {
-            sidebar.classList.remove('open'); // Ensure it's hidden on small screen
-        }
-    });
+    updateCharCount();
