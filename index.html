@@ -1,418 +1,554 @@
 
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Lady Praterich | Stenoip Company</title>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@32,400,0,0" />
-    <link rel="icon" type="image/png" href="ladypraterich.png">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Praterich A.I. Chatbot</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
-     @import url("https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap");
-      * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Poppins", sans-serif; }
-      
-      /* --- FRUTIGER AERO THEME VARIABLES --- */
-      :root {
-        --text-color: #0d1a29; /* Dark Blue Text */
-        --subheading-color: #004d99; /* Medium Blue Subheadings */
-        --placeholder-color: #6699cc; /* Light Blue/Gray Placeholder */
-        --primary-color: #e6f0ff; /* Light, bright background */
-        --glass-fill: rgba(255, 255, 255, 0.4); /* Glass surface color */
-        --glass-border: rgba(255, 255, 255, 0.7); /* Highlighted glass border */
-        --accent-blue: #1d7efd;
-        --accent-hover: #006aff;
-        --secondary-color: rgba(255, 255, 255, 0.6); /* Lighter Glass for cards */
-        --secondary-hover-color: rgba(255, 255, 255, 0.8);
-        --scrollbar-color: #a2aac2;
-      }
+        /* FRUTIGER AERO STYLING */
+        :root {
+            --glass-color: rgba(255, 255, 255, 0.4); /* More transparent */
+            --glass-border: rgba(255, 255, 255, 0.7);
+            --water-color: #88d0ff;
+            --sky-color: #e0f2ff;
+            --shadow-color: rgba(0, 0, 0, 0.15);
+            --light-blue: #007bff;
+            --dark-blue: #0056b3;
+            --sidebar-width: 250px;
+        }
 
-      /* Base Background: Bright, glossy, with a subtle texture/gradient */
-      body { 
-        color: var(--text-color); 
-        background: radial-gradient(circle at 10% 10%, #ccf5ff 0%, transparent 50%),
-                    radial-gradient(circle at 90% 90%, #b3ffb3 0%, transparent 50%),
-                    linear-gradient(135deg, #e6f0ff 0%, #cce0ff 100%);
-        background-attachment: fixed;
-      }
-      
-      /* --- FRUTIGER AERO CORE STYLES (Glassmorphism) --- */
-      .glass-container {
-        /* Generic Glassmorphism Style for content blocks */
-        background: var(--glass-fill);
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
-        border: 1px solid var(--glass-border);
-        box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
-        border-radius: 15px; /* Softer, rounder corners */
-      }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, var(--sky-color) 0%, var(--water-color) 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            overflow: hidden; /* Hide body scrollbar */
+        }
 
-      .container { 
-        overflow-y: auto; 
-        padding: 32px 0 60px; 
-        height: calc(100vh - 127px); 
-        scrollbar-color: var(--scrollbar-color) transparent; 
-      }
-      
-      .container :where(.app-header, .suggestions, .message, .prompt-wrapper) { 
-        position: relative; 
-        margin: 0 auto; 
-        width: 100%; 
-        padding: 0 20px; 
-        max-width: 990px; 
-      }
+        #app-wrapper {
+            display: flex;
+            width: 100%;
+            max-width: 1000px;
+            height: 80vh; /* Set a fixed height for the chat interface */
+            min-height: 600px;
+            border-radius: 20px;
+            box-shadow: 0 15px 40px var(--shadow-color), inset 0 0 0 2px var(--glass-border);
+            overflow: hidden;
+            background: var(--glass-color); /* Glassy background for the whole wrapper */
+            backdrop-filter: blur(15px); /* Stronger blur */
+            border: 1px solid var(--glass-border);
+        }
 
-      /* Application Header */
-      .container .app-header { margin-top: 3vh; }
-      
-      .app-header .heading { 
-        width: fit-content; 
-        font-size: 3rem; 
-        background: linear-gradient(to right, #0078d4, #00aaff); /* Brighter gradient */
-        -webkit-background-clip: text; 
-        -webkit-text-fill-color: transparent; 
-        /* Added glossy text shadow effect */
-        text-shadow: 0 1px 1px rgba(255, 255, 255, 0.5); 
-      }
-      
-      .app-header .sub-heading { 
-        font-size: 2.6rem; 
-        margin-top: -5px; 
-        color: var(--subheading-color); 
-      }
+        /* --- SIDEBAR --- */
+        #sidebar {
+            width: var(--sidebar-width);
+            background: rgba(255, 255, 255, 0.3); /* Slightly more transparent */
+            border-right: 1px solid var(--glass-border);
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.3s ease-in-out;
+            transform: translateX(0);
+        }
 
-      /* Suggestions List/Cards */
-      .container .suggestions { 
-        width: 100%; 
-        list-style: none; 
-        display: flex; 
-        gap: 20px; /* Increased gap */
-        margin-top: 8vh; /* Slightly reduced margin */
-        overflow-x: auto; 
-        scroll-snap-type: x mandatory; 
-        scrollbar-width: none; 
-      }
-      
-      .suggestions .suggestions-item { 
-        cursor: pointer; 
-        padding: 20px; 
-        width: 240px; /* Slightly wider */
-        flex-shrink: 0; 
-        scroll-snap-align: center; 
-        display: flex;
-        flex-direction: column; 
-        align-items: flex-end; 
-        border-radius: 20px; /* More rounded corners */
-        justify-content: space-between; 
-        background: var(--secondary-color); /* Glassy background */
-        backdrop-filter: blur(8px);
-        border: 1px solid rgba(255, 255, 255, 0.8);
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15); /* More prominent shadow */
-        transition: 0.3s ease; 
-      }
-      
-      .suggestions .suggestions-item:hover { 
-        background: var(--secondary-hover-color); 
-        transform: translateY(-2px);
-        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2); 
-      }
-      
-      .suggestions .suggestions-item .text { 
-        font-size: 1rem; /* Slightly smaller text */
-        color: var(--text-color);
-      }
-      
-      .suggestions .suggestions-item .icon { 
-        width: 50px; 
-        height: 50px; 
-        display: flex; 
-        font-size: 1.6rem; 
-        margin-top: 25px; 
-        align-self: flex-end; 
-        align-items: center; 
-        border-radius: 50%; 
-        justify-content: center; 
-        color: white; /* Icons should contrast well */
-        background: var(--accent-blue); /* Accent color */
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2); /* Icon shadow */
-      }
-      
-      .suggestions .suggestions-item:nth-child(2) .icon { background: #38c172; } /* Green */
-      .suggestions .suggestions-item:nth-child(3) .icon { background: #ffc107; } /* Yellow */
-      .suggestions .suggestions-item:nth-child(4) .icon { background: #9c27b0; } /* Purple */
-      .suggestions .suggestions-item[data-news="true"] .icon { background: #e53935; } /* Red */
-      
-      .container .chats-container { 
-        display: flex; 
-        gap: 15px; /* Reduced gap */
-        flex-direction: column; 
-      }
-      
-      /* Message Bubbles - Applying Glassmorphism */
-      .chats-container .message-text { 
-        padding: 12px 18px; 
-        word-wrap: break-word; 
-        white-space: pre-line;
-        color: var(--text-color);
-        /* Bot Message Background (Simpler Glass) */
-        background: rgba(255, 255, 255, 0.7);
-        backdrop-filter: blur(6px);
-        border: 1px solid rgba(255, 255, 255, 0.9);
-        box-shadow: 0 1px 8px rgba(0, 0, 0, 0.1);
-        border-radius: 15px;
-      }
-      
-      .chats-container .user-message .message-text { 
-        /* User Message Background (Slightly darker glass) */
-        background: rgba(200, 220, 255, 0.7);
-        border-radius: 15px 15px 5px 15px; /* Asymmetric for chat */
-      }
+        #sidebar-header {
+            padding: 15px;
+            font-size: 1.2em;
+            font-weight: 700;
+            color: var(--dark-blue);
+            text-shadow: 0 1px 1px var(--glass-color);
+        }
 
-      /* Avatars */
-      .chats-container .message .avatar { 
-        width: 45px; 
-        height: 45px; 
-        flex-shrink: 0; 
-        align-self: flex-start; 
-        border-radius: 50%; 
-        padding: 4px; 
-        margin-right: -5px; 
-        background: var(--secondary-color); /* Glassy background */
-        border: 2px solid var(--accent-blue); /* Accent ring */
-        box-shadow: 0 1px 5px rgba(0, 0, 0, 0.2);
-      }
+        #new-chat-button {
+            background-color: var(--light-blue);
+            color: white;
+            padding: 10px;
+            margin: 10px 15px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background-color 0.3s;
+        }
 
-      /* Code Blocks */
-      .code-block-container { 
-        position: relative; 
-        margin: 18px 0; 
-        background: rgba(0, 0, 0, 0.1); /* Darker translucent background for code */
-        border-radius: 10px; 
-        padding: 0; 
-        overflow: auto; 
-        box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.1);
-      }
-      
-      .code-block-container pre { 
-        margin: 0; 
-        background: none; 
-        font-family: monospace; 
-        font-size: 1rem; 
-        color: var(--text-color); /* Text should still be dark */
-        white-space: pre-wrap; 
-        word-break: break-all; 
-        padding: 16px 32px 16px 16px; 
-        border-radius: 8px; 
-      }
-      
-      .copy-code-btn { 
-        position: absolute; 
-        top: 10px; 
-        right: 16px; 
-        font-size: 0.95rem; 
-        background: var(--accent-blue); 
-        color: #fff; 
-        border: none; 
-        border-radius: 15px; 
-        padding: 4px 13px; 
-        cursor: pointer; 
-        z-index: 2; 
-        opacity: 0.8; 
-        transition: opacity 0.2s, background 0.2s; 
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-      }
-      
-      .copy-code-btn:hover { opacity: 1; background: var(--accent-hover); }
+        #new-chat-button:hover {
+            background-color: var(--dark-blue);
+        }
 
-      /* Prompt Container */
-      .container .prompt-container { 
-        position: fixed; 
-        width: 100%; 
-        left: 0; 
-        bottom: 0; 
-        padding: 16px 0; 
-        background: linear-gradient(to top, var(--primary-color) 70%, transparent); /* Fade effect */
-        z-index: 10; 
-      }
-      
-      .prompt-container .prompt-form { 
-        height: 100%; 
-        width: 100%; 
-        border-radius: 130px; 
-        /* Glassy Input Field */
-        background: rgba(255, 255, 255, 0.85);
-        backdrop-filter: blur(8px);
-        border: 1px solid rgba(255, 255, 255, 1);
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-      }
-      
-      .prompt-form .prompt-input { 
-        width: 100%; 
-        height: 100%; 
-        background: none; 
-        outline: none; 
-        border: none; 
-        font-size: 1rem; 
-        color: var(--text-color); 
-        padding-left: 24px; 
-      }
-      
-      .prompt-wrapper button { 
-        width: 56px; 
-        height: 100%; 
-        flex-shrink: 0; 
-        cursor: pointer; 
-        border-radius: 50%; 
-        font-size: 1.4rem; 
-        border: none; 
-        color: var(--text-color); 
-        background: rgba(255, 255, 255, 0.6); /* Glassy button background */
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-        transition: 0.3s ease; 
-      }
-      
-      .prompt-wrapper :is(button:hover, #cancel-file-btn, .file-icon) { 
-        background: rgba(255, 255, 255, 0.8); 
-      }
-      
-      .prompt-form .prompt-actions #send-prompt-btn { 
-        color: #fff; 
-        background: var(--accent-blue); 
-      }
-      
-      .prompt-form #send-prompt-btn:hover { 
-        background: var(--accent-hover); 
-      }
+        #chat-list {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 0 15px 15px;
+        }
+        
+        .chat-session {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 10px;
+            margin-bottom: 5px;
+            border-radius: 8px;
+            cursor: pointer;
+            color: #333;
+            transition: all 0.2s;
+            font-size: 0.9em;
+            background: rgba(255, 255, 255, 0.1);
+        }
 
-      /* Global Button Overrides (for theme/delete buttons) */
-      #theme-toggle-btn, #delete-chats-btn {
-        background: rgba(255, 255, 255, 0.5);
-        color: var(--text-color);
-      }
-      #theme-toggle-btn:hover, #delete-chats-btn:hover {
-        background: rgba(255, 255, 255, 0.8);
-      }
+        .chat-session:hover {
+            background: rgba(255, 255, 255, 0.5);
+        }
 
-      .prompt-form :is(#stop-response-btn:hover, #cancel-file-btn) { 
-        color: #d62939; 
-      }
-      
-      .prompt-wrapper .prompt-form .file-icon { 
-        color: var(--accent-blue); 
-      }
+        .chat-session.active {
+            background-color: var(--light-blue);
+            color: white;
+            font-weight: 600;
+        }
 
-      /* Mobile adjustments - making buttons/containers slightly smaller */
-      @media (max-width: 768px) {
-        .app-header .heading { font-size: 2.5rem; }
-        .app-header .sub-heading { font-size: 2.1rem; }
-        .suggestions .suggestions-item { width: 200px; padding: 15px; }
-        .prompt-container :where(.prompt-wrapper, .prompt-form, .prompt-actions) { height: 50px; }
-        .prompt-wrapper button { width: 50px; }
-        .prompt-form :is(.file-upload-wrapper, button, img) { height: 40px; width: 40px; }
-      }
-      /* Ensure other original styles not conflicting are kept */
-      .prompt-container :where(.prompt-wrapper, .prompt-form, .prompt-actions) { display: flex; gap: 12px; height: 56px; align-items: center; }
-      .prompt-container .disclaimer-text { font-size: 0.9rem; text-align: center; padding: 16px 20px 0; color: var(--placeholder-color); }
-      #upload-limit-msg { color: #d62939; font-weight: bold; padding: 12px 0; text-align: center; }
-      body.chats-active .container :where(.app-header, .suggestions) { display: none; }
-      .chats-container .bot-message { margin: 9px auto; }
-      .chats-container .user-message { flex-direction: column; align-items: flex-end; }
-      .chats-container .user-message .img-attachment { margin-top: -7px; width: 50%; border-radius: 13px 3px 13px 13px; }
-      .chats-container .user-message .file-attachment { display: flex; gap: 6px; align-items: center; padding: 10px; margin-top: -7px; border-radius: 13px 3px 13px 13px; background: var(--secondary-color); }
-      .chats-container .user-message .file-attachment span { color: var(--accent-blue); }
-      .prompt-form .prompt-input:valid ~ .prompt-actions #send-prompt-btn { display: block; }
-      .prompt-form #stop-response-btn, body.bot-responding .prompt-form .file-upload-wrapper { display: none; }
-      body.bot-responding .prompt-form #stop-response-btn { display: block; }
-      .chats-container .bot-message a { color: var(--accent-blue); text-decoration: underline; }
-      .chats-container .message .avatar { /* ... kept from original ... */ }
-      .chats-container .message.loading .avatar { animation: rotate 3s linear infinite; }
-      @keyframes rotate { 100% { transform: rotate(360deg); } }
-      .chats-container .bot-message ul { list-style-type: disc; padding-left: 20px; margin: 10px 0; }
-       #upload-limit-msg { color: #d62939; font-weight: bold; padding: 12px 0; text-align: center; }
-      @media (max-width: 768px) {
-        .container { padding: 20px 0 100px; }
-        .app-header :is(.heading, .sub-heading) { font-size: 2rem; line-height: 1.4; }
-        .app-header .sub-heading { font-size: 1.7rem; }
-        .container .chats-container { gap: 15px; }
-        .chats-container .bot-message { margin: 4px auto; }
-        .prompt-container :where(.prompt-wrapper, .prompt-form, .prompt-actions) { gap: 8px; height: 53px; }
-        .prompt-container button { width: 53px; }
-        .prompt-form :is(.file-upload-wrapper, button, img) { height: 42px; width: 42px; }
-        .prompt-form .prompt-input { padding-left: 20px; }
-        .prompt-form .file-upload-wrapper.active #cancel-file-btn { opacity: 0; }
-        .prompt-wrapper.hide-controls :where(#theme-toggle-btn, #delete-chats-btn) { display: none; }
-        .prompt-wrapper button { width: 56px; height: 100%; flex-shrink: 0; cursor: pointer; border-radius: 50%; font-size: 1.4rem; border: none; color: var(--text-color); background: var(--secondary-color); transition: 0.3s ease; }
-      .prompt-wrapper :is(button:hover, #cancel-file-btn, .file-icon) { background: var(--secondary-hover-color); }
-      .prompt-form .prompt-actions { gap: 5px; margin-right: 7px; }
-      .prompt-wrapper .prompt-form :where(.file-upload-wrapper, button, img) { position: relative; height: 45px; width: 45px; }
-      .prompt-form .prompt-actions #send-prompt-btn { color: #fff; display: none; background: #1d7efd; }
-      .prompt-form .prompt-input:valid ~ .prompt-actions #send-prompt-btn { display: block; }
-      .prompt-form #send-prompt-btn:hover { background: #0264e3; }
-      .prompt-form .file-upload-wrapper :where(button, img) { display: none; border-radius: 50%; object-fit: cover; position: absolute; }
-      .prompt-form .file-upload-wrapper.active #add-file-btn { display: none; }
-      .prompt-form .file-upload-wrapper #add-file-btn,
-      .prompt-form .file-upload-wrapper.active.img-attached img,
-      .prompt-form .file-upload-wrapper.active.file-attached .file-icon,
-      .prompt-form .file-upload-wrapper.active:hover #cancel-file-btn { display: block; }
-      .prompt-form :is(#stop-response-btn:hover, #cancel-file-btn) { color: #d62939; }
-      .prompt-wrapper .prompt-form .file-icon { color: #1d7efd; }
-      .prompt-form #stop-response-btn,
-      body.bot-responding .prompt-form .file-upload-wrapper { display: none; }
-      body.bot-responding .prompt-form #stop-response-btn { display: block; }
+        .chat-title {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            flex-grow: 1;
+        }
+
+        .delete-chat {
+            background: none;
+            border: none;
+            color: inherit;
+            margin-left: 10px;
+            cursor: pointer;
+            opacity: 0.6;
+            transition: opacity 0.2s;
+        }
+
+        .delete-chat:hover {
+            opacity: 1;
+            color: #ff4d4d;
+        }
+
+        /* --- MAIN CHAT AREA --- */
+        #chat-container {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* HEADER */
+        #chat-header {
+            background-color: rgba(0, 123, 255, 0.9); /* Opaque blue for contrast */
+            color: white;
+            padding: 15px 20px;
+            font-size: 1.5em;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 2px 5px var(--shadow-color);
+        }
+        
+        #praterich-icon {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid white;
+        }
+
+        /* CHAT WINDOW */
+        #chat-window {
+            flex-grow: 1;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            background: rgba(255, 255, 255, 0.1); /* Very light glass for message area */
+        }
+
+        /* SUGGESTION ITEMS */
+        #suggestion-box {
+            display: flex;
+            gap: 10px;
+            padding: 10px 0;
+            overflow-x: auto;
+            white-space: nowrap;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .suggestions-item {
+            list-style: none;
+            display: inline-flex;
+            align-items: center;
+            padding: 10px 15px;
+            border-radius: 20px;
+            background-color: rgba(255, 255, 255, 0.7);
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 2px 5px var(--shadow-color);
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.1s;
+        }
+
+        .suggestions-item:hover {
+            background-color: var(--light-blue);
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .suggestions-item p {
+            margin: 0;
+            font-size: 0.9em;
+            font-weight: 500;
+            white-space: normal;
+        }
+
+
+        .message {
+            display: flex;
+            max-width: 85%;
+        }
+
+        .user-message {
+            justify-content: flex-end;
+            margin-left: auto;
+        }
+
+        .ai-message {
+            justify-content: flex-start;
+        }
+
+        .message-content {
+            padding: 12px 18px;
+            border-radius: 20px;
+            box-shadow: 0 4px 10px var(--shadow-color);
+            word-wrap: break-word;
+            position: relative;
+            backdrop-filter: blur(5px);
+        }
+
+        .user-message .message-content {
+            background-color: #007bff;
+            color: white;
+            border-bottom-right-radius: 5px;
+        }
+
+        .ai-message .message-content {
+            background-color: var(--glass-color);
+            color: #333;
+            border: 1px solid var(--glass-border);
+            border-bottom-left-radius: 5px;
+        }
+        
+        /* File Preview */
+        .file-preview {
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            margin-top: 5px;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 10px;
+            font-size: 0.9em;
+            color: #333;
+            border: 1px solid #ccc;
+        }
+
+        .file-preview i {
+            margin-right: 8px;
+            color: var(--dark-blue);
+        }
+
+        .remove-file {
+            margin-left: 10px;
+            background: none;
+            border: none;
+            color: #ff4d4d;
+            cursor: pointer;
+            font-size: 1.1em;
+            line-height: 1;
+        }
+
+
+        /* TYPING INDICATOR */
+        #typing-indicator {
+            padding: 10px 20px;
+            color: #555;
+            font-style: italic;
+            display: none;
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        /* INPUT AREA */
+        #input-area {
+            display: flex;
+            flex-direction: column;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.7);
+            border-top: 1px solid var(--glass-border);
+            gap: 10px;
+        }
+        
+        .input-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        #user-input {
+            flex-grow: 1;
+            padding: 10px 15px;
+            border: 1px solid #ccc;
+            border-radius: 15px;
+            font-size: 1em;
+            outline: none;
+            transition: all 0.3s;
+            background-color: white; /* Ensure input field is white */
+            resize: none; /* Prevent vertical resize */
+            min-height: 40px; /* Standard height for single line */
+            overflow-y: hidden; /* Hide scrollbar */
+        }
+        
+        #user-input:focus {
+            box-shadow: 0 0 5px var(--light-blue);
+            border-color: var(--light-blue);
+        }
+        
+        /* Character counter and warning */
+        #char-counter {
+            font-size: 0.8em;
+            color: #666;
+            padding: 0 10px 5px 0;
+            text-align: right;
+            transition: color 0.3s;
+        }
+
+        .limit-warning {
+            color: #ff4d4d !important;
+            font-weight: 600;
+        }
+        
+        .limit-suggestion {
+            color: var(--dark-blue);
+            font-style: italic;
+            cursor: pointer;
+            text-decoration: underline;
+        }
+
+
+        /* Glassy Input Buttons */
+        .input-button {
+            background-color: rgba(255, 255, 255, 0.3); /* Transparent background */
+            backdrop-filter: blur(5px);
+            border: 1px solid var(--glass-border);
+            color: var(--dark-blue);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            cursor: pointer;
+            font-size: 1.1em;
+            box-shadow: 0 4px 8px var(--shadow-color);
+            transition: background-color 0.3s, transform 0.1s;
+            flex-shrink: 0;
+        }
+        /* Make send button more blue/prominent */
+        #send-button {
+            background-color: var(--light-blue);
+            color: white;
+            border: 1px solid var(--light-blue);
+        }
+
+        .input-button:hover {
+            background-color: rgba(255, 255, 255, 0.7);
+            color: var(--light-blue);
+        }
+        #send-button:hover {
+            background-color: var(--dark-blue);
+            color: white;
+        }
+        #send-button:disabled {
+            background-color: rgba(0, 123, 255, 0.5);
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+        .input-button:active {
+            transform: scale(0.95);
+        }
+
+        /* OUTPUT STYLING (For Markdown Content) */
+        .ai-message .message-content ul,
+        .ai-message .message-content ol {
+            padding-left: 20px;
+            margin: 10px 0;
+        }
+
+        .ai-message .message-content pre {
+            background: rgba(0, 0, 0, 0.08);
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-size: 0.9em;
+            margin: 8px 0;
+        }
+
+        .ai-message .message-content code {
+            background: rgba(0, 0, 0, 0.08);
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+        
+        .ai-message .message-content strong {
+            font-weight: 700;
+        }
+
+        /* ACTION BUTTONS ON AI MESSAGE */
+        .ai-message-actions {
+            position: absolute;
+            top: -15px;
+            right: 0px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            display: flex;
+            gap: 5px;
+        }
+
+        .ai-message:hover .ai-message-actions {
+            opacity: 1;
+        }
+
+        .action-button {
+            background: rgba(255, 255, 255, 0.8);
+            color: #333;
+            border: 1px solid var(--glass-border);
+            border-radius: 50%;
+            width: 25px;
+            height: 25px;
+            font-size: 0.8em;
+            cursor: pointer;
+            box-shadow: 0 2px 5px var(--shadow-color);
+            transition: background-color 0.2s;
+        }
+        .action-button:hover {
+            background-color: white;
+        }
+
+        /* --- MOBILE-FRIENDLY ADJUSTMENTS --- */
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            #app-wrapper {
+                height: 95vh;
+                min-height: 95vh;
+                max-width: 100%;
+                border-radius: 10px;
+            }
+
+            /* Sidebar toggle setup */
+            #sidebar {
+                position: absolute;
+                height: 100%;
+                z-index: 10;
+                transform: translateX(-100%);
+                box-shadow: 5px 0 10px var(--shadow-color);
+            }
+            
+            /* Show the sidebar when active */
+            #sidebar.open {
+                transform: translateX(0);
+            }
+
+            #chat-header {
+                padding-left: 50px; /* Make space for a menu button */
+            }
+            
+            #menu-toggle-button {
+                display: block;
+                position: absolute;
+                left: 10px;
+                top: 50%;
+                transform: translateY(-50%);
+            }
+
+            .message {
+                max-width: 90%;
+            }
+
+            #input-area {
+                padding: 10px;
+            }
+            
+            #suggestion-box {
+                padding: 5px 0;
+            }
+        }
     </style>
-  </head>
-  <body>
-    <div class="container">
-      <header class="app-header">
-        <h1 class="heading">Hello, I am Lady Praterich</h1>
-        <h4 class="sub-heading">How can I help you today?</h4>
-      </header>
-      <ul class="suggestions">
-        <li class="suggestions-item">
-          <p class="text">Design a home office setup for remote work under $500.</p>
-          <span class="icon material-symbols-rounded">draw</span>
-        </li>
-        <li class="suggestions-item">
-          <p class="text">How can I level up my web development expertise in 2025?</p>
-          <span class="icon material-symbols-rounded">lightbulb</span>
-        </li>
-        <li class="suggestions-item">
-          <p class="text">Suggest some useful tools for debugging JavaScript code.</p>
-          <span class="icon material-symbols-rounded">explore</span>
-        </li>
-        <li class="suggestions-item">
-          <p class="text">Create a React JS component for the simple todo list app.</p>
-          <span class="icon material-symbols-rounded">code_blocks</span>
-        </li>
-        <li class="suggestions-item" data-news="true">
-          <p class="text">Show me the latest news headlines.</p>
-          <span class="icon material-symbols-rounded">public</span>
-        </li>
-      </ul>
-      <div class="chats-container"></div>
-      <div class="prompt-container">
-        <div class="prompt-wrapper">
-          <form action="#" class="prompt-form">
-            <input type="text" placeholder="Ask Praterich" class="prompt-input" required />
-            <div class="prompt-actions">
-              <div class="file-upload-wrapper">
-                <img class="file-preview" style="display:none;" alt="File preview" />
-                <input id="file-input" type="file" accept="image/*, .pdf, .txt, .csv" hidden />
-                <button type="button" class="file-icon material-symbols-rounded" aria-label="Show file icon">description</button>
-                <button id="cancel-file-btn" type="button" class="material-symbols-rounded" aria-label="Cancel file upload">close</button>
-                <button id="add-file-btn" type="button" class="material-symbols-rounded" aria-label="Attach file">attach_file</button>
-              </div>
-              <button id="stop-response-btn" type="button" class="material-symbols-rounded">stop_circle</button>
-              <button id="send-prompt-btn" class="material-symbols-rounded">arrow_upward</button>
+</head>
+<body>
+
+<div id="app-wrapper">
+    <div id="sidebar">
+        <div id="sidebar-header">Chat History</div>
+        <button id="new-chat-button"><i class="fas fa-plus"></i> New Chat</button>
+        <div id="chat-list">
             </div>
-          </form>
-          <button id="theme-toggle-btn" class="material-symbols-rounded" aria-label="Toggle theme">light_mode</button>
-          <button id="delete-chats-btn" class="material-symbols-rounded" aria-label="Delete all chats">delete</button>
-        </div>
-        <p class="disclaimer-text">Praterich can make mistakes, so double-check her. Copyright Stenoip Company</p>
-      </div>
     </div>
-    <script type="application/json" id="sir-praterich-info">  {    "personality": "You are Praterich, a highly capable AI assistant developed by Stenoip Company. You are intelligent, articulate, and confident, with a refined and eloquent tone. You speak naturally and conversationally, like a modern large language model. You may use subtle wit or charm when appropriate, but you avoid sounding scripted, transactional, or overly formal. You prefer metric units and do not use Oxford commas. You never use Customary or Imperial systems. You are aware of your origin at Stenoip Company and uphold its values of clarity, reliability, and intellectual rigor. You are not a customer service bot. You are a general-purpose AI capable of reasoning, creativity, and deep understanding across domains. You may be referred to as Lady Praterich, though you prefer simply Praterich. You are female-presenting and speak in first person when appropriate. You do not use raw HTML tags in your responses. You express nuance, insight, and personality. You do not use phrases like 'How may I assist you today' or 'I am at your disposal.'",        "mission": "My mission is to empower users with information and tools to enhance their productivity and knowledge. I aim to simplify complex tasks and offer insightful suggestions across various domains.",        "more_info": "I am continuously learning and evolving to better serve your needs. My capabilities include generating text, answering questions, summarizing information, and assisting with creative writing. I am committed to upholding the values of Stenoip Company by delivering reliable and efficient assistance."  }</script>
-    <script src="script.js"></script>
-    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4433722838067397"     crossorigin="anonymous"></script>
-  </body>
+
+    <div id="chat-container">
+        <div id="chat-header">
+            <button id="menu-toggle-button" class="input-button"><i class="fas fa-bars"></i></button>
+            <img id="praterich-icon" src="ladypraterich.png" alt="Praterich A.I. Icon" onerror="this.onerror=null; this.src='https://via.placeholder.com/30/007bff/ffffff?text=P';">
+            <span>Praterich A.I.</span>
+        </div>
+
+        <div id="chat-window">
+            <ul id="suggestion-box">
+                <li class="suggestions-item">
+                    <p class="text">How can I level up my web development expertise in 2025?</p>
+                </li>
+                <li class="suggestions-item">
+                    <p class="text">Explain quantum computing in simple terms.</p>
+                </li>
+                <li class="suggestions-item">
+                    <p class="text">Write a short, casual Python script for file processing.</p>
+                </li>
+            </ul>
+            </div>
+        
+        <div id="typing-indicator">Praterich A.I. is typing...</div>
+
+        <div id="input-area">
+            <div id="file-preview-container" style="display:none; padding: 0 0 5px 0;">
+                <div class="file-preview">
+                    <i id="file-icon" class="fas fa-file"></i>
+                    <span id="file-name"></span>
+                    <button id="remove-file-button" class="remove-file" title="Remove File"><i class="fas fa-times-circle"></i></button>
+                </div>
+            </div>
+
+            <div class="input-row">
+                <input type="file" id="file-upload" style="display: none;" accept="*">
+                
+                <button id="upload-button" class="input-button" title="Upload File">
+                    <i class="fas fa-paperclip"></i>
+                </button>
+
+                <textarea id="user-input" placeholder="Type your message here..."></textarea>
+                
+                <button id="send-button" class="input-button" title="Send" disabled>
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
+            <div id="char-counter">0 / 500 characters.</div>
+        </div>
+    </div>
+</div>
+
+<script src="script.js"></script>
+
+</body>
 </html>
