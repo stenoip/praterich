@@ -6,7 +6,7 @@
     // Custom Pronunciations for Text-to-Speech (TTS)
     var customPronunciations = {
       "Praterich": "Prah-ter-rich",
-      "Stenoip": "Stick-noh-ip"
+      "Stenoip": "Stick-no-ikp"
     };
 
     // Praterich A.I. Core Personality Profile (Front-end System Instruction)
