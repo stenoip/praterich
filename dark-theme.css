@@ -1,0 +1,150 @@
+/* --- DARK THEME STYLING OVERRIDES --- */
+
+/* Keyframe for the subtle, dark water movement */
+@keyframes darkWaterFlow {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+/* Base Dark Theme (Scoped to [data-theme="dark"]) */
+[data-theme="dark"] {
+    /* DARK COLOR PALETTE */
+    --glass-color: rgba(0, 0, 0, 0.4);
+    --glass-border: rgba(50, 50, 50, 0.8);
+    --shadow-color: rgba(0, 0, 0, 0.5);
+    
+    --light-orange: #ff9900; /* Keep accent orange */
+    --dark-orange: #f07e00;
+    
+    --text-color: #f0f0f0; /* Light text for dark background */
+
+    --dark-bg-start: #0a141b; /* Deep blue/black */
+    --dark-bg-end: #002233;   /* Dark navy/teal */
+}
+
+/* 1. Body Background (Dark Water/Sky) */
+[data-theme="dark"] body {
+    background: linear-gradient(-45deg, var(--dark-bg-start), var(--dark-bg-end));
+    background-size: 400% 400%; /* Enables animation */
+    animation: darkWaterFlow 60s ease infinite;
+}
+
+/* 2. App Wrapper (Main Glass) */
+[data-theme="dark"] #app-wrapper {
+    background: var(--glass-color);
+    backdrop-filter: blur(10px) brightness(1.1);
+    box-shadow: inset 0 0 50px rgba(0, 0, 0, 0.7);
+}
+
+[data-theme="dark"] #app-wrapper::before {
+    /* Subtle highlight on dark glass */
+    background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.1) 50%, transparent 100%);
+}
+
+/* 3. Sidebar */
+[data-theme="dark"] #sidebar {
+    background: rgba(0, 0, 0, 0.5);
+    border-right: 1px solid var(--glass-border);
+    box-shadow: inset -1px 0 5px rgba(255, 255, 255, 0.05);
+    color: var(--text-color);
+}
+
+[data-theme="dark"] #sidebar-header {
+    color: var(--light-orange);
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.5);
+}
+
+[data-theme="dark"] .chat-session {
+    color: var(--text-color);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+[data-theme="dark"] .chat-session:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .chat-session.active {
+    background-color: var(--light-orange);
+    color: var(--dark-bg-start); /* Dark text for active tab */
+}
+
+/* 4. Chat Header */
+[data-theme="dark"] #chat-header {
+    background-color: rgba(255, 153, 0, 0.2);
+    box-shadow: 0 2px 5px var(--shadow-color), inset 0 -2px 5px rgba(0, 0, 0, 0.4);
+}
+
+/* 5. Chat Window */
+[data-theme="dark"] #chat-window {
+    background: rgba(0, 0, 0, 0.2);
+}
+
+/* 6. AI Message Bubble */
+[data-theme="dark"] .ai-message .message-content {
+    background-color: rgba(10, 20, 30, 0.6); /* Darker AI background */
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.1) 0%, rgba(0, 0, 0, 0.3) 100%);
+    color: var(--text-color);
+    border: 1px solid var(--glass-border);
+    box-shadow: 0 4px 10px var(--shadow-color), inset 0 2px 5px rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .ai-message .message-content pre {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .ai-message .message-content code {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* 7. User Input Area */
+[data-theme="dark"] #input-area {
+    background: rgba(0, 0, 0, 0.5);
+    border-top: 1px solid var(--glass-border);
+}
+
+[data-theme="dark"] #user-input {
+    background-color: #1a1a1a;
+    border: 1px solid #333;
+    color: var(--text-color);
+    box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] #char-counter {
+    color: #aaa;
+}
+
+/* 8. Utility Elements */
+[data-theme="dark"] .suggestions-item {
+    background-color: rgba(255, 255, 255, 0.1);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.05) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: var(--text-color);
+    box-shadow: 0 2px 5px var(--shadow-color);
+}
+
+[data-theme="dark"] .suggestions-item p {
+    color: var(--text-color);
+}
+
+[data-theme="dark"] #copyright {
+    color: #999;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(0, 0, 0, 0.5);
+}
+
+/* 9. Firefly Canvas (Hidden in light mode) */
+#firefly-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0; /* Behind the app wrapper */
+    pointer-events: none;
+    display: none; /* Default to hidden */
+}
+
+[data-theme="dark"] #firefly-canvas {
+    display: block; /* Show in dark mode */
+}
