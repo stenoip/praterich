@@ -46,7 +46,7 @@
         color: #000;
     }
 
-    select {
+    select, input {
         background: #000;
         color: #00ff00;
         border: 2px solid #00ff00;
@@ -55,7 +55,6 @@
         margin-top: 20px;
     }
 
-    /* Game terminal styling */
     #game-container {
         flex: 1;
         padding: 20px;
@@ -116,12 +115,21 @@
         margin-top: 10px;
         text-align: center;
     }
+
+    /* New Location Input */
+    #location-input {
+        margin-top: 20px;
+        font-size: 18px;
+    }
+
 </style>
 </head>
 <body>
 
 <div id="start-screen">
     <h1>Praterich Zork</h1>
+    <label for="location">Enter a starting location:</label>
+    <input type="text" id="location-input" placeholder="e.g., Haunted Forest">
     <button id="continue-btn" class="btn">Continue</button>
     <button id="new-btn" class="btn">New Game</button>
     <div>
