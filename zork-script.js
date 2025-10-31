@@ -1,103 +1,103 @@
-var API_URL = "https://praterich.vercel.app/api/praterich"; // Replace with your API
+var API_URL = "https://praterich.vercel.app/api/praterich"; 
 var gameContainer = document.getElementById('game-container');
 var commandInput = document.getElementById('command-input');
 var submitButton = document.getElementById('submit-button');
+var locationInput = document.getElementById('location-input');
+var difficultySelect = document.getElementById('difficulty');
+
+// Game state
+var worldState = {
+    location: "A serene field",
+    inventory: [],
+    objects: [],
+    score: 0,
+    game_over: false,
+    quests: []
+};
 
 var startScreen = document.getElementById('start-screen');
 var gameScreen = document.getElementById('game-screen');
 var continueBtn = document.getElementById('continue-btn');
 var newBtn = document.getElementById('new-btn');
-var difficultySelect = document.getElementById('difficulty');
 
-var customPronunciations = { "Praterich": "Prah-ter-rich", "Stenoip": "Stick-no-ip" };
-var ladyPraterichSystemInstruction = `
-You are Praterich, guiding a player in a text-based world. 
-Maintain a world state with rooms, objects, inventory, and score.
-Respond as a text adventure narrator to player commands.
-`;
-
-var conversationHistory = JSON.parse(localStorage.getItem("praterich_history")) || [
-    { role: 'user', parts: [{ text: "Start the game" }] }
-];
-
-var worldState = JSON.parse(localStorage.getItem("praterich_world")) || {
-    location: "a blank white void",
-    inventory: [],
-    objects: [],
-    score: 0,
-    game_over: false
-};
-
-function scrollToBottom() {
-    gameContainer.scrollTop = gameContainer.scrollHeight;
+// World Generation (randomized)
+function generateRandomWorld() {
+    const locations = [
+        "A haunted forest",
+        "A peaceful meadow",
+        "An ancient ruined castle",
+        "A dark dungeon",
+        "A sunny beach",
+        "A snowy mountain pass",
+        "A bustling marketplace"
+    ];
+    const randomLocation = locations[Math.floor(Math.random() * locations.length)];
+    return randomLocation;
 }
 
+// Check if the location is age-appropriate
+function checkAgeAppropriateness(location) {
+    const inappropriateLocations = ["haunted forest", "dark dungeon"];
+    for (let i = 0; i < inappropriateLocations.length; i++) {
+        if (location.toLowerCase().includes(inappropriateLocations[i])) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// Handle user input for starting location
+newBtn.addEventListener('click', function() {
+    const userLocation = locationInput.value.trim();
+    
+    // If the user didn't provide a location, generate a random one
+    if (!userLocation) {
+        worldState.location = generateRandomWorld();
+        addMessage("You are starting in a " + worldState.location + ".", "ai");
+    } else {
+        if (checkAgeAppropriateness(userLocation)) {
+            worldState.location = userLocation;
+            addMessage("Starting location: " + worldState.location, "ai");
+        } else {
+            addMessage("The location you chose is too spooky. How about a sunny beach?", "ai");
+            worldState.location = "A sunny beach"; // Default safe location
+        }
+    }
+
+    // Set up other initial game parameters
+    worldState.inventory = [];
+    worldState.objects = [];
+    worldState.score = 0;
+    worldState.quests = [];
+    worldState.game_over = false;
+
+    localStorage.setItem("praterich_world", JSON.stringify(worldState));
+    localStorage.setItem("praterich_difficulty", difficultySelect.value);
+
+    startScreen.style.display = 'none';
+    gameScreen.style.display = 'flex';
+    document.getElementById('input-container').style.display = 'flex';
+    gameContainer.style.display = 'block';
+    sendCommand("Start new game in " + worldState.location);
+});
+
+// Function to add messages
 function addMessage(text, sender) {
     var div = document.createElement('div');
     div.className = 'message ' + sender;
     div.textContent = text;
     gameContainer.appendChild(div);
-    scrollToBottom();
+    gameContainer.scrollTop = gameContainer.scrollHeight;
 }
 
-// Play sounds using an API
-function playSound(type) {
-    var url;
-    switch(type) {
-        case 'success':
-            url = "https://freesound.org/data/previews/320/320655_5260877-lq.mp3"; 
-            break;
-        case 'failure':
-            url = "https://freesound.org/data/previews/331/331912_3248244-lq.mp3";
-            break;
-        case 'gameover':
-            url = "https://freesound.org/data/previews/219/219457_4109218-lq.mp3";
-            break;
-        default:
-            return;
-    }
-    var audio = new Audio(url);
-    audio.play();
-}
-
-// Text-to-speech
-function speakText(text) {
-    if (!('speechSynthesis' in window)) return;
-
-    var speakableText = text;
-    for (var word in customPronunciations) {
-        var regex = new RegExp('\\b' + word + '\\b', 'gi');
-        speakableText = speakableText.replace(regex, customPronunciations[word]);
-    }
-
-    var utterance = new SpeechSynthesisUtterance(speakableText);
-    utterance.rate = 1.3;
-    utterance.pitch = 1.0;
-    window.speechSynthesis.speak(utterance);
-}
-
-function checkGameOver(response) {
-    if (response.game_over) {
-        addMessage("GAME OVER! Final Score: " + response.score, "ai");
-        playSound('gameover');
-        worldState.game_over = true;
-        localStorage.setItem("praterich_world", JSON.stringify(worldState));
-        return true;
-    }
-    return false;
-}
-
+// Function to send commands
 function sendCommand(command) {
     if (!command.trim() || worldState.game_over) return;
 
     addMessage("> " + command, "user");
 
-    conversationHistory.push({ role: 'user', parts: [{ text: command }] });
-    localStorage.setItem("praterich_history", JSON.stringify(conversationHistory));
-
     var requestBody = {
-        contents: conversationHistory,
-        system_instruction: { parts: [{ text: ladyPraterichSystemInstruction }] },
+        contents: [{ role: 'user', parts: [{ text: command }] }],
         world_state: worldState,
         difficulty: localStorage.getItem("praterich_difficulty") || "easy"
     };
@@ -108,49 +108,16 @@ function sendCommand(command) {
         body: JSON.stringify(requestBody)
     })
     .then(function(response) {
-        if (!response.ok) throw new Error("API Error");
         return response.json();
     })
     .then(function(data) {
         var aiText = data.text || "Praterich did not respond.";
         addMessage(aiText, "ai");
-        speakText(aiText);
-
-        conversationHistory.push({ role: 'model', parts: [{ text: aiText }] });
-        localStorage.setItem("praterich_history", JSON.stringify(conversationHistory));
-
-        if (data.world_state) {
-            worldState = data.world_state;
-            localStorage.setItem("praterich_world", JSON.stringify(worldState));
-        }
-
-        if (data.event) {
-            if (data.event === "success") playSound('success');
-            if (data.event === "failure") playSound('failure');
-        }
-
-        checkGameOver(data);
-
     })
     .catch(function(err) {
         addMessage("Praterich could not respond. Try again.", "ai");
-        playSound('failure');
-        console.error(err);
     });
 }
-
-submitButton.addEventListener('click', function() {
-    var cmd = commandInput.value;
-    commandInput.value = '';
-    sendCommand(cmd);
-});
-
-commandInput.addEventListener('keydown', function(e) {
-    if (e.key === 'Enter') {
-        e.preventDefault();
-        submitButton.click();
-    }
-});
 
 // Start screen buttons
 continueBtn.addEventListener('click', function() {
@@ -159,19 +126,4 @@ continueBtn.addEventListener('click', function() {
     document.getElementById('input-container').style.display = 'flex';
     gameContainer.style.display = 'block';
     sendCommand("Continue game");
-});
-
-newBtn.addEventListener('click', function() {
-    localStorage.removeItem("praterich_history");
-    localStorage.removeItem("praterich_world");
-    conversationHistory = [{ role: 'user', parts: [{ text: "Start the game" }] }];
-    worldState = { location: "a blank white void", inventory: [], objects: [], score: 0, game_over: false };
-
-    localStorage.setItem("praterich_difficulty", difficultySelect.value);
-
-    startScreen.style.display = 'none';
-    gameScreen.style.display = 'flex';
-    document.getElementById('input-container').style.display = 'flex';
-    gameContainer.style.display = 'block';
-    sendCommand("Start new game on " + difficultySelect.value + " difficulty");
 });
