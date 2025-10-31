@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Praterich Zork</title>
+<style>
+    body {
+        margin: 0;
+        font-family: monospace;
+        background-color: #000;
+        color: #00ff00;
+        height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    #start-screen, #game-screen {
+        width: 90%;
+        max-width: 800px;
+        height: 90%;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+    }
+
+    #start-screen h1 {
+        font-size: 48px;
+        margin-bottom: 40px;
+    }
+
+    .btn {
+        background: #000;
+        color: #00ff00;
+        border: 2px solid #00ff00;
+        padding: 15px 30px;
+        margin: 10px;
+        font-size: 18px;
+        cursor: pointer;
+        transition: 0.2s;
+    }
+
+    .btn:hover {
+        background: #00ff00;
+        color: #000;
+    }
+
+    select {
+        background: #000;
+        color: #00ff00;
+        border: 2px solid #00ff00;
+        padding: 10px;
+        font-size: 16px;
+        margin-top: 20px;
+    }
+
+    /* Game terminal styling */
+    #game-container {
+        flex: 1;
+        padding: 20px;
+        overflow-y: auto;
+        white-space: pre-wrap;
+        width: 100%;
+        display: none;
+    }
+
+    #input-container {
+        display: flex;
+        border-top: 2px solid #00ff00;
+        width: 100%;
+        display: none;
+    }
+
+    #command-input {
+        flex: 1;
+        background: #000;
+        color: #00ff00;
+        border: none;
+        padding: 10px;
+        font-family: monospace;
+        font-size: 16px;
+        outline: none;
+    }
+
+    #submit-button {
+        background: #000;
+        color: #00ff00;
+        border: none;
+        padding: 10px 20px;
+        font-family: monospace;
+        cursor: pointer;
+    }
+
+    .message {
+        margin-bottom: 10px;
+    }
+
+    .user {
+        color: #fff;
+    }
+
+    .ai {
+        color: #00ff00;
+    }
+
+    #game-screen {
+        display: none;
+        flex-direction: column;
+        height: 100%;
+    }
+
+    footer {
+        font-size: 12px;
+        color: #00ff00;
+        margin-top: 10px;
+        text-align: center;
+    }
+</style>
+</head>
+<body>
+
+<div id="start-screen">
+    <h1>Praterich Zork</h1>
+    <button id="continue-btn" class="btn">Continue</button>
+    <button id="new-btn" class="btn">New Game</button>
+    <div>
+        <label for="difficulty">Select Difficulty:</label>
+        <select id="difficulty">
+            <option value="easy">Easy</option>
+            <option value="slow">Slow</option>
+            <option value="on-the-go">On the Go</option>
+            <option value="hard">Hard</option>
+            <option value="full-xbox-game">Full Xbox Game</option>
+        </select>
+    </div>
+</div>
+
+<div id="game-screen">
+    <div id="game-container"></div>
+    <div id="input-container">
+        <input id="command-input" type="text" placeholder=">">
+        <button id="submit-button">Enter</button>
+    </div>
+</div>
+
+<footer>&copy; Stenoip Company</footer>
+
+<script src="zork-script.js"></script>
+</body>
+</html>
