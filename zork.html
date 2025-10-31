@@ -3,9 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <title>Praterich Zork</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"> <!-- Viewport meta tag for mobile -->
 <style>
-    body {
+    /* Basic Reset */
+    * {
         margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    /* Body Styling */
+    body {
         font-family: monospace;
         background-color: #000;
         color: #00ff00;
@@ -13,8 +21,10 @@
         display: flex;
         justify-content: center;
         align-items: center;
+        overflow: hidden;
     }
 
+    /* Start Screen and Game Screen */
     #start-screen, #game-screen {
         width: 90%;
         max-width: 800px;
@@ -23,22 +33,26 @@
         flex-direction: column;
         justify-content: center;
         align-items: center;
+        padding: 20px;
     }
 
     #start-screen h1 {
-        font-size: 48px;
-        margin-bottom: 40px;
+        font-size: 2.5rem; /* Relative font size for better scalability */
+        margin-bottom: 20px;
     }
 
+    /* Button Styling */
     .btn {
         background: #000;
         color: #00ff00;
         border: 2px solid #00ff00;
         padding: 15px 30px;
         margin: 10px;
-        font-size: 18px;
+        font-size: 1rem;
         cursor: pointer;
         transition: 0.2s;
+        width: 100%; /* Buttons fill their container */
+        text-align: center;
     }
 
     .btn:hover {
@@ -46,15 +60,18 @@
         color: #000;
     }
 
-    select, input {
+    /* Input Styling */
+    input, select {
         background: #000;
         color: #00ff00;
         border: 2px solid #00ff00;
         padding: 10px;
-        font-size: 16px;
+        font-size: 1rem;
         margin-top: 20px;
+        width: 100%; /* Inputs take up the full width */
     }
 
+    /* Game Container */
     #game-container {
         flex: 1;
         padding: 20px;
@@ -77,8 +94,8 @@
         color: #00ff00;
         border: none;
         padding: 10px;
+        font-size: 1rem;
         font-family: monospace;
-        font-size: 16px;
         outline: none;
     }
 
@@ -87,12 +104,15 @@
         color: #00ff00;
         border: none;
         padding: 10px 20px;
-        font-family: monospace;
+        font-size: 1rem;
         cursor: pointer;
+        width: 30%; /* Make button a little smaller */
     }
 
+    /* Message Styling */
     .message {
         margin-bottom: 10px;
+        font-size: 1.2rem;
     }
 
     .user {
@@ -103,29 +123,69 @@
         color: #00ff00;
     }
 
-    #game-screen {
-        display: none;
-        flex-direction: column;
-        height: 100%;
-    }
-
+    /* Footer Styling */
     footer {
-        font-size: 12px;
+        font-size: 0.8rem;
         color: #00ff00;
         margin-top: 10px;
         text-align: center;
     }
 
-    /* New Location Input */
-    #location-input {
-        margin-top: 20px;
-        font-size: 18px;
+    /* Responsiveness for smaller devices */
+    @media (max-width: 768px) {
+        #start-screen h1 {
+            font-size: 2rem; /* Slightly smaller font for smaller screens */
+        }
+
+        .btn {
+            font-size: 0.9rem; /* Slightly smaller buttons */
+        }
+
+        #command-input {
+            font-size: 1.2rem; /* Larger input text */
+        }
+
+        #submit-button {
+            font-size: 1rem; /* Adjust submit button size */
+        }
+
+        footer {
+            font-size: 0.6rem; /* Smaller footer on mobile */
+        }
+
+        /* Game Container */
+        #game-container {
+            font-size: 1.1rem; /* Slightly smaller text for mobile devices */
+        }
+    }
+
+    @media (max-width: 480px) {
+        /* For very small screens (e.g., phones in portrait mode) */
+        .btn {
+            font-size: 1rem;
+            padding: 12px;
+        }
+
+        #command-input {
+            font-size: 1.1rem;
+            padding: 12px;
+        }
+
+        #submit-button {
+            width: 40%;
+            font-size: 1.1rem;
+        }
+
+        footer {
+            font-size: 0.5rem;
+        }
     }
 
 </style>
 </head>
 <body>
 
+<!-- Start Screen -->
 <div id="start-screen">
     <h1>Praterich Zork</h1>
     <label for="location">Enter a starting location:</label>
@@ -144,6 +204,7 @@
     </div>
 </div>
 
+<!-- Game Screen -->
 <div id="game-screen">
     <div id="game-container"></div>
     <div id="input-container">
