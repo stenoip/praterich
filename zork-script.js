@@ -119,6 +119,15 @@ function sendCommand(command) {
     });
 }
 
+// Submit button functionality
+submitButton.addEventListener('click', function() {
+    var command = commandInput.value.trim();
+    if (command) {
+        sendCommand(command);  // Sends the command to the API
+        commandInput.value = '';  // Clear the input after submission
+    }
+});
+
 // Start screen buttons
 continueBtn.addEventListener('click', function() {
     startScreen.style.display = 'none';
