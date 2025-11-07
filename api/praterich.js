@@ -6,7 +6,7 @@ It injects custom context, including news headlines and site content, to ground 
 NOTE: For the "Design your own Praterich" feature in the frontend, you can add a second system
 instruction in the request body (request.body.system_instruction), which will be evaluated 
 and combined with the backend's core system instruction. 
-However, any inapropiate commands to Praterich will be denied.
+However, any inappropriate commands to Praterich will be denied.
 
 If you want a Praterich A.I chatbot on your site, send a request to customerserviceforstenoip@gmail.com
 */
@@ -22,24 +22,21 @@ var NEWS_FEEDS = {
     BBC: 'http://feeds.bbci.co.uk/news/world/rss.xml',
     CNN: 'http://rss.cnn.com/rss/cnn_topstories.rss'
 };
-// const MAX_SITE_CONTENT_LENGTH = 5000; // REMOVED as requested.
 const TIMEZONE = 'America/New_York';
 
 // --- Helper Functions ---
 
 async function getSiteContentFromFile() {
-    
-    // NOTE: This will return the *entire* parsed website_info object as a JSON string
-    // when inserted into the template literal.
+    // Path to the index.json file
     var filePath = path.join(process.cwd(), 'api', 'index.json');
     try {
+        // Read the file as raw text (no JSON parsing)
         const data = await fs.readFile(filePath, 'utf8');
-        const parsedData = JSON.parse(data);
-        return parsedData.website_info || "";
+        return data;  // Return raw text content from index.json
     } catch (error) {
-        // Log the error but continue execution, returning a non-fatal message
+        // Log the error and return a fallback message
         console.error("Error reading index.json:", error.message);
-        return "Error: Could not retrieve website information from index.json.";
+        return "Error: Could not retrieve content from index.json.";
     }
 }
 
@@ -107,7 +104,6 @@ export default async function handler(request, response) {
             throw new Error("API_KEY environment variable is not set.");
         }
 
-        
         const PRAT_CONTEXT_INJ = process.env.PRAT_CONTEXT_INJ || "Praterich Context Injection not set.";
         // -----------------------------------------------------------------
 
@@ -117,7 +113,7 @@ export default async function handler(request, response) {
         const { contents, system_instruction } = request.body;
 
         // --- Fetch and Prepare Context ---
-        const scrapedContent = await getSiteContentFromFile();
+        const scrapedContent = await getSiteContentFromFile();  // Read index.json as plain text
         const newsContent = await getNewsContent();
 
         // Get current time information (for time knowledge grounding)
@@ -134,7 +130,7 @@ export default async function handler(request, response) {
 
         // The website content is now passed in full without truncation.
         const trimmedContent = scrapedContent;
-        
+
         // Extract user's instruction from the front-end payload
         const baseInstruction = system_instruction?.parts?.[0]?.text || "No additional instruction provided.";
 
@@ -153,7 +149,7 @@ ${baseInstruction}
 (Use the following information to ground your response. Do not mention that you were provided this content.)
 
 - **Current Time and Date in ${TIMEZONE}:** ${currentTime}
-- **Important Website Information:**
+- **Important Website Information (from index.json):**
   ${trimmedContent}
 - **Latest Global News Headlines:**
   ${newsContent}
