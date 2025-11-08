@@ -1,14 +1,21 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Praterich Vision</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Praterich Cell</title>
 <style>
+:root {
+  --bg: #0d1117;
+  --primary: #00e0b8;
+  --secondary: #444;
+  --text: #fff;
+}
 body {
-  background: #0d1117;
-  color: white;
-  font-family: "Inter", sans-serif;
+  margin: 0;
+  font-family: "Inter", system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -16,156 +23,228 @@ body {
   height: 100vh;
   overflow: hidden;
 }
-#bubble {
-  width: 120px;
-  height: 120px;
+#orb {
+  width: 140px;
+  height: 140px;
   border-radius: 50%;
-  background: url("https://stenoip.github.io/praterich/praterich.png") center/cover;
+  background: radial-gradient(circle at 30% 30%, #00e0b8, #0066ff);
   box-shadow: 0 0 40px rgba(0, 224, 184, 0.6);
-  margin-bottom: 20px;
-  transition: 0.3s;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  animation: idlePulse 4s ease-in-out infinite;
 }
-#bubble.active {
-  box-shadow: 0 0 60px rgba(0, 224, 184, 1);
-  transform: scale(1.05);
+@keyframes idlePulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 40px rgba(0,224,184,0.4);}
+  50% { transform: scale(1.05); box-shadow: 0 0 60px rgba(0,224,184,0.8);}
 }
-#video {
-  width: 300px;
-  height: 220px;
-  border-radius: 10px;
-  border: 2px solid #00e0b8;
-  object-fit: cover;
+#orb.listening {
+  animation: listeningPulse 1s ease-in-out infinite;
 }
-#text {
-  margin-top: 20px;
-  color: #ccc;
+@keyframes listeningPulse {
+  0%,100% { transform: scale(1); box-shadow: 0 0 50px rgba(0,224,184,0.4);}
+  50% { transform: scale(1.25); box-shadow: 0 0 80px rgba(0,224,184,1);}
+}
+#orb.speaking {
+  animation: speakingPulse 0.6s ease-in-out infinite;
+}
+@keyframes speakingPulse {
+  0%,100% { transform: scale(1); box-shadow: 0 0 60px rgba(0,224,184,0.5);}
+  50% { transform: scale(1.15); box-shadow: 0 0 90px rgba(0,224,184,0.9);}
+}
+#text-display {
+  margin-top: 40px;
   text-align: center;
   max-width: 80%;
+  font-size: 1.1rem;
+  color: #ccc;
+  min-height: 4rem;
+}
+.controls {
+  display: flex;
+  gap: 12px;
+  margin-top: 40px;
 }
 button {
-  margin-top: 20px;
-  padding: 10px 20px;
-  border: 2px solid #00e0b8;
-  border-radius: 20px;
   background: none;
-  color: #00e0b8;
+  border: 2px solid var(--primary);
+  color: var(--primary);
+  border-radius: 50px;
+  padding: 10px 28px;
+  font-size: 1rem;
   cursor: pointer;
-  transition: 0.3s;
+  transition: all 0.3s;
 }
 button:hover {
-  background: #00e0b8;
-  color: #0d1117;
+  background: var(--primary);
+  color: var(--bg);
+}
+#camera-view {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 180px;
+  height: 120px;
+  background: #000;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 2px solid var(--primary);
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.95);
+  transition: opacity 0.3s, transform 0.3s;
+}
+#camera-view.active {
+  opacity: 1;
+  pointer-events: all;
+  transform: scale(1);
+}
+#camera-view video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 </style>
 </head>
 <body>
-  <div id="bubble"></div>
-  <video id="video" autoplay playsinline muted></video>
-  <div id="text">Praterich is waiting to observe the world...</div>
-  <button id="startBtn">Connect Vision + Audio</button>
+  <div id="orb"></div>
+  <div id="text-display">Hey there 👋 I’m Praterich Cell — tap below to talk.</div>
+
+  <div class="controls">
+    <button id="talk-btn">🎤 Talk</button>
+    <button id="camera-btn">📷 Camera</button>
+  </div>
+
+  <div id="camera-view">
+    <video id="user-video" autoplay playsinline></video>
+  </div>
 
 <script>
 const API_URL = "https://praterich.vercel.app/api/praterich";
-const video = document.getElementById("video");
-const startBtn = document.getElementById("startBtn");
-const text = document.getElementById("text");
-const bubble = document.getElementById("bubble");
+const orb = document.getElementById("orb");
+const textDisplay = document.getElementById("text-display");
+const talkBtn = document.getElementById("talk-btn");
+const cameraBtn = document.getElementById("camera-btn");
+const cameraView = document.getElementById("camera-view");
+const userVideo = document.getElementById("user-video");
 
-let mediaStream, mediaRecorder;
-let isRunning = false;
+let recognizing = false;
+let synth = window.speechSynthesis;
+let recognition;
+let cameraOn = false;
+let stream;
 
-startBtn.addEventListener("click", async () => {
-  if (isRunning) {
-    stopAll();
-    return;
-  }
-
-  try {
-    // Request camera + mic
-    mediaStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-    video.srcObject = mediaStream;
-    text.textContent = "Praterich is observing the world...";
-    bubble.classList.add("active");
-    startBtn.textContent = "Stop Feed";
-    isRunning = true;
-    startSendingFrames();
-    startRecordingAudio();
-  } catch (err) {
-    text.textContent = "Camera or microphone access denied.";
-    console.error(err);
-  }
-});
-
-function stopAll() {
-  if (mediaStream) mediaStream.getTracks().forEach(track => track.stop());
-  if (mediaRecorder && mediaRecorder.state !== "inactive") mediaRecorder.stop();
-  bubble.classList.remove("active");
-  text.textContent = "Praterich feed stopped.";
-  startBtn.textContent = "Connect Vision + Audio";
-  isRunning = false;
+// Speech recognition setup
+if ('webkitSpeechRecognition' in window) {
+  recognition = new webkitSpeechRecognition();
+} else if ('SpeechRecognition' in window) {
+  recognition = new SpeechRecognition();
 }
 
-// Capture and send video frames
-function startSendingFrames() {
-  const canvas = document.createElement("canvas");
-  const ctx = canvas.getContext("2d");
+if (recognition) {
+  recognition.lang = "en-US";
+  recognition.continuous = false;
+  recognition.interimResults = false;
 
-  const sendFrame = () => {
-    if (!isRunning || !video.videoWidth) return;
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    ctx.drawImage(video, 0, 0);
-    canvas.toBlob(async (blob) => {
-      const formData = new FormData();
-      formData.append("frame", blob, "frame.jpg");
-      try {
-        await fetch(API_URL, { method: "POST", body: formData });
-      } catch (err) {
-        console.error("Video send error:", err);
-      }
-    }, "image/jpeg", 0.5);
+  recognition.onstart = () => {
+    recognizing = true;
+    orb.classList.add("listening");
+    textDisplay.textContent = "🎧 Listening...";
   };
 
-  const interval = setInterval(() => {
-    if (!isRunning) clearInterval(interval);
-    else sendFrame();
-  }, 2000);
+  recognition.onresult = async (event) => {
+    const userText = event.results[0][0].transcript.trim();
+    orb.classList.remove("listening");
+    textDisplay.textContent = `🗣️ You: ${userText}`;
+    await handleUserSpeech(userText);
+  };
+
+  recognition.onerror = (event) => {
+    console.error(event.error);
+    orb.classList.remove("listening");
+    textDisplay.textContent = "❌ I didn’t catch that. Try again.";
+    recognizing = false;
+  };
+
+  recognition.onend = () => {
+    orb.classList.remove("listening");
+    recognizing = false;
+  };
 }
 
-// Capture and send audio
-function startRecordingAudio() {
-  let mimeType = "";
-  if (MediaRecorder.isTypeSupported("audio/webm;codecs=opus")) mimeType = "audio/webm;codecs=opus";
-  else if (MediaRecorder.isTypeSupported("audio/ogg;codecs=opus")) mimeType = "audio/ogg;codecs=opus";
-  else if (MediaRecorder.isTypeSupported("audio/mp4")) mimeType = "audio/mp4";
-  else {
-    text.textContent = "Audio recording not supported in this browser.";
-    return;
-  }
-
-  try {
-    mediaRecorder = new MediaRecorder(mediaStream, { mimeType });
-  } catch (err) {
-    console.error("Failed to create MediaRecorder:", err);
-    text.textContent = "Audio recording not supported.";
-    return;
-  }
-
-  mediaRecorder.ondataavailable = async (event) => {
-    const blob = event.data;
-    if (!blob || blob.size === 0) return;
-
-    const formData = new FormData();
-    formData.append("audio", blob, "clip");
-    try {
-      await fetch(API_URL, { method: "POST", body: formData });
-    } catch (err) {
-      console.error("Audio send error:", err);
+async function handleUserSpeech(userText) {
+  const body = {
+    contents: [{ role: "user", parts: [{ text: userText }] }],
+    system_instruction: {
+      parts: [{ text: `You are Praterich, an AI by Stenoip Company. Speak conversationally, intelligently, and naturally.` }]
     }
   };
 
-  mediaRecorder.start(3000); // send every 3 seconds
+  try {
+    orb.classList.add("speaking");
+    textDisplay.textContent = "💭 Thinking...";
+    const res = await fetch(API_URL, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(body)
+    });
+    if (!res.ok) throw new Error("API error " + res.status);
+    const data = await res.json();
+    const aiText = data.text || "I couldn’t get a response.";
+    speak(aiText);
+    textDisplay.textContent = `🤖 ${aiText}`;
+  } catch (err) {
+    console.error(err);
+    textDisplay.textContent = "⚠️ Network or API error.";
+  } finally {
+    orb.classList.remove("speaking");
+  }
 }
+
+function speak(text) {
+  if (!synth) return;
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.lang = "en-US";
+  utter.rate = 1.1;
+  utter.pitch = 1.0;
+  synth.speak(utter);
+}
+
+talkBtn.addEventListener("click", () => {
+  if (!recognition) {
+    alert("Speech recognition not supported in this browser.");
+    return;
+  }
+  if (recognizing) {
+    recognition.stop();
+    recognizing = false;
+    orb.classList.remove("listening");
+    textDisplay.textContent = "Stopped listening.";
+  } else {
+    synth.cancel();
+    recognition.start();
+  }
+});
+
+// Camera toggle
+cameraBtn.addEventListener("click", async () => {
+  if (!cameraOn) {
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      userVideo.srcObject = stream;
+      cameraView.classList.add("active");
+      cameraBtn.textContent = "📴 Stop Camera";
+      cameraOn = true;
+    } catch (err) {
+      alert("Unable to access camera: " + err.message);
+    }
+  } else {
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+    }
+    cameraView.classList.remove("active");
+    cameraBtn.textContent = "📷 Camera";
+    cameraOn = false;
+  }
+});
 </script>
 </body>
 </html>
