@@ -5,16 +5,20 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Praterich Voice Assistant</title>
 <style>
+  /* ---------- Root Colors ---------- */
   :root {
     --accent: #00ffff;
-    --accent-glow: #00ffff66;
+    --accent-glow: #00ffff88;
     --border-color: #444;
     --bg-dark: #111;
+    --glass-bg: rgba(30, 30, 30, 0.6);
   }
 
+  /* ---------- Body & Background ---------- */
   body {
     font-family: "Inter", system-ui, sans-serif;
-    background: radial-gradient(circle at top, #181818, #000);
+    background: linear-gradient(45deg, #ff00cc, #3333ff, #00ffff, #ffcc00);
+    background-size: 800% 800%;
     color: white;
     display: flex;
     flex-direction: column;
@@ -25,32 +29,61 @@
     margin: 0;
     padding: 0;
     text-align: center;
+    animation: bgAnimate 20s ease infinite;
+    position: relative;
   }
 
+  @keyframes bgAnimate {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  /* ---------- Particle Canvas ---------- */
+  canvas#bgParticles {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 0;
+  }
+
+  /* ---------- Logo ---------- */
   .logo {
     width: 28vw;
     max-width: 160px;
     border-radius: 50%;
     border: 3px solid var(--accent);
     box-shadow: 0 0 25px var(--accent-glow);
-    animation: float 4s ease-in-out infinite;
+    animation: float 4s ease-in-out infinite, glowPulse 2s infinite;
     object-fit: cover;
+    z-index: 1;
+    position: relative;
   }
 
   @keyframes float {
-    0%, 100% { transform: translateY(0px); }
+    0%,100% { transform: translateY(0px); }
     50% { transform: translateY(-10px); }
+  }
+
+  @keyframes glowPulse {
+    0%,100% { box-shadow: 0 0 20px var(--accent-glow); }
+    50% { box-shadow: 0 0 35px var(--accent-glow); }
   }
 
   h1 {
     font-weight: 500;
-    font-size: 1.4rem;
+    font-size: 1.6rem;
     margin-top: 1.2rem;
-    color: #ccc;
+    color: #fff;
+    text-shadow: 0 0 10px #00ffffaa;
+    z-index: 1;
+    position: relative;
   }
 
+  /* ---------- Mic Button ---------- */
   .mic-button {
-    background: #1e1e1e;
+    background: var(--glass-bg);
+    backdrop-filter: blur(6px);
     border: 3px solid var(--border-color);
     border-radius: 50%;
     width: 24vw;
@@ -64,23 +97,73 @@
     cursor: pointer;
     transition: all 0.3s ease;
     position: relative;
+    z-index: 1;
+    box-shadow: 0 0 15px #000;
+  }
+
+  .mic-button::before {
+    content: "";
+    position: absolute;
+    top: -10%;
+    left: -10%;
+    width: 120%; height: 120%;
+    border-radius: 50%;
+    border: 2px solid var(--accent);
+    opacity: 0.4;
+    filter: blur(10px);
+    pointer-events: none;
+    transition: all 0.3s ease;
+  }
+
+  .mic-button:hover::before {
+    opacity: 1;
+    filter: blur(20px);
   }
 
   .mic-button:hover, .mic-button:active {
     border-color: var(--accent);
-    box-shadow: 0 0 20px var(--accent-glow);
+    box-shadow: 0 0 30px var(--accent-glow);
   }
 
   .mic-button.active {
     animation: pulse 1.5s infinite;
     border-color: var(--accent);
-    box-shadow: 0 0 25px var(--accent-glow);
+    box-shadow: 0 0 35px var(--accent-glow);
   }
 
   @keyframes pulse {
     0% { box-shadow: 0 0 10px var(--accent-glow); }
-    50% { box-shadow: 0 0 30px var(--accent-glow); }
+    50% { box-shadow: 0 0 35px var(--accent-glow); }
     100% { box-shadow: 0 0 10px var(--accent-glow); }
+  }
+
+  /* ---------- Waveform ---------- */
+  .waveform {
+    position: absolute;
+    bottom: -30px;
+    width: 120px;
+    height: 30px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    z-index: 2;
+  }
+
+  .waveform div {
+    width: 4px;
+    background: var(--accent);
+    animation: wave 1s infinite;
+  }
+
+  .waveform div:nth-child(1) { animation-delay: 0s; }
+  .waveform div:nth-child(2) { animation-delay: 0.1s; }
+  .waveform div:nth-child(3) { animation-delay: 0.2s; }
+  .waveform div:nth-child(4) { animation-delay: 0.3s; }
+  .waveform div:nth-child(5) { animation-delay: 0.4s; }
+
+  @keyframes wave {
+    0%,100% { height: 5px; }
+    50% { height: 25px; }
   }
 
   .status {
@@ -88,6 +171,10 @@
     font-size: 1rem;
     color: #aaa;
     padding: 0 1rem;
+    text-shadow: 0 0 5px #000;
+    transition: color 0.3s ease;
+    z-index: 1;
+    position: relative;
   }
 
   .log {
@@ -95,16 +182,31 @@
     font-size: 0.9rem;
     max-width: 90%;
     color: #77e;
+    text-shadow: 0 0 5px #000;
+    transition: color 0.3s ease;
+    z-index: 1;
+    position: relative;
   }
 
+  /* ---------- Dropdown ---------- */
   select {
     margin-top: 1.5rem;
-    background: #1e1e1e;
+    background: var(--glass-bg);
+    backdrop-filter: blur(6px);
     color: white;
     border: 1px solid var(--border-color);
     padding: 0.5rem 1rem;
     border-radius: 6px;
     font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    z-index: 1;
+    position: relative;
+  }
+
+  select:hover {
+    border-color: var(--accent);
+    box-shadow: 0 0 10px var(--accent-glow);
   }
 
   .mic-icon {
@@ -119,11 +221,16 @@
 </style>
 </head>
 <body>
+  <canvas id="bgParticles"></canvas>
+
   <img src="https://stenoip.github.io/praterich/praterich.png" alt="Praterich Logo" class="logo">
   <h1>Praterich Voice Assistant</h1>
 
   <div class="mic-button" id="micButton">
     <img src="https://cdn-icons-png.flaticon.com/512/727/727245.png" alt="Microphone" class="mic-icon">
+    <div class="waveform" id="waveform">
+      <div></div><div></div><div></div><div></div><div></div>
+    </div>
   </div>
 
   <div class="status" id="status">Tap the mic to start listening</div>
@@ -140,140 +247,116 @@
 
 <script>
 const API_URL = "https://praterich.vercel.app/api/praterich";
-
-const systemInstruction = `
-You are Praterich, a smart and casual AI voice assistant made by Stenoip Company.
-You speak naturally, conversationally, and human-like.
-Use metric units only. Avoid robotic tone.
-When the user switches languages, continue in that language.
-`;
+const systemInstruction = `You are Praterich, a smart and casual AI voice assistant made by Stenoip Company. Speak naturally and human-like. Use metric units.
+Remember that since you are a voice assistant, you cannot give long responses and breakdowns.`;
 
 const customPronunciations = {
-  "Praterich": "Prah-ter-rich",
-  "Stenoip": "Steh-no-ip"
+  "Praterich":"Prah-ter-rich",
+  "Stenoip":"Stick-no-ip"
 };
-
 const micButton = document.getElementById("micButton");
 const statusEl = document.getElementById("status");
 const logEl = document.getElementById("log");
 const languageSelect = document.getElementById("languageSelect");
 
-let recognition;
-let listening = false;
-let currentLanguage = languageSelect.value;
+let recognition, listening = false, currentLanguage = languageSelect.value;
 
-// ---- SPEECH SYNTHESIS ----
-function speakText(text, onEndCallback) {
+function speakText(text, onEndCallback){
   window.speechSynthesis.cancel();
   let speakable = text;
-  for (const [word, pronunciation] of Object.entries(customPronunciations)) {
-    const regex = new RegExp(`\\b${word}\\b`, "gi");
-    speakable = speakable.replace(regex, pronunciation);
+  for(const [word,pron] of Object.entries(customPronunciations)){
+    speakable = speakable.replace(new RegExp(`\\b${word}\\b`,"gi"), pron);
   }
-
   const utterance = new SpeechSynthesisUtterance(speakable);
   utterance.rate = 1.1;
   utterance.pitch = 1.0;
   utterance.lang = currentLanguage;
-
-  utterance.onend = () => {
-    if (onEndCallback) onEndCallback();
-  };
-
+  utterance.onend = ()=>{ if(onEndCallback) onEndCallback(); }
   window.speechSynthesis.speak(utterance);
 }
 
-// ---- SPEECH RECOGNITION ----
-function setupRecognition() {
-  if (!("webkitSpeechRecognition" in window)) {
-    alert("Your browser doesn’t support speech recognition.");
-    return;
+function setupRecognition(){
+  if(!("webkitSpeechRecognition" in window)){
+    alert("Your browser doesn’t support speech recognition."); return;
   }
   recognition = new webkitSpeechRecognition();
   recognition.lang = currentLanguage;
   recognition.continuous = false;
   recognition.interimResults = false;
 
-  recognition.onresult = (event) => {
+  recognition.onresult = (event)=>{
     const transcript = event.results[0][0].transcript.trim();
     logEl.textContent = `You said: "${transcript}"`;
     sendVoiceMessage(transcript);
   };
 
-  recognition.onend = () => {
-    if (listening) {
-      listening = false;
-      micButton.classList.remove("active");
-      statusEl.textContent = "Tap the mic to talk again";
-    }
+  recognition.onend = ()=>{
+    if(listening){ listening=false; micButton.classList.remove("active"); statusEl.textContent="Tap the mic to talk again"; }
   };
 }
 setupRecognition();
 
-// ---- API COMMUNICATION ----
-async function sendVoiceMessage(userText) {
-  statusEl.textContent = "Thinking...";
-  const requestBody = {
-    contents: [{ role: "user", parts: [{ text: userText }] }],
-    system_instruction: { parts: [{ text: systemInstruction }] },
-    language: currentLanguage
-  };
-
-  try {
-    const res = await fetch(API_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(requestBody)
-    });
-
-    if (!res.ok) throw new Error(await res.text());
+async function sendVoiceMessage(userText){
+  statusEl.textContent="Thinking...";
+  const requestBody = { contents:[{role:"user",parts:[{text:userText}]}], system_instruction:{parts:[{text:systemInstruction}]}, language: currentLanguage };
+  try{
+    const res = await fetch(API_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(requestBody)});
+    if(!res.ok) throw new Error(await res.text());
     const data = await res.json();
     const reply = data.text || "Sorry, I didn't get that.";
-
-    // Voice only
-    speakText(reply, () => startListening());
-
-  } catch (err) {
+    speakText(reply, ()=> startListening());
+  }catch(err){
     console.error(err);
     speakText("Sorry, there was a problem connecting to my server.");
-    statusEl.textContent = "Connection error";
+    statusEl.textContent="Connection error";
   }
 }
 
-// ---- CONTROL ----
-function startListening() {
-  if (!recognition) return;
+function startListening(){
+  if(!recognition) return;
   window.speechSynthesis.cancel();
-  recognition.lang = currentLanguage;
+  recognition.lang=currentLanguage;
   recognition.start();
-  listening = true;
+  listening=true;
   micButton.classList.add("active");
-  statusEl.textContent = `Listening (${languageSelect.options[languageSelect.selectedIndex].text})...`;
+  statusEl.textContent=`Listening (${languageSelect.options[languageSelect.selectedIndex].text})...`;
 }
 
-function stopListening() {
-  if (recognition && listening) {
-    recognition.stop();
-    listening = false;
-    micButton.classList.remove("active");
-    statusEl.textContent = "Stopped listening";
-  }
+function stopListening(){
+  if(recognition && listening){ recognition.stop(); listening=false; micButton.classList.remove("active"); statusEl.textContent="Stopped listening"; }
 }
 
-// ---- EVENT HANDLERS ----
-micButton.addEventListener("click", () => {
-  if (!listening) startListening();
-  else stopListening();
-});
-
-languageSelect.addEventListener("change", () => {
-  currentLanguage = languageSelect.value;
-  setupRecognition();
+micButton.addEventListener("click", ()=>{ if(!listening) startListening(); else stopListening(); });
+languageSelect.addEventListener("change", ()=>{
+  currentLanguage = languageSelect.value; setupRecognition();
   speakText(`Language switched to ${languageSelect.options[languageSelect.selectedIndex].text}.`);
 });
 
-// ---- INITIAL GREETING ----
+// Initial greeting
 speakText("Hello, I'm Praterich. Tap the mic to talk to me.");
+
+/* ---------- Particle Animation ---------- */
+const canvas = document.getElementById('bgParticles');
+const ctx = canvas.getContext('2d');
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+window.addEventListener('resize', ()=>{ canvas.width=window.innerWidth; canvas.height=window.innerHeight; });
+
+const particles = Array.from({length:100},()=>({x:Math.random()*canvas.width,y:Math.random()*canvas.height,radius:Math.random()*2+1,dx:(Math.random()-0.5)*0.5,dy:(Math.random()-0.5)*0.5}));
+
+function animate(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  particles.forEach(p=>{
+    p.x+=p.dx; p.y+=p.dy;
+    if(p.x<0||p.x>canvas.width)p.dx*=-1;
+    if(p.y<0||p.y>canvas.height)p.dy*=-1;
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.radius,0,Math.PI*2);
+    ctx.fillStyle='#0ff3';
+    ctx.fill();
+  });
+  requestAnimationFrame(animate);
+}
+animate();
 </script>
 </body>
 </html>
