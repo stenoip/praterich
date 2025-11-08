@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Praterich Vision</title>
+<style>
+body {
+  background: #0d1117;
+  color: white;
+  font-family: "Inter", sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  overflow: hidden;
+}
+#bubble {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: url("https://stenoip.github.io/praterich/praterich.png") center/cover;
+  box-shadow: 0 0 40px rgba(0, 224, 184, 0.6);
+  margin-bottom: 20px;
+  transition: 0.3s;
+}
+#bubble.active {
+  box-shadow: 0 0 60px rgba(0, 224, 184, 1);
+  transform: scale(1.05);
+}
+#video {
+  width: 300px;
+  height: 220px;
+  border-radius: 10px;
+  border: 2px solid #00e0b8;
+  object-fit: cover;
+}
+#text {
+  margin-top: 20px;
+  color: #ccc;
+  text-align: center;
+  max-width: 80%;
+}
+button {
+  margin-top: 20px;
+  padding: 10px 20px;
+  border: 2px solid #00e0b8;
+  border-radius: 20px;
+  background: none;
+  color: #00e0b8;
+  cursor: pointer;
+  transition: 0.3s;
+}
+button:hover {
+  background: #00e0b8;
+  color: #0d1117;
+}
+</style>
+</head>
+<body>
+  <div id="bubble"></div>
+  <video id="video" autoplay playsinline muted></video>
+  <div id="text">Praterich is waiting to observe the world...</div>
+  <button id="startBtn">Connect Vision + Audio</button>
+
+<script>
+const API_URL = "https://praterich.vercel.app/api/praterich";
+const video = document.getElementById("video");
+const startBtn = document.getElementById("startBtn");
+const text = document.getElementById("text");
+const bubble = document.getElementById("bubble");
+
+let mediaStream, mediaRecorder;
+let isRunning = false;
+
+startBtn.addEventListener("click", async () => {
+  if (isRunning) {
+    stopAll();
+    return;
+  }
+
+  try {
+    // Request camera + mic
+    mediaStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    video.srcObject = mediaStream;
+    text.textContent = "Praterich is observing the world...";
+    bubble.classList.add("active");
+    startBtn.textContent = "Stop Feed";
+    isRunning = true;
+    startSendingFrames();
+    startRecordingAudio();
+  } catch (err) {
+    text.textContent = "Camera or microphone access denied.";
+    console.error(err);
+  }
+});
+
+function stopAll() {
+  if (mediaStream) mediaStream.getTracks().forEach(track => track.stop());
+  if (mediaRecorder && mediaRecorder.state !== "inactive") mediaRecorder.stop();
+  bubble.classList.remove("active");
+  text.textContent = "Praterich feed stopped.";
+  startBtn.textContent = "Connect Vision + Audio";
+  isRunning = false;
+}
+
+// Capture and send video frames
+function startSendingFrames() {
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+
+  const sendFrame = () => {
+    if (!isRunning || !video.videoWidth) return;
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    ctx.drawImage(video, 0, 0);
+    canvas.toBlob(async (blob) => {
+      const formData = new FormData();
+      formData.append("frame", blob, "frame.jpg");
+      try {
+        await fetch(API_URL, { method: "POST", body: formData });
+      } catch (err) {
+        console.error("Video send error:", err);
+      }
+    }, "image/jpeg", 0.5);
+  };
+
+  const interval = setInterval(() => {
+    if (!isRunning) clearInterval(interval);
+    else sendFrame();
+  }, 2000);
+}
+
+// Capture and send audio
+function startRecordingAudio() {
+  let mimeType = "";
+  if (MediaRecorder.isTypeSupported("audio/webm;codecs=opus")) mimeType = "audio/webm;codecs=opus";
+  else if (MediaRecorder.isTypeSupported("audio/ogg;codecs=opus")) mimeType = "audio/ogg;codecs=opus";
+  else if (MediaRecorder.isTypeSupported("audio/mp4")) mimeType = "audio/mp4";
+  else {
+    text.textContent = "Audio recording not supported in this browser.";
+    return;
+  }
+
+  try {
+    mediaRecorder = new MediaRecorder(mediaStream, { mimeType });
+  } catch (err) {
+    console.error("Failed to create MediaRecorder:", err);
+    text.textContent = "Audio recording not supported.";
+    return;
+  }
+
+  mediaRecorder.ondataavailable = async (event) => {
+    const blob = event.data;
+    if (!blob || blob.size === 0) return;
+
+    const formData = new FormData();
+    formData.append("audio", blob, "clip");
+    try {
+      await fetch(API_URL, { method: "POST", body: formData });
+    } catch (err) {
+      console.error("Audio send error:", err);
+    }
+  };
+
+  mediaRecorder.start(3000); // send every 3 seconds
+}
+</script>
+</body>
+</html>
