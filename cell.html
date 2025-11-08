@@ -1,250 +1,279 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Praterich Cell</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Praterich Voice Assistant</title>
 <style>
-:root {
-  --bg: #0d1117;
-  --primary: #00e0b8;
-  --secondary: #444;
-  --text: #fff;
-}
-body {
-  margin: 0;
-  font-family: "Inter", system-ui, sans-serif;
-  background: var(--bg);
-  color: var(--text);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 100vh;
-  overflow: hidden;
-}
-#orb {
-  width: 140px;
-  height: 140px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 30% 30%, #00e0b8, #0066ff);
-  box-shadow: 0 0 40px rgba(0, 224, 184, 0.6);
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-  animation: idlePulse 4s ease-in-out infinite;
-}
-@keyframes idlePulse {
-  0%, 100% { transform: scale(1); box-shadow: 0 0 40px rgba(0,224,184,0.4);}
-  50% { transform: scale(1.05); box-shadow: 0 0 60px rgba(0,224,184,0.8);}
-}
-#orb.listening {
-  animation: listeningPulse 1s ease-in-out infinite;
-}
-@keyframes listeningPulse {
-  0%,100% { transform: scale(1); box-shadow: 0 0 50px rgba(0,224,184,0.4);}
-  50% { transform: scale(1.25); box-shadow: 0 0 80px rgba(0,224,184,1);}
-}
-#orb.speaking {
-  animation: speakingPulse 0.6s ease-in-out infinite;
-}
-@keyframes speakingPulse {
-  0%,100% { transform: scale(1); box-shadow: 0 0 60px rgba(0,224,184,0.5);}
-  50% { transform: scale(1.15); box-shadow: 0 0 90px rgba(0,224,184,0.9);}
-}
-#text-display {
-  margin-top: 40px;
-  text-align: center;
-  max-width: 80%;
-  font-size: 1.1rem;
-  color: #ccc;
-  min-height: 4rem;
-}
-.controls {
-  display: flex;
-  gap: 12px;
-  margin-top: 40px;
-}
-button {
-  background: none;
-  border: 2px solid var(--primary);
-  color: var(--primary);
-  border-radius: 50px;
-  padding: 10px 28px;
-  font-size: 1rem;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-button:hover {
-  background: var(--primary);
-  color: var(--bg);
-}
-#camera-view {
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  width: 180px;
-  height: 120px;
-  background: #000;
-  border-radius: 10px;
-  overflow: hidden;
-  border: 2px solid var(--primary);
-  opacity: 0;
-  pointer-events: none;
-  transform: scale(0.95);
-  transition: opacity 0.3s, transform 0.3s;
-}
-#camera-view.active {
-  opacity: 1;
-  pointer-events: all;
-  transform: scale(1);
-}
-#camera-view video {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
+  :root {
+    --accent: #00ffff;
+    --accent-glow: #00ffff66;
+    --border-color: #444;
+    --bg-dark: #111;
+  }
+
+  body {
+    font-family: "Inter", system-ui, sans-serif;
+    background: radial-gradient(circle at top, #181818, #000);
+    color: white;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    overflow: hidden;
+    margin: 0;
+    padding: 0;
+    text-align: center;
+  }
+
+  .logo {
+    width: 28vw;
+    max-width: 160px;
+    border-radius: 50%;
+    border: 3px solid var(--accent);
+    box-shadow: 0 0 25px var(--accent-glow);
+    animation: float 4s ease-in-out infinite;
+    object-fit: cover;
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+  }
+
+  h1 {
+    font-weight: 500;
+    font-size: 1.4rem;
+    margin-top: 1.2rem;
+    color: #ccc;
+  }
+
+  .mic-button {
+    background: #1e1e1e;
+    border: 3px solid var(--border-color);
+    border-radius: 50%;
+    width: 24vw;
+    height: 24vw;
+    max-width: 120px;
+    max-height: 120px;
+    margin-top: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+  }
+
+  .mic-button:hover, .mic-button:active {
+    border-color: var(--accent);
+    box-shadow: 0 0 20px var(--accent-glow);
+  }
+
+  .mic-button.active {
+    animation: pulse 1.5s infinite;
+    border-color: var(--accent);
+    box-shadow: 0 0 25px var(--accent-glow);
+  }
+
+  @keyframes pulse {
+    0% { box-shadow: 0 0 10px var(--accent-glow); }
+    50% { box-shadow: 0 0 30px var(--accent-glow); }
+    100% { box-shadow: 0 0 10px var(--accent-glow); }
+  }
+
+  .status {
+    margin-top: 1rem;
+    font-size: 1rem;
+    color: #aaa;
+    padding: 0 1rem;
+  }
+
+  .log {
+    margin-top: 1rem;
+    font-size: 0.9rem;
+    max-width: 90%;
+    color: #77e;
+  }
+
+  select {
+    margin-top: 1.5rem;
+    background: #1e1e1e;
+    color: white;
+    border: 1px solid var(--border-color);
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-size: 1rem;
+  }
+
+  .mic-icon {
+    width: 40%;
+    filter: invert(1);
+  }
+
+  @media (max-width: 600px) {
+    .status { font-size: 0.9rem; }
+    h1 { font-size: 1.2rem; }
+  }
 </style>
 </head>
 <body>
-  <div id="orb"></div>
-  <div id="text-display">Hey there 👋 I’m Praterich Cell — tap below to talk.</div>
+  <img src="https://stenoip.github.io/praterich/praterich.png" alt="Praterich Logo" class="logo">
+  <h1>Praterich Voice Assistant</h1>
 
-  <div class="controls">
-    <button id="talk-btn">🎤 Talk</button>
-    <button id="camera-btn">📷 Camera</button>
+  <div class="mic-button" id="micButton">
+    <img src="https://cdn-icons-png.flaticon.com/512/727/727245.png" alt="Microphone" class="mic-icon">
   </div>
 
-  <div id="camera-view">
-    <video id="user-video" autoplay playsinline></video>
-  </div>
+  <div class="status" id="status">Tap the mic to start listening</div>
+  <div class="log" id="log"></div>
+
+  <select id="languageSelect">
+    <option value="en-US" selected>English</option>
+    <option value="es-ES">Spanish</option>
+    <option value="fr-FR">French</option>
+    <option value="de-DE">German</option>
+    <option value="it-IT">Italian</option>
+    <option value="pt-BR">Portuguese</option>
+  </select>
 
 <script>
 const API_URL = "https://praterich.vercel.app/api/praterich";
-const orb = document.getElementById("orb");
-const textDisplay = document.getElementById("text-display");
-const talkBtn = document.getElementById("talk-btn");
-const cameraBtn = document.getElementById("camera-btn");
-const cameraView = document.getElementById("camera-view");
-const userVideo = document.getElementById("user-video");
 
-let recognizing = false;
-let synth = window.speechSynthesis;
+const systemInstruction = `
+You are Praterich, a smart and casual AI voice assistant made by Stenoip Company.
+You speak naturally, conversationally, and human-like.
+Use metric units only. Avoid robotic tone.
+When the user switches languages, continue in that language.
+`;
+
+const customPronunciations = {
+  "Praterich": "Prah-ter-rich",
+  "Stenoip": "Steh-no-ip"
+};
+
+const micButton = document.getElementById("micButton");
+const statusEl = document.getElementById("status");
+const logEl = document.getElementById("log");
+const languageSelect = document.getElementById("languageSelect");
+
 let recognition;
-let cameraOn = false;
-let stream;
+let listening = false;
+let currentLanguage = languageSelect.value;
 
-// Speech recognition setup
-if ('webkitSpeechRecognition' in window) {
-  recognition = new webkitSpeechRecognition();
-} else if ('SpeechRecognition' in window) {
-  recognition = new SpeechRecognition();
+// ---- SPEECH SYNTHESIS ----
+function speakText(text, onEndCallback) {
+  window.speechSynthesis.cancel();
+  let speakable = text;
+  for (const [word, pronunciation] of Object.entries(customPronunciations)) {
+    const regex = new RegExp(`\\b${word}\\b`, "gi");
+    speakable = speakable.replace(regex, pronunciation);
+  }
+
+  const utterance = new SpeechSynthesisUtterance(speakable);
+  utterance.rate = 1.1;
+  utterance.pitch = 1.0;
+  utterance.lang = currentLanguage;
+
+  utterance.onend = () => {
+    if (onEndCallback) onEndCallback();
+  };
+
+  window.speechSynthesis.speak(utterance);
 }
 
-if (recognition) {
-  recognition.lang = "en-US";
+// ---- SPEECH RECOGNITION ----
+function setupRecognition() {
+  if (!("webkitSpeechRecognition" in window)) {
+    alert("Your browser doesn’t support speech recognition.");
+    return;
+  }
+  recognition = new webkitSpeechRecognition();
+  recognition.lang = currentLanguage;
   recognition.continuous = false;
   recognition.interimResults = false;
 
-  recognition.onstart = () => {
-    recognizing = true;
-    orb.classList.add("listening");
-    textDisplay.textContent = "🎧 Listening...";
-  };
-
-  recognition.onresult = async (event) => {
-    const userText = event.results[0][0].transcript.trim();
-    orb.classList.remove("listening");
-    textDisplay.textContent = `🗣️ You: ${userText}`;
-    await handleUserSpeech(userText);
-  };
-
-  recognition.onerror = (event) => {
-    console.error(event.error);
-    orb.classList.remove("listening");
-    textDisplay.textContent = "❌ I didn’t catch that. Try again.";
-    recognizing = false;
+  recognition.onresult = (event) => {
+    const transcript = event.results[0][0].transcript.trim();
+    logEl.textContent = `You said: "${transcript}"`;
+    sendVoiceMessage(transcript);
   };
 
   recognition.onend = () => {
-    orb.classList.remove("listening");
-    recognizing = false;
+    if (listening) {
+      listening = false;
+      micButton.classList.remove("active");
+      statusEl.textContent = "Tap the mic to talk again";
+    }
   };
 }
+setupRecognition();
 
-async function handleUserSpeech(userText) {
-  const body = {
+// ---- API COMMUNICATION ----
+async function sendVoiceMessage(userText) {
+  statusEl.textContent = "Thinking...";
+  const requestBody = {
     contents: [{ role: "user", parts: [{ text: userText }] }],
-    system_instruction: {
-      parts: [{ text: `You are Praterich, an AI by Stenoip Company. Speak conversationally, intelligently, and naturally.` }]
-    }
+    system_instruction: { parts: [{ text: systemInstruction }] },
+    language: currentLanguage
   };
 
   try {
-    orb.classList.add("speaking");
-    textDisplay.textContent = "💭 Thinking...";
     const res = await fetch(API_URL, {
       method: "POST",
-      headers: {"Content-Type": "application/json"},
-      body: JSON.stringify(body)
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(requestBody)
     });
-    if (!res.ok) throw new Error("API error " + res.status);
+
+    if (!res.ok) throw new Error(await res.text());
     const data = await res.json();
-    const aiText = data.text || "I couldn’t get a response.";
-    speak(aiText);
-    textDisplay.textContent = `🤖 ${aiText}`;
+    const reply = data.text || "Sorry, I didn't get that.";
+
+    // Voice only
+    speakText(reply, () => startListening());
+
   } catch (err) {
     console.error(err);
-    textDisplay.textContent = "⚠️ Network or API error.";
-  } finally {
-    orb.classList.remove("speaking");
+    speakText("Sorry, there was a problem connecting to my server.");
+    statusEl.textContent = "Connection error";
   }
 }
 
-function speak(text) {
-  if (!synth) return;
-  const utter = new SpeechSynthesisUtterance(text);
-  utter.lang = "en-US";
-  utter.rate = 1.1;
-  utter.pitch = 1.0;
-  synth.speak(utter);
+// ---- CONTROL ----
+function startListening() {
+  if (!recognition) return;
+  window.speechSynthesis.cancel();
+  recognition.lang = currentLanguage;
+  recognition.start();
+  listening = true;
+  micButton.classList.add("active");
+  statusEl.textContent = `Listening (${languageSelect.options[languageSelect.selectedIndex].text})...`;
 }
 
-talkBtn.addEventListener("click", () => {
-  if (!recognition) {
-    alert("Speech recognition not supported in this browser.");
-    return;
-  }
-  if (recognizing) {
+function stopListening() {
+  if (recognition && listening) {
     recognition.stop();
-    recognizing = false;
-    orb.classList.remove("listening");
-    textDisplay.textContent = "Stopped listening.";
-  } else {
-    synth.cancel();
-    recognition.start();
+    listening = false;
+    micButton.classList.remove("active");
+    statusEl.textContent = "Stopped listening";
   }
+}
+
+// ---- EVENT HANDLERS ----
+micButton.addEventListener("click", () => {
+  if (!listening) startListening();
+  else stopListening();
 });
 
-// Camera toggle
-cameraBtn.addEventListener("click", async () => {
-  if (!cameraOn) {
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-      userVideo.srcObject = stream;
-      cameraView.classList.add("active");
-      cameraBtn.textContent = "📴 Stop Camera";
-      cameraOn = true;
-    } catch (err) {
-      alert("Unable to access camera: " + err.message);
-    }
-  } else {
-    if (stream) {
-      stream.getTracks().forEach(track => track.stop());
-    }
-    cameraView.classList.remove("active");
-    cameraBtn.textContent = "📷 Camera";
-    cameraOn = false;
-  }
+languageSelect.addEventListener("change", () => {
+  currentLanguage = languageSelect.value;
+  setupRecognition();
+  speakText(`Language switched to ${languageSelect.options[languageSelect.selectedIndex].text}.`);
 });
+
+// ---- INITIAL GREETING ----
+speakText("Hello, I'm Praterich. Tap the mic to talk to me.");
 </script>
 </body>
 </html>
