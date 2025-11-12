@@ -568,8 +568,34 @@
             text-align: center;
             padding: 5px 0;
             border-top: 1px solid rgba(0, 0, 0, 0.1);
-            background: rgba(255, 255, 255, 0.5);
+          
+          background: rgba(255, 255, 255, 0.5);
         }
+      #voice-assistant-button {
+    background-color: var(--light-orange);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0) 50%, rgba(0, 0, 0, 0.1) 100%), var(--light-orange);
+    color: white;
+    padding: 10px;
+    margin: 10px 15px;
+    border: 1px solid var(--dark-orange);
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: background-color 0.3s, box-shadow 0.3s;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+#voice-assistant-button:hover {
+    background-color: var(--dark-orange);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.4) 0%, rgba(255, 255, 255, 0) 50%, rgba(0, 0, 0, 0.1) 100%), var(--dark-orange);
+    box-shadow: 0 6px 10px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+#voice-assistant-button:active {
+    transform: translateY(1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2), inset 0 0 5px rgba(0, 0, 0, 0.3);
+}
+
     </style>
 </head>
 <body>
@@ -585,7 +611,11 @@
         
         <div id="chat-container">
             <div id="chat-header">
-                <button id="menu-toggle-button" class="input-button"><i class="fas fa-bars"></i></button>
+              <button id="voice-assistant-button" class="input-button" onclick="window.location.href='cell.html'">
+    <i class="fas fa-microphone"></i>Voice
+</button>
+
+              <button id="menu-toggle-button" class="input-button"><i class="fas fa-bars"></i></button>
                 <img id="praterich-icon" src="https://stenoip.github.io/praterich/praterich.png" alt="Praterich A.I. Icon" onerror="this.onerror=null; this.src='https://via.placeholder.com/30/ff9900/ffffff?text=P';">
                 <span>Praterich A.I.</span>
             </div>
