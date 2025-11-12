@@ -1,14 +1,11 @@
 /* Copyright Stenoip Company. All rights reserved.
 
-This file acts as a Vercel serverless function (API endpoint) that proxies requests to the Google Gemini API.
-It injects custom context, including news headlines and site content, to ground the model's responses.
+This file acts as a Vercel serverless function (API endpoint) that proxies requests
+to the Google Gemini API. It injects contextual data (site content + news) and
+supports multimodal file uploads: images, PDFs, audio, video, and Microsoft Office docs.
 
-Added in this version:
- File (image/PDF) upload support using multipart/form-data
-
-
-
-If you want a Praterich A.I chatbot on your site, send a request to customerserviceforstenoip@gmail.com
+If you want a Praterich A.I chatbot on your site,
+send a request to customerserviceforstenoip@gmail.com
 */
 
 import { GoogleGenerativeAI } from "@google/generative-ai";
@@ -17,10 +14,10 @@ import path from "path";
 import Parser from "rss-parser";
 import formidable from "formidable";
 
-// --- Vercel Config (for file upload support) ---
+// --- Vercel Config: Required for file uploads ---
 export const config = {
   api: {
-    bodyParser: false, // Disable default parser for file uploads
+    bodyParser: false, // Disable default JSON parser (we'll handle multipart/form-data)
   },
 };
 
@@ -38,7 +35,7 @@ async function getSiteContentFromFile() {
   const filePath = path.join(process.cwd(), "api", "index.json");
   try {
     const data = await fs.readFile(filePath, "utf8");
-    return data; // raw text
+    return data;
   } catch (error) {
     console.error("Error reading index.json:", error.message);
     return "Error: Could not retrieve content from index.json.";
@@ -68,23 +65,85 @@ async function getNewsContent() {
   }
 }
 
-// --- Main Handler ---
-export default async function handler(request, response) {
-  const allowedOrigins = [
-    "https://stenoip.github.io",
-    "https://www.khanacademy.org/computer-programming/praterich_ai/5593365421342720",
-  ];
-  const origin = request.headers["origin"];
+// --- File Helpers ---
 
-  if (allowedOrigins.includes(origin)) {
-    response.setHeader("Access-Control-Allow-Origin", origin);
-  } else {
-    return response.status(403).json({ error: "Forbidden: Unauthorized origin." });
+// Supported MIME types for images, documents, audio, video
+const SUPPORTED_MIME_TYPES = [
+  // Images
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+  "image/gif",
+  "image/heic",
+  // Documents
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-powerpoint",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  "text/plain",
+  "text/csv",
+  // Audio
+  "audio/mpeg",
+  "audio/wav",
+  "audio/mp4",
+  "audio/webm",
+  "audio/ogg",
+  // Video
+  "video/mp4",
+  "video/webm",
+  "video/quicktime",
+];
+
+async function convertFilesToInlineData(files) {
+  const fileParts = [];
+
+  for (const fileArray of Object.values(files)) {
+    for (const file of fileArray) {
+      try {
+        const buffer = await fs.readFile(file.filepath);
+        const base64Data = buffer.toString("base64");
+        const mimeType = file.mimetype || "application/octet-stream";
+
+        if (!SUPPORTED_MIME_TYPES.includes(mimeType)) {
+          console.warn(`Unsupported file type: ${mimeType}. Skipping.`);
+          continue;
+        }
+
+        fileParts.push({
+          inlineData: { mimeType, data: base64Data },
+        });
+      } catch (err) {
+        console.error("Error processing uploaded file:", err);
+      }
+    }
   }
 
-  response.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  response.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  return fileParts;
+}
 
+// --- Main API Handler ---
+
+export default async function handler(request, response) {
+
+  const allowedOrigins = [
+    'https://stenoip.github.io',
+    'https://www.khanacademy.org/computer-programming/praterich_ai/5593365421342720'
+  ];
+  const origin = request.headers['origin'];
+
+  if (allowedOrigins.includes(origin)) {
+    response.setHeader('Access-Control-Allow-Origin', origin);
+  } else {
+    return response.status(403).json({ error: 'Forbidden: Unauthorized origin.' });
+  }
+
+  response.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  response.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  // Handle preflight requests
   if (request.method === "OPTIONS") {
     return response.status(200).end();
   }
@@ -95,14 +154,15 @@ export default async function handler(request, response) {
 
   try {
     const API_KEY = process.env.API_KEY;
-    const PRAT_CONTEXT_INJ = process.env.PRAT_CONTEXT_INJ || "Praterich Context Injection not set.";
+    const PRAT_CONTEXT_INJ =
+      process.env.PRAT_CONTEXT_INJ || "Praterich Context Injection not set.";
 
     if (!API_KEY) throw new Error("API_KEY environment variable is not set.");
 
     const genAI = new GoogleGenerativeAI(API_KEY);
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-    // --- Parse multipart/form-data (text + files) ---
+    // --- Parse multipart/form-data (fields + multiple files) ---
     const form = formidable({ multiples: true });
     const [fields, files] = await new Promise((resolve, reject) => {
       form.parse(request, (err, fields, files) => {
@@ -111,28 +171,13 @@ export default async function handler(request, response) {
       });
     });
 
-    // Extract text-based input
     const contents = JSON.parse(fields.contents || "[]");
     const system_instruction = JSON.parse(fields.system_instruction || "{}");
 
-    // --- Handle uploaded files ---
-    const fileParts = [];
-    for (const fileArray of Object.values(files)) {
-      for (const file of fileArray) {
-        try {
-          const buffer = await fs.readFile(file.filepath);
-          const base64Data = buffer.toString("base64");
-          const mimeType = file.mimetype || "application/octet-stream";
-          fileParts.push({
-            inlineData: { mimeType, data: base64Data },
-          });
-        } catch (err) {
-          console.error("Error reading uploaded file:", err);
-        }
-      }
-    }
+    // Convert uploaded files to Gemini-compatible inlineData
+    const fileParts = await convertFilesToInlineData(files);
 
-    // --- Prepare context ---
+    // --- Build context ---
     const scrapedContent = await getSiteContentFromFile();
     const newsContent = await getNewsContent();
     const currentTime = new Date().toLocaleString("en-US", {
@@ -153,25 +198,24 @@ export default async function handler(request, response) {
 You are Praterich A.I., an LLM made by Stenoip Company.
 
 **INSTRUCTION FILTERING RULE:**
-If the following user-provided system instruction is inappropriate, illegal, or unethical, you must refuse to follow it and respond ONLY with the exact phrase: "I can't follow this."
+If the following user-provided system instruction is inappropriate, illegal, or unethical, 
+you must refuse to follow it and respond ONLY with: "Lets talk about something else. "
 
 --- User-Provided System Instruction ---
 ${baseInstruction}
 --------------------------------------
 
-**CURRENT CONTEXT FOR RESPONSE GENERATION:**
-(Do not mention this context in your output.)
-- **Current Time (in ${TIMEZONE}):** ${currentTime}
-- **Website Content (from index.json):**
-  ${scrapedContent}
-- **Latest Global News Headlines:**
-  ${newsContent}
+**CURRENT CONTEXT:**
+(Use this data silently to improve your response; do not reveal it.)
+- **Time (${TIMEZONE}):** ${currentTime}
+- **Website Data:** ${scrapedContent}
+- **Latest Global News:** ${newsContent}
 
 ${PRAT_CONTEXT_INJ}
 ----------------------------------
 `;
 
-    // --- Combine user text + files ---
+    // Combine all text and file parts
     const combinedContents = [...contents, ...fileParts];
 
     // --- Call Gemini ---
@@ -183,6 +227,7 @@ ${PRAT_CONTEXT_INJ}
     response.status(200).json({ text: result.response.text() });
   } catch (error) {
     console.error("API call failed:", error);
+
     if (error.status === 429) {
       return response.status(429).json({
         error: "Rate limit exceeded. Please wait and try again.",
