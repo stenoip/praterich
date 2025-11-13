@@ -23,6 +23,8 @@ var NEWS_FEEDS = {
     CNN: 'http://rss.cnn.com/rss/cnn_topstories.rss'
 };
 const TIMEZONE = 'America/New_York';
+const MAX_RETRIES = 3;  // Maximum retry attempts for the API call
+const RETRY_DELAY = 5000;  // Delay between retries in milliseconds (5 seconds)
 
 // --- Helper Functions ---
 
@@ -45,11 +47,11 @@ async function getSiteContentFromFile() {
  * @returns {Promise<string>} A formatted string of news headlines or an error message.
  */
 async function getNewsContent() {
-    let newsText = "\n--- Global News Headlines ---\n";
+    var newsText = "\n--- Global News Headlines ---\n";
     try {
-        const allNewsPromises = Object.entries(NEWS_FEEDS).map(async ([source, url]) => {
-            const feed = await parser.parseURL(url);
-            let sourceNews = `\n**${source} Top Stories (Latest):**\n`;
+        var allNewsPromises = Object.entries(NEWS_FEEDS).map(async ([source, url]) => {
+            var feed = await parser.parseURL(url);
+            var sourceNews = `\n**${source} Top Stories (Latest):**\n`;
             
             // Limit to the top 3 items per feed for brevity and token efficiency
             feed.items.slice(0, 3).forEach((item, index) => {
@@ -58,11 +60,10 @@ async function getNewsContent() {
                 sourceNews += `  ${index + 1}. ${safeTitle}\n`;
             });
             return sourceNews;
-
         });
 
         // Wait for all news fetches to complete
-        const newsResults = await Promise.all(allNewsPromises);
+        var newsResults = await Promise.all(allNewsPromises);
         newsText += newsResults.join('');
         return newsText;
 
@@ -72,6 +73,37 @@ async function getNewsContent() {
     }
 }
 
+/**
+ * Attempts to fetch content from the Google Gemini API with retry logic for transient errors.
+ * @param {GoogleGenerativeAI} genAI - The generative AI instance.
+ * @param {Object} payload - The request payload to be sent to the API.
+ * @param {number} retries - The number of retries remaining.
+ * @returns {Promise<string>} The response text from the API.
+ */
+async function fetchFromModelWithRetry(genAI, payload, retries = MAX_RETRIES) {
+    try {
+        var model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        var result = await model.generateContent(payload);
+        return result.response.text();  // Return the content from the response
+    } catch (error) {
+        console.error("Error fetching from model:", error.message);
+
+        // Handle specific error types
+        if (error.status === 503 && retries > 0) {
+            console.log(`503 error encountered. Retrying in ${RETRY_DELAY / 1000} seconds...`);
+            await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));  // Wait before retrying
+            return fetchFromModelWithRetry(genAI, payload, retries - 1);  // Retry the request
+        }
+
+        // If it's a rate limit issue or another retriable error, handle it gracefully
+        if (error.status === 429) {
+            throw new Error("Rate limit exceeded. Please wait and try again.");
+        }
+
+        // If it's a non-retriable error, throw it
+        throw error;  
+    }
+}
 
 export default async function handler(request, response) {
     // These are the only allowed origins.
@@ -99,25 +131,23 @@ export default async function handler(request, response) {
     }
 
     try {
-        const API_KEY = process.env.API_KEY;
+        var API_KEY = process.env.API_KEY;
         if (!API_KEY) {
             throw new Error("API_KEY environment variable is not set.");
         }
 
-        const PRAT_CONTEXT_INJ = process.env.PRAT_CONTEXT_INJ || "Praterich Context Injection not set.";
+        var PRAT_CONTEXT_INJ = process.env.PRAT_CONTEXT_INJ || "Praterich Context Injection not set.";
         // -----------------------------------------------------------------
 
-        const genAI = new GoogleGenerativeAI(API_KEY);
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-
+        var genAI = new GoogleGenerativeAI(API_KEY);
         const { contents, system_instruction } = request.body;
 
         // --- Fetch and Prepare Context ---
-        const scrapedContent = await getSiteContentFromFile();  // Read index.json as plain text
-        const newsContent = await getNewsContent();
+        var scrapedContent = await getSiteContentFromFile();  // Read index.json as plain text
+        var newsContent = await getNewsContent();
 
         // Get current time information (for time knowledge grounding)
-        const currentTime = new Date().toLocaleString('en-US', {
+        var currentTime = new Date().toLocaleString('en-US', {
             timeZone: TIMEZONE,
             weekday: 'long',
             year: 'numeric',
@@ -129,13 +159,13 @@ export default async function handler(request, response) {
         });
 
         // The website content is now passed in full without truncation.
-        const trimmedContent = scrapedContent;
+        var trimmedContent = scrapedContent;
 
         // Extract user's instruction from the front-end payload
-        const baseInstruction = system_instruction?.parts?.[0]?.text || "No additional instruction provided.";
+        var baseInstruction = system_instruction?.parts?.[0]?.text || "No additional instruction provided.";
 
         // --- Combine ALL context into a new System Instruction ---
-        const combinedSystemInstruction = `
+        var combinedSystemInstruction = `
 You are Praterich A.I., an LLM made by Stenoip Company.
 
 **INSTRUCTION FILTERING RULE:**
@@ -159,7 +189,7 @@ ${PRAT_CONTEXT_INJ}
 ----------------------------------
 `; 
 
-        const payload = {
+        var payload = {
             contents,
             safetySettings: [],
             generationConfig: {},
@@ -168,9 +198,9 @@ ${PRAT_CONTEXT_INJ}
             }
         };
 
-        const result = await model.generateContent(payload);
-        const apiResponse = result.response;
-        response.status(200).json({ text: apiResponse.text() });
+        // Fetch the generated content with retry logic
+        var apiResponseText = await fetchFromModelWithRetry(genAI, payload);
+        response.status(200).json({ text: apiResponseText });
 
     } catch (error) {
         console.error("API call failed:", error);
