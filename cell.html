@@ -23,11 +23,11 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
-    height: 100vh;
-    overflow: hidden;
+    justify-content: flex-start; /* Align to start for better scrolling with dynamic content */
+    min-height: 100vh; /* Use min-height to allow content to push body taller */
+    overflow-y: auto;
     margin: 0;
-    padding: 0;
+    padding: 2rem 0;
     text-align: center;
     animation: bgAnimate 20s ease infinite;
     position: relative;
@@ -41,7 +41,7 @@
 
   /* ---------- Particle Canvas ---------- */
   canvas#bgParticles {
-    position: absolute;
+    position: fixed;
     top: 0; left: 0;
     width: 100%; height: 100%;
     z-index: 0;
@@ -58,6 +58,7 @@
     object-fit: cover;
     z-index: 1;
     position: relative;
+    margin-top: 1rem; /* Adjust margin for overall layout */
   }
 
   @keyframes float {
@@ -214,9 +215,136 @@
     filter: invert(1);
   }
 
+  /* ---------- Widget Container & Item Styles ---------- */
+  #widgetContainer {
+    margin-top: 2rem;
+    width: 90%;
+    max-width: 500px; /* Max width for single widget */
+    z-index: 1;
+    position: relative;
+    padding-bottom: 2rem;
+    display: flex; /* To center the single widget */
+    justify-content: center;
+  }
+
+  .widget-item {
+    background: var(--glass-bg);
+    backdrop-filter: blur(6px);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.3);
+    transition: all 0.3s ease;
+    text-align: center; /* Default center for stopwatch/timer */
+    flex-grow: 1; /* Allow widget to take available space */
+  }
+
+  .widget-item:hover {
+    border-color: var(--accent);
+    box-shadow: 0 0 25px var(--accent-glow);
+    transform: translateY(-5px);
+  }
+
+  .widget-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--accent);
+    margin-bottom: 0.8rem;
+    text-shadow: 0 0 8px #00ffff66;
+  }
+
+  .widget-content {
+    font-size: 1rem;
+    color: #eee;
+    line-height: 1.5;
+  }
+
+  /* Stopwatch & Timer Specific Styles */
+  .time-display {
+    font-size: 3rem;
+    font-family: 'monospace';
+    color: var(--accent);
+    text-shadow: 0 0 15px var(--accent-glow);
+    margin-bottom: 1.5rem;
+  }
+
+  .widget-controls button {
+    background: rgba(0, 255, 255, 0.2);
+    border: 1px solid var(--accent);
+    color: white;
+    padding: 0.8rem 1.5rem;
+    margin: 0 0.5rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+  }
+
+  .widget-controls button:hover {
+    background: var(--accent);
+    color: var(--bg-dark);
+    box-shadow: 0 0 15px var(--accent-glow);
+  }
+
+  /* Timer input */
+  .timer-input-group {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 1rem;
+  }
+  .timer-input-group input {
+    width: 60px;
+    padding: 0.5rem;
+    border-radius: 5px;
+    border: 1px solid var(--border-color);
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    text-align: center;
+    font-size: 1rem;
+  }
+  .timer-input-group input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 5px var(--accent-glow);
+  }
+
+  /* Links Widget Specific Styles */
+  .links-widget .widget-content {
+    text-align: left;
+  }
+  .links-widget ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  .links-widget li {
+    margin-bottom: 0.5rem;
+  }
+  .links-widget a {
+    color: #fff;
+    text-decoration: none;
+    transition: color 0.3s ease;
+    display: block; /* Make links take full width for easier tapping */
+    padding: 0.2rem 0;
+  }
+  .links-widget a:hover {
+    color: var(--accent);
+    text-decoration: underline;
+  }
+
+
   @media (max-width: 600px) {
     .status { font-size: 0.9rem; }
     h1 { font-size: 1.2rem; }
+    .time-display {
+      font-size: 2.2rem;
+    }
+    .widget-controls button {
+      padding: 0.6rem 1rem;
+      margin: 0 0.3rem;
+      font-size: 0.9rem;
+    }
   }
 </style>
 </head>
@@ -245,10 +373,15 @@
     <option value="pt-BR">Portuguese</option>
   </select>
 
+  <!-- Dynamic Widget Container -->
+  <div id="widgetContainer">
+    <!-- Widgets will be injected here by JavaScript -->
+  </div>
+
 <script>
 const API_URL = "https://praterich.vercel.app/api/praterich";
-const systemInstruction = `You are Praterich, a smart and casual AI voice assistant made by Stenoip Company. Speak naturally and human-like. Use metric units.
-Remember that since you are a voice assistant, you cannot give long responses and breakdowns.`;
+// Updated system instruction for Praterich
+const systemInstruction = `You are Praterich, an intelligent yet casual AI. You were developed by Stenoip Company. You speak naturally, conversationally and human-like. You prefer metric units. You are aware of your context as a voice assistant. I will tell you when the user makes requests related to widgets like a stopwatch or timer, or if you should extract links. Respond to confirm the user's action or provide the requested information in a concise, voice-friendly manner. Do not attempt to control or describe the widget's mechanics yourself; just confirm what has been done. Also, remember that since you are a voice assistant, you cannot give long responses and breakdowns.`;
 
 const customPronunciations = {
   "Praterich":"Prah-ter-rich",
@@ -258,8 +391,24 @@ const micButton = document.getElementById("micButton");
 const statusEl = document.getElementById("status");
 const logEl = document.getElementById("log");
 const languageSelect = document.getElementById("languageSelect");
+const widgetContainer = document.getElementById('widgetContainer');
 
 let recognition, listening = false, currentLanguage = languageSelect.value;
+
+// --- Global Widget State ---
+let activeWidgetType = 'none'; // 'none', 'stopwatch', 'timer', 'links'
+
+// --- Stopwatch State ---
+let stopwatchInterval;
+let stopwatchStartTime;
+let stopwatchElapsedTime = 0;
+let isStopwatchRunning = false;
+
+// --- Timer State ---
+let timerInterval;
+let timerTargetDuration = 0; // in milliseconds
+let timerRemainingTime = 0;
+let isTimerRunning = false;
 
 function speakText(text, onEndCallback){
   window.speechSynthesis.cancel();
@@ -296,21 +445,398 @@ function setupRecognition(){
 }
 setupRecognition();
 
+// --- Widget Management Functions ---
+function clearWidgets(forceClearAll = false) {
+  if (forceClearAll || (activeWidgetType !== 'stopwatch' && activeWidgetType !== 'timer')) {
+    widgetContainer.innerHTML = '';
+    // Stop any active stopwatch/timer
+    if (stopwatchInterval) clearInterval(stopwatchInterval);
+    if (timerInterval) clearInterval(timerInterval);
+    stopwatchInterval = null;
+    timerInterval = null;
+    isStopwatchRunning = false;
+    isTimerRunning = false;
+    // Don't reset elapsedTime/RemainingTime unless explicitly asked or clearing ALL
+    // elapsedTime = 0;
+    // timerRemainingTime = 0;
+    if (forceClearAll) {
+        stopwatchElapsedTime = 0;
+        timerRemainingTime = 0;
+        activeWidgetType = 'none';
+    }
+  }
+}
+
+// Helper for time formatting
+function formatTime(ms, includeHundredths = true) {
+    const totalSeconds = Math.floor(ms / 1000);
+    const hundredths = Math.floor((ms % 1000) / 10);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+
+    let formatted = String(minutes).padStart(2, '0') + ':' + String(seconds).padStart(2, '0');
+    if (includeHundredths) {
+        formatted += '.' + String(hundredths).padStart(2, '0');
+    }
+    return formatted;
+}
+
+// --- Stopwatch Widget Functions ---
+function createStopwatchWidget() {
+  if (activeWidgetType !== 'stopwatch') {
+    clearWidgets();
+    activeWidgetType = 'stopwatch';
+    const widget = document.createElement('div');
+    widget.className = 'widget-item stopwatch-widget';
+    widget.innerHTML = `
+      <p class="widget-title">Stopwatch</p>
+      <div id="stopwatchDisplay" class="time-display"></div>
+      <div class="widget-controls">
+        <button id="stopwatchStartStopBtn"></button>
+        <button id="stopwatchResetBtn">Reset</button>
+      </div>
+    `;
+    widgetContainer.appendChild(widget);
+
+    document.getElementById('stopwatchStartStopBtn').onclick = toggleStopwatch;
+    document.getElementById('stopwatchResetBtn').onclick = resetStopwatch;
+  }
+  updateStopwatchDisplay(); // Ensure display is updated on creation/refresh
+}
+
+function updateStopwatchDisplay() {
+  const display = document.getElementById('stopwatchDisplay');
+  const startStopBtn = document.getElementById('stopwatchStartStopBtn');
+  if (display) {
+    display.textContent = formatTime(stopwatchElapsedTime);
+    startStopBtn.textContent = isStopwatchRunning ? 'Stop' : 'Start';
+  }
+}
+
+function startStopwatch() {
+  if (!isStopwatchRunning) {
+    stopwatchStartTime = Date.now() - stopwatchElapsedTime;
+    stopwatchInterval = setInterval(() => {
+      stopwatchElapsedTime = Date.now() - stopwatchStartTime;
+      updateStopwatchDisplay();
+    }, 10);
+    isStopwatchRunning = true;
+    updateStopwatchDisplay();
+  }
+}
+
+function stopStopwatch() {
+  if (isStopwatchRunning) {
+    clearInterval(stopwatchInterval);
+    stopwatchInterval = null;
+    isStopwatchRunning = false;
+    updateStopwatchDisplay();
+  }
+}
+
+function toggleStopwatch() {
+  if (isStopwatchRunning) {
+    stopStopwatch();
+  } else {
+    startStopwatch();
+  }
+}
+
+function resetStopwatch() {
+  stopStopwatch();
+  stopwatchElapsedTime = 0;
+  updateStopwatchDisplay();
+}
+
+// --- Timer Widget Functions ---
+function createTimerWidget() {
+  if (activeWidgetType !== 'timer') {
+    clearWidgets();
+    activeWidgetType = 'timer';
+    const widget = document.createElement('div');
+    widget.className = 'widget-item timer-widget';
+    widget.innerHTML = `
+      <p class="widget-title">Timer</p>
+      <div class="timer-input-group">
+        <input type="number" id="timerMinutes" value="0" min="0"> min
+        <input type="number" id="timerSeconds" value="0" min="0" max="59"> sec
+      </div>
+      <div id="timerDisplay" class="time-display"></div>
+      <div class="widget-controls">
+        <button id="timerSetBtn">Set</button>
+        <button id="timerStartStopBtn"></button>
+        <button id="timerResetBtn">Reset</button>
+      </div>
+    `;
+    widgetContainer.appendChild(widget);
+
+    document.getElementById('timerSetBtn').onclick = setTimerFromInput;
+    document.getElementById('timerStartStopBtn').onclick = toggleTimer;
+    document.getElementById('timerResetBtn').onclick = resetTimer;
+  }
+  updateTimerDisplay(); // Ensure display is updated on creation/refresh
+}
+
+function updateTimerDisplay() {
+  const display = document.getElementById('timerDisplay');
+  const startStopBtn = document.getElementById('timerStartStopBtn');
+  if (display) {
+    if (timerRemainingTime <= 0 && isTimerRunning) { // Timer finished while running
+        isTimerRunning = false;
+        clearInterval(timerInterval);
+        timerInterval = null;
+        speakText("Your timer is done!");
+    }
+    display.textContent = formatTime(Math.max(0, timerRemainingTime), false); // No hundredths for timer
+    startStopBtn.textContent = isTimerRunning ? 'Stop' : 'Start';
+  }
+}
+
+function setTimerFromInput() {
+    const minutesInput = document.getElementById('timerMinutes');
+    const secondsInput = document.getElementById('timerSeconds');
+    if (!minutesInput || !secondsInput) return; // Inputs might not be there if widget not created
+
+    let minutes = parseInt(minutesInput.value || '0');
+    let seconds = parseInt(secondsInput.value || '0');
+    minutes = Math.max(0, minutes);
+    seconds = Math.max(0, Math.min(59, seconds)); // Cap seconds at 59
+
+    timerTargetDuration = (minutes * 60 + seconds) * 1000;
+    timerRemainingTime = timerTargetDuration;
+    if (isTimerRunning) stopTimer(); // Stop if running to reset
+    updateTimerDisplay();
+    speakText(`Timer set for ${minutes} minutes and ${seconds} seconds.`);
+}
+
+function startTimer() {
+  if (!isTimerRunning && timerRemainingTime > 0) {
+    const timerEndTime = Date.now() + timerRemainingTime;
+    timerInterval = setInterval(() => {
+      timerRemainingTime = timerEndTime - Date.now();
+      if (timerRemainingTime <= 0) {
+        timerRemainingTime = 0;
+        updateTimerDisplay(); // Will also trigger 'Timer is done' message
+        clearInterval(timerInterval);
+        timerInterval = null;
+        isTimerRunning = false; // Set to false after it's done
+        document.getElementById('timerStartStopBtn').textContent = 'Start';
+      } else {
+        updateTimerDisplay();
+      }
+    }, 1000); // Update every second
+    isTimerRunning = true;
+    updateTimerDisplay();
+  }
+}
+
+function stopTimer() {
+  if (isTimerRunning) {
+    clearInterval(timerInterval);
+    timerInterval = null;
+    isTimerRunning = false;
+    updateTimerDisplay();
+  }
+}
+
+function toggleTimer() {
+  if (isTimerRunning) {
+    stopTimer();
+  } else {
+    startTimer();
+  }
+}
+
+function resetTimer() {
+  stopTimer();
+  timerRemainingTime = timerTargetDuration; // Reset to the last set duration
+  updateTimerDisplay();
+}
+
+
+// --- Links Widget Function ---
+function createLinksWidget(linksArray) {
+  if (activeWidgetType !== 'links') {
+    clearWidgets();
+    activeWidgetType = 'links';
+    if (linksArray.length === 0) return;
+
+    const widget = document.createElement('div');
+    widget.className = 'widget-item links-widget';
+    widget.innerHTML = `<p class="widget-title">Relevant Links</p><ul class="widget-content"></ul>`;
+    const ul = widget.querySelector('ul');
+
+    linksArray.forEach(link => {
+      const li = document.createElement('li');
+      const a = document.createElement('a');
+      a.href = link;
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      a.textContent = link.replace(/^(https?:\/\/(www\.)?)/, '').split('/')[0] + '...';
+      ul.appendChild(li).appendChild(a);
+    });
+    widgetContainer.appendChild(widget);
+  }
+}
+
+// --- Command Parsing for Praterich ---
+function parseUserCommand(text) {
+    text = text.toLowerCase();
+    const command = { type: 'none', action: 'none', duration: null };
+
+    // Stopwatch commands
+    if (text.includes('stopwatch') || text.includes('stop watch')) {
+        command.type = 'stopwatch';
+        if (text.includes('start')) command.action = 'start';
+        else if (text.includes('stop') || text.includes('pause')) command.action = 'stop';
+        else if (text.includes('reset')) command.action = 'reset';
+        else if (text.includes('what is the time') || text.includes('how long')) command.action = 'query';
+        else command.action = 'show';
+    }
+    // Timer commands
+    else if (text.includes('timer')) {
+        command.type = 'timer';
+        if (text.includes('start')) command.action = 'start';
+        else if (text.includes('stop') || text.includes('pause')) command.action = 'stop';
+        else if (text.includes('reset')) command.action = 'reset';
+        else if (text.includes('set') || text.includes('for')) {
+            command.action = 'set';
+            // Extract duration: "set a timer for 5 minutes and 30 seconds"
+            const match = text.match(/for (\d+)\s*(minute|second)s?( and (\d+)\s*(minute|second)s?)?/);
+            if (match) {
+                let totalMillis = 0;
+                let val1 = parseInt(match[1]);
+                let unit1 = match[2];
+                if (unit1 && unit1.startsWith('minute')) totalMillis += val1 * 60 * 1000;
+                else if (unit1 && unit1.startsWith('second')) totalMillis += val1 * 1000;
+
+                if (match[4]) { // check for "and X units"
+                    let val2 = parseInt(match[4]);
+                    let unit2 = match[5];
+                    if (unit2 && unit2.startsWith('minute')) totalMillis += val2 * 60 * 1000;
+                    else if (unit2 && unit2.startsWith('second')) totalMillis += val2 * 1000;
+                }
+                command.duration = totalMillis;
+            }
+        }
+        else if (text.includes('what is the time') || text.includes('how much time')) command.action = 'query';
+        else command.action = 'show';
+    }
+    return command;
+}
+
+// --- Main Message Sending Logic ---
 async function sendVoiceMessage(userText){
   statusEl.textContent="Thinking...";
-  const requestBody = { contents:[{role:"user",parts:[{text:userText}]}], system_instruction:{parts:[{text:systemInstruction}]}, language: currentLanguage };
+  let praterichPrompt = userText; // Default prompt is the user's original text
+  const userCommand = parseUserCommand(userText);
+
+  // Handle widget-related commands directly in JavaScript
+  if (userCommand.type !== 'none') {
+    if (userCommand.type === 'stopwatch') {
+      createStopwatchWidget(); // Ensure stopwatch widget is present
+      switch (userCommand.action) {
+        case 'start':
+          startStopwatch();
+          praterichPrompt = "User asked to start the stopwatch. Please confirm it's running.";
+          break;
+        case 'stop':
+          stopStopwatch();
+          praterichPrompt = "User asked to stop the stopwatch. Please confirm it's paused.";
+          break;
+        case 'reset':
+          resetStopwatch();
+          praterichPrompt = "User asked to reset the stopwatch. Please confirm it's at zero.";
+          break;
+        case 'query':
+          const time = formatTime(stopwatchElapsedTime);
+          praterichPrompt = `User asked for the stopwatch time. It is currently at ${time}. Please verbally state this.`;
+          break;
+        case 'show':
+          // Just show it, Praterich confirms it's there.
+          praterichPrompt = "User asked for a stopwatch. Please confirm it's available.";
+          break;
+      }
+    } else if (userCommand.type === 'timer') {
+      createTimerWidget(); // Ensure timer widget is present
+      switch (userCommand.action) {
+        case 'set':
+            if (userCommand.duration !== null) {
+                // Manually set inputs and trigger set from input
+                const minutes = Math.floor(userCommand.duration / (60 * 1000));
+                const seconds = Math.floor((userCommand.duration % (60 * 1000)) / 1000);
+                document.getElementById('timerMinutes').value = minutes;
+                document.getElementById('timerSeconds').value = seconds;
+                setTimerFromInput(); // This will also update display and speak "timer set for..."
+                startTimer(); // Start automatically after setting via voice
+                praterichPrompt = `User asked to set a timer for ${minutes} minutes and ${seconds} seconds and start it. Please confirm it's running.`;
+            } else {
+                praterichPrompt = "User asked to set a timer but I couldn't understand the duration. Please ask them to specify.";
+            }
+            break;
+        case 'start':
+          startTimer();
+          praterichPrompt = "User asked to start the timer. Please confirm it's running.";
+          break;
+        case 'stop':
+          stopTimer();
+          praterichPrompt = "User asked to stop the timer. Please confirm it's paused.";
+          break;
+        case 'reset':
+          resetTimer();
+          praterichPrompt = "User asked to reset the timer. Please confirm it's reset to the last set duration.";
+          break;
+        case 'query':
+          const time = formatTime(timerRemainingTime, false);
+          praterichPrompt = `User asked for the timer time. It currently has ${time} remaining. Please verbally state this.`;
+          break;
+        case 'show':
+          praterichPrompt = "User asked for a timer. Please confirm it's available.";
+          break;
+      }
+    }
+  } else {
+    // If no widget command, process as a regular query.
+    // If an existing stopwatch/timer is running, don't clear it.
+    // If a links widget is active, clear it before showing new links.
+    if (activeWidgetType === 'links') {
+      clearWidgets(); // Clear old links widget
+    } else if (activeWidgetType === 'none') {
+        clearWidgets(); // Clear if nothing is active
+    }
+  }
+
+
+  const requestBody = { contents:[{role:"user",parts:[{text:praterichPrompt}]}], system_instruction:{parts:[{text:systemInstruction}]}, language: currentLanguage };
   try{
     const res = await fetch(API_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(requestBody)});
     if(!res.ok) throw new Error(await res.text());
     const data = await res.json();
     const reply = data.text || "Sorry, I didn't get that.";
-    speakText(reply, ()=> startListening());
+
+    // Speak Praterich's reply
+    speakText(reply, ()=>{
+      // After Praterich speaks, process for links if it was a general query and no timer/stopwatch is active
+      if (userCommand.type === 'none' || (userCommand.type === 'timer' && userCommand.action === 'set' && userCommand.duration === null)) { // Only process links if it was a general query or a failed timer set
+        const urlRegex = /(https?:\/\/[^\s]+)/g;
+        const foundLinks = reply.match(urlRegex);
+        if (foundLinks && foundLinks.length > 0) {
+          createLinksWidget(foundLinks);
+        } else if (activeWidgetType === 'links' && !foundLinks) {
+          // If a links widget was active but no new links are found, clear it
+          clearWidgets();
+        }
+      }
+      startListening(); // Always restart listening after Praterich is done
+    });
   }catch(err){
     console.error(err);
     speakText("Sorry, there was a problem connecting to my server.");
     statusEl.textContent="Connection error";
+    startListening(); // Try to restart listening after error
   }
 }
+
 
 function startListening(){
   if(!recognition) return;
