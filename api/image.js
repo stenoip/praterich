@@ -1,4 +1,3 @@
-// /api/praterich.js
 const https = require('https');
 
 // The main function that handles requests to your API
@@ -38,12 +37,28 @@ module.exports = async (req, res) => {
 
     const apiReq = https.request(options, (apiRes) => {
       let responseBody = '';
+
+      // Collect data chunks
       apiRes.on('data', (chunk) => {
         responseBody += chunk;
       });
 
       apiRes.on('end', () => {
-        res.status(200).json(JSON.parse(responseBody));
+        // Check the status code of the API response
+        if (apiRes.statusCode === 200) {
+          try {
+            // Attempt to parse the response as JSON
+            const jsonResponse = JSON.parse(responseBody);
+            res.status(200).json(jsonResponse);  // Send the JSON response back to the client
+          } catch (err) {
+            console.error('Error parsing JSON:', err);
+            res.status(500).json({ error: 'Error parsing JSON response from API.' });
+          }
+        } else {
+          // If the status code isn't 200, log the body and return an error
+          console.error('API returned an error:', responseBody);
+          res.status(apiRes.statusCode).json({ error: 'Failed to generate image', details: responseBody });
+        }
       });
     });
 
@@ -52,6 +67,7 @@ module.exports = async (req, res) => {
       res.status(500).json({ error: 'Something went wrong with the image generation.' });
     });
 
+    // Write data to the request body
     apiReq.write(data);
     apiReq.end();
   } else {
