@@ -15,7 +15,10 @@
     document.getElementById('generateButton').onclick = function() {
       var description = document.getElementById('description').value;
       if (description) {
-        fetch('/api/praterich', {  // Vercel serverless function endpoint
+        // Use your deployed Vercel backend URL
+        var apiUrl = 'https://praterich.vercel.app/api/praterich';
+
+        fetch(apiUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -24,13 +27,19 @@
             description: description
           })
         })
-        .then(response => response.json())
+        .then(response => {
+          if (!response.ok) {
+            throw new Error('Network response was not ok: ' + response.statusText);
+          }
+          return response.json();
+        })
         .then(data => {
           console.log('Image generation response:', data);
           alert('Image generation request sent!');
         })
         .catch(error => {
           console.error('Error:', error);
+          alert('Failed to generate image. Check console for details.');
         });
       } else {
         alert('Please enter a description.');
