@@ -23,23 +23,24 @@
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            description: description
-          })
+          body: JSON.stringify({ description: description })
         })
         .then(response => {
           if (!response.ok) {
-            throw new Error('Network response was not ok: ' + response.statusText);
+            // Throw with status info so alert shows details
+            return response.text().then(text => {
+              throw new Error('HTTP ' + response.status + ' ' + response.statusText + '\n' + text);
+            });
           }
           return response.json();
         })
         .then(data => {
           console.log('Image generation response:', data);
-          alert('Image generation request sent!');
+          alert('Image generation succeeded!\nCheck console for full response.');
         })
         .catch(error => {
           console.error('Error:', error);
-          alert('Failed to generate image. Check console for details.');
+          alert('Failed to generate image:\n' + (error.message || error));
         });
       } else {
         alert('Please enter a description.');
