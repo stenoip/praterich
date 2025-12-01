@@ -15,8 +15,8 @@
     document.getElementById('generateButton').onclick = function() {
       var description = document.getElementById('description').value;
       if (description) {
-        // Use your deployed Vercel backend URL
-        var apiUrl = 'https://praterich.vercel.app/api/praterich';
+        // Correct endpoint: api/image.js → /api/image
+        var apiUrl = 'https://praterich.vercel.app/api/image';
 
         fetch(apiUrl, {
           method: 'POST',
