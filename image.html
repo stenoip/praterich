@@ -11,23 +11,21 @@
   <textarea id="description" rows="4" cols="50"></textarea><br><br>
   <button id="generateButton">Generate Image</button>
 
+  <div id="imageContainer"></div>
+
   <script>
     document.getElementById('generateButton').onclick = function() {
       var description = document.getElementById('description').value;
       if (description) {
-        // Correct endpoint: api/image.js → /api/image
         var apiUrl = 'https://praterich.vercel.app/api/image';
 
         fetch(apiUrl, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ description: description })
         })
         .then(response => {
           if (!response.ok) {
-            // Throw with status info so alert shows details
             return response.text().then(text => {
               throw new Error('HTTP ' + response.status + ' ' + response.statusText + '\n' + text);
             });
@@ -35,8 +33,30 @@
           return response.json();
         })
         .then(data => {
-          console.log('Image generation response:', data);
-          alert('Image generation succeeded!\nCheck console for full response.');
+          console.log('Raw backend response:', data);
+
+          var container = document.getElementById('imageContainer');
+          container.innerHTML = '';
+
+          if (data.result_url) {
+            var img = document.createElement('img');
+            img.src = data.result_url;
+            img.alt = description;
+            img.style.maxWidth = '400px';
+            img.style.display = 'block';
+
+            var link = document.createElement('a');
+            link.href = data.result_url;
+            link.download = 'generated-image.jpg';
+            link.textContent = 'Download Image';
+            link.style.display = 'block';
+            link.style.marginTop = '10px';
+
+            container.appendChild(img);
+            container.appendChild(link);
+          } else {
+            container.textContent = 'No result_url found in response. Check console for details.';
+          }
         })
         .catch(error => {
           console.error('Error:', error);
