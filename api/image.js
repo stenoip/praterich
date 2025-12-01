@@ -1,23 +1,29 @@
 var https = require('https');
 
-// The main function that handles requests to your API
 module.exports = async function (req, res) {
+  // Always set CORS headers
+  res.setHeader('Access-Control-Allow-Origin', 'https://stenoip.github.io');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  // Handle preflight OPTIONS request
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
   // Allow only POST requests
   if (req.method !== 'POST') {
-    res.setHeader('Content-Type', 'application/json');
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
-  // Check origin (CORS restriction)
+  // Check origin (optional, since we already restrict above)
   var origin = req.headers.origin || req.headers.referer;
   if (!origin || origin.indexOf('stenoip.github.io') === -1) {
-    res.setHeader('Content-Type', 'application/json');
     return res.status(403).json({ error: 'Forbidden: Invalid origin' });
   }
 
   var customDescription = req.body && req.body.description;
   if (!customDescription) {
-    res.setHeader('Content-Type', 'application/json');
     return res.status(400).json({ error: 'Description is required.' });
   }
 
@@ -32,7 +38,7 @@ module.exports = async function (req, res) {
   };
 
   var data = JSON.stringify({
-    "url": "https://deep-image.ai/api-example3.jpg",  // Example image URL
+    "url": "https://deep-image.ai/api-example3.jpg",
     "width": 1024,
     "height": 1024,
     "background": {
@@ -53,7 +59,6 @@ module.exports = async function (req, res) {
     });
 
     apiRes.on('end', function () {
-      res.setHeader('Content-Type', 'application/json');
       if (apiRes.statusCode === 200) {
         try {
           var jsonResponse = JSON.parse(responseBody);
@@ -71,7 +76,6 @@ module.exports = async function (req, res) {
 
   apiReq.on('error', function (e) {
     console.error('Request error:', e);
-    res.setHeader('Content-Type', 'application/json');
     res.status(500).json({ error: 'Something went wrong with the image generation.' });
   });
 
