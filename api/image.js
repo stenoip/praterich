@@ -1,84 +1,61 @@
-var https = require('https');
+import { exec } from "child_process";
 
-module.exports = async function (req, res) {
-  // Always set CORS headers
-  res.setHeader('Access-Control-Allow-Origin', 'https://stenoip.github.io');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+const ALLOWED_ORIGIN = "https://stenoip.github.io";
+const API_KEY = process.env.HORDE_API_KEY; // store in Vercel env variables
 
-  // Handle preflight OPTIONS request
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
+export default function handler(req, res) {
+    // CORS headers
+    res.setHeader("Access-Control-Allow-Origin", ALLOWED_ORIGIN);
+    res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
-  // Allow only POST requests
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method Not Allowed' });
-  }
-
-  // Check origin (optional, since we already restrict above)
-  var origin = req.headers.origin || req.headers.referer;
-  if (!origin || origin.indexOf('stenoip.github.io') === -1) {
-    return res.status(403).json({ error: 'Forbidden: Invalid origin' });
-  }
-
-  var customDescription = req.body && req.body.description;
-  if (!customDescription) {
-    return res.status(400).json({ error: 'Description is required.' });
-  }
-
-  var options = {
-    hostname: 'deep-image.ai',
-    path: '/rest_api/process_result',
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': 'a6e669a0-cb91-11f0-a947-e79092c8e12c'
+    if (req.method === "OPTIONS") {
+        return res.status(200).end();
     }
-  };
 
-  var data = JSON.stringify({
-    "url": "https://deep-image.ai/api-example3.jpg",
-    "width": 1024,
-    "height": 1024,
-    "background": {
-      "generate": {
-        "description": customDescription,
-        "adapter_type": "face",
-        "model_type": "realistic",
-        "avatar_generation_type": "regular"
-      }
+    // ---------- 1. POST: Submit Prompt ----------
+    if (req.method === "POST") {
+        const prompt = req.body.prompt;
+
+        const curlCmd = `
+            curl -s -X POST https://stablehorde.net/api/v2/generate/async \
+            -H "Content-Type: application/json" \
+            -H "apikey: ${API_KEY}" \
+            -d '{
+                "prompt": "${prompt.replace(/"/g, "\\\"")}",
+                "params": {
+                    "width": 512,
+                    "height": 512,
+                    "steps": 20,
+                    "cfg_scale": 7,
+                    "sampler_name": "k_euler_a"
+                }
+            }'
+        `;
+
+        exec(curlCmd, (err, stdout) => {
+            if (err) return res.status(500).json({ error: err.toString() });
+            return res.status(200).json(JSON.parse(stdout));
+        });
+
+        return;
     }
-  });
 
-  var apiReq = https.request(options, function (apiRes) {
-    var responseBody = '';
+    // ---------- 2. GET: Check Status ----------
+    if (req.method === "GET") {
+        const id = req.query.id;
 
-    apiRes.on('data', function (chunk) {
-      responseBody += chunk;
-    });
+        const curlCmd = `
+            curl -s -X GET https://stablehorde.net/api/v2/generate/status/${id}
+        `;
 
-    apiRes.on('end', function () {
-      if (apiRes.statusCode === 200) {
-        try {
-          var jsonResponse = JSON.parse(responseBody);
-          res.status(200).json(jsonResponse);
-        } catch (err) {
-          console.error('Error parsing JSON:', err);
-          res.status(500).json({ error: 'Error parsing JSON response from API.' });
-        }
-      } else {
-        console.error('API returned an error:', responseBody);
-        res.status(apiRes.statusCode).json({ error: 'Failed to generate image', details: responseBody });
-      }
-    });
-  });
+        exec(curlCmd, (err, stdout) => {
+            if (err) return res.status(500).json({ error: err.toString() });
+            return res.status(200).json(JSON.parse(stdout));
+        });
 
-  apiReq.on('error', function (e) {
-    console.error('Request error:', e);
-    res.status(500).json({ error: 'Something went wrong with the image generation.' });
-  });
+        return;
+    }
 
-  apiReq.write(data);
-  apiReq.end();
-};
+    return res.status(405).json({ error: "Method not allowed" });
+}
