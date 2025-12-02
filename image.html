@@ -1,56 +1,76 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="UTF-8">
-    <title> Image Generator</title>
+  <meta charset="UTF-8">
+  <title>Image Generator</title>
 </head>
 <body>
-    <h1>Horde Image Generator</h1>
+  <h1>Horde Image Generator</h1>
 
-    <label>Prompt:</label><br>
-    <input id="prompt" type="text" size="60" value="a futuristic city at sunset"><br><br>
+  <label>Prompt:</label><br>
+  <input id="prompt" type="text" size="60" value="a futuristic city at sunset"><br><br>
 
-    <button onclick="generate()">Generate Image</button>
+  <label>Jolden Token:</label><br>
+  <input id="joldenToken" type="text" size="30"><br><br>
 
-    <h2>Status</h2>
-    <pre id="status"></pre>
+  <button onclick="generate()">Generate Image</button>
 
-    <h2>Image</h2>
-    <img id="resultImage" style="max-width:512px">
+  <h2>Status</h2>
+  <pre id="status"></pre>
 
-    <script>
-        const API_URL = "https://praterich.vercel.app/api/image";
+  <h2>Image</h2>
+  <img id="resultImage" style="max-width:512px">
 
-        async function generate() {
-            const prompt = document.getElementById("prompt").value;
-            document.getElementById("status").textContent = "Submitting request...";
+  <script>
+    const API_URL = "https://praterich.vercel.app/api/image";
 
-            const response = await fetch(API_URL, {
-                method: "POST",
-                headers: {"Content-Type": "application/json"},
-                body: JSON.stringify({ prompt })
-            });
+    async function generate() {
+      const prompt = document.getElementById("prompt").value;
+      const joldenToken = document.getElementById("joldenToken").value;
+      document.getElementById("status").textContent = "Submitting request...";
 
-            const data = await response.json();
-            document.getElementById("status").textContent = "ID: " + data.id;
+      try {
+        const response = await fetch(API_URL, {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({ prompt, joldenToken })
+        });
 
-            let done = false;
-            while (!done) {
-                const checkRes = await fetch(API_URL + "?id=" + data.id);
-                const info = await checkRes.json();
-
-                document.getElementById("status").textContent =
-                    JSON.stringify(info, null, 2);
-
-                if (info.done && info.generations) {
-                    const url = info.generations[0].img;
-                    document.getElementById("resultImage").src = url;
-                    done = true;
-                }
-
-                await new Promise(r => setTimeout(r, 1500));
-            }
+        const data = await response.json();
+        if (response.status !== 200) {
+          document.getElementById("status").textContent = "Error: " + data.error;
+          return;
         }
-    </script>
+
+        document.getElementById("status").textContent = "ID: " + data.id;
+
+        let done = false;
+        let retries = 0;
+
+        while (!done && retries < 40) { // ~60 seconds max
+          retries++;
+          const checkRes = await fetch(API_URL + "?id=" + data.id + "&joldenToken=" + joldenToken);
+          const info = await checkRes.json();
+
+          document.getElementById("status").textContent =
+            JSON.stringify(info, null, 2);
+
+          if (info.done && info.generations) {
+            const url = info.generations[0].img;
+            document.getElementById("resultImage").src = url;
+            done = true;
+          }
+
+          await new Promise(r => setTimeout(r, 1500));
+        }
+
+        if (!done) {
+          document.getElementById("status").textContent = "Timed out waiting for image.";
+        }
+      } catch (err) {
+        document.getElementById("status").textContent = "Error: " + err.message;
+      }
+    }
+  </script>
 </body>
 </html>
