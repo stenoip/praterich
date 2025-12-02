@@ -1,7 +1,7 @@
 import { exec } from "child_process";
 
 const ALLOWED_ORIGIN = "https://stenoip.github.io";
-const API_KEY = process.env.HORDE_API_KEY;      // Stable Horde API key
+const API_KEY = process.env.HORDE_API_KEY;      
 const JOLDEN_TOKEN = process.env.JOLDEN_TOKEN;  // Moderator-set token
 
 export default function handler(req, res) {
@@ -20,7 +20,7 @@ export default function handler(req, res) {
 
     // Validate Jolden Token
     if (joldenToken !== JOLDEN_TOKEN) {
-      return res.status(403).json({ error: "Invalid Jolden Token" });
+      return res.status(403).json({ error: "Invalid Jolden Token. Did it expire? To get a Token, you must complete Stenoip Company's daily challenge! " });
     }
 
     const curlCmd = `
