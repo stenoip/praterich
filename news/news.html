@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Praterich News</title>
+<style>
+    body {
+        margin: 0;
+        font-family: Arial, sans-serif;
+        background: #f4f4f4;
+    }
+    .wrapper {
+        max-width: 750px;
+        margin: 30px auto;
+        background: white;
+        padding: 25px;
+        border-radius: 10px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+    h1 {
+        text-align: center;
+        margin-top: 0;
+    }
+    #news-box {
+        margin-top: 25px;
+        padding: 20px;
+        background: #eaeaea;
+        border-left: 5px solid #4caf50;
+        border-radius: 5px;
+        line-height: 1.6;
+        font-size: 1.1em;
+    }
+    #loading {
+        text-align: center;
+        margin-top: 25px;
+        font-size: 1.2em;
+        color: #4caf50;
+        display: none;
+    }
+    button {
+        width: 100%;
+        padding: 15px;
+        margin-top: 20px;
+        font-size: 1.1em;
+        border: none;
+        border-radius: 5px;
+        background: #4caf50;
+        color: white;
+        cursor: pointer;
+    }
+    button:hover {
+        background: #43a047;
+    }
+</style>
+</head>
+<body>
+
+<div class="wrapper">
+    <h1>Praterich News</h1>
+    <p style="text-align:center;color:#555;">Unbiased AI-generated news reports</p>
+
+    <div id="news-box">Click “Generate News” to begin.</div>
+
+    <div id="loading">Generating unbiased report...</div>
+
+    <button id="generate-btn">Generate News</button>
+</div>
+
+<script>
+/* --------------------------
+   CONFIG
+---------------------------*/
+const API_URL = "https://praterich.vercel.app/api/praterich";
+
+const ladyPraterichSystemInstruction = `
+You are Praterich, developed by Stenoip Company.
+
+For this interface your sole purpose is to generate unbiased news reports.
+Your writing must be fact-focused, neutral and free of political or emotional bias.
+No opinions, no sensationalism, no exaggeration.
+
+Use clear, calm and professional journalistic style.
+You never use raw HTML tags.
+`;
+
+/* --------------------------
+   DOM
+---------------------------*/
+const newsBox = document.getElementById("news-box");
+const loading = document.getElementById("loading");
+const generateBtn = document.getElementById("generate-btn");
+
+/* --------------------------
+   MAIN FUNCTION
+---------------------------*/
+async function generateNews() {
+    loading.style.display = "block";
+    newsBox.textContent = "";
+
+    // API body must match your original chat-style structure
+    const body = {
+        contents: [
+            {
+                role: "user",
+                parts: [{ text: "Generate an unbiased news report." }]
+            }
+        ],
+        system_instruction: {
+            parts: [{ text: ladyPraterichSystemInstruction }]
+        }
+    };
+
+    try {
+        const res = await fetch(API_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body)
+        });
+
+        loading.style.display = "none";
+
+        if (!res.ok) {
+            const err = await res.json();
+            newsBox.textContent = "Error: " + (err.error || res.status);
+            return;
+        }
+
+        const data = await res.json();
+        newsBox.textContent = data.text;
+
+    } catch (err) {
+        loading.style.display = "none";
+        newsBox.textContent = "Network or API error—please try again later.";
+        console.error(err);
+    }
+}
+
+/* --------------------------
+   EVENTS
+---------------------------*/
+generateBtn.addEventListener("click", generateNews);
+</script>
+
+</body>
+</html>
