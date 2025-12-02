@@ -7,103 +7,178 @@
 <style>
     body {
         margin: 0;
-        font-family: Arial, sans-serif;
-        background: #f4f4f4;
+        font-family: Georgia, serif;
+        background: #eee;
     }
-    .wrapper {
-        max-width: 750px;
-        margin: 30px auto;
-        background: white;
-        padding: 25px;
-        border-radius: 10px;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-    }
-    h1 {
-        text-align: center;
-        margin-top: 0;
-    }
-    #news-box {
-        margin-top: 25px;
-        padding: 20px;
-        background: #eaeaea;
-        border-left: 5px solid #4caf50;
-        border-radius: 5px;
-        line-height: 1.6;
-        font-size: 1.1em;
-    }
-    #loading {
-        text-align: center;
-        margin-top: 25px;
-        font-size: 1.2em;
-        color: #4caf50;
-        display: none;
-    }
-    button {
-        width: 100%;
-        padding: 15px;
-        margin-top: 20px;
-        font-size: 1.1em;
-        border: none;
-        border-radius: 5px;
-        background: #4caf50;
+
+    .header {
+        background: #111;
         color: white;
+        text-align: center;
+        padding: 25px;
+        font-size: 2.3em;
+        font-weight: bold;
+    }
+
+    .navbar {
+        display: flex;
+        background: #333;
+        padding: 12px;
+        justify-content: center;
+        color: #fff;
+        gap: 25px;
+        font-size: 1.1em;
+    }
+    .navbar div:hover {
+        color: #4caf50;
         cursor: pointer;
     }
-    button:hover {
+
+    .wrapper {
+        max-width: 900px;
+        margin: 25px auto;
+        background: white;
+        padding: 30px;
+        border-radius: 12px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+
+    .bias-box {
+        margin-bottom: 30px;
+    }
+    .bias-labels {
+        display: flex;
+        justify-content: space-between;
+        font-weight: bold;
+        color: #666;
+        margin-top: 8px;
+    }
+    input[type=range] {
+        width: 100%;
+    }
+
+    #article {
+        font-size: 1.2em;
+        line-height: 1.7;
+        margin-top: 20px;
+    }
+
+    #loading {
+        display: none;
+        margin-top: 25px;
+        text-align: center;
+        font-size: 1.2em;
+        color: #4caf50;
+    }
+
+    .btn {
+        margin-top: 30px;
+        width: 100%;
+        padding: 15px;
+        background: #4caf50;
+        color: white;
+        border: none;
+        font-size: 1.2em;
+        border-radius: 8px;
+        cursor: pointer;
+    }
+    .btn:hover {
         background: #43a047;
     }
 </style>
 </head>
 <body>
 
+<div class="header">PRATERICH NEWS</div>
+
+<div class="navbar">
+    <div>World</div>
+    <div>Politics</div>
+    <div>Tech</div>
+    <div>Science</div>
+    <div>Business</div>
+</div>
+
 <div class="wrapper">
-    <h1>Praterich News</h1>
-    <p style="text-align:center;color:#555;">Unbiased AI-generated news reports</p>
 
-    <div id="news-box">Click “Generate News” to begin.</div>
+    <!-- Bias Slider -->
+    <div class="bias-box">
+        <label><strong>Bias Level:</strong></label>
+        <input type="range" id="bias-slider" min="0" max="4" value="2">
+        <div class="bias-labels">
+            <span>Far Left</span>
+            <span>Left</span>
+            <span>Center</span>
+            <span>Right</span>
+            <span>Far Right</span>
+        </div>
+    </div>
 
-    <div id="loading">Generating unbiased report...</div>
+    <div id="article">
+        <h2>Welcome</h2>
+        <p>Click “Generate News” to produce an article influenced by the selected political perspective.</p>
+    </div>
 
-    <button id="generate-btn">Generate News</button>
+    <div id="loading">Generating article…</div>
+
+    <button class="btn" id="generate-btn">Generate News</button>
+
 </div>
 
 <script>
-/* --------------------------
-   CONFIG
----------------------------*/
+/* CONFIG */
 const API_URL = "https://praterich.vercel.app/api/praterich";
 
+/* System Instruction (allows HTML output + controlled bias) */
 const ladyPraterichSystemInstruction = `
 You are Praterich, developed by Stenoip Company.
 
-For this interface your sole purpose is to generate unbiased news reports.
-Your writing must be fact-focused, neutral and free of political or emotional bias.
-No opinions, no sensationalism, no exaggeration.
+The user will choose a political bias level. You MUST write the article with that bias.
+Your responses may use bold text (<b></b>), headings (<h2></h2>), and paragraphs (<p></p>).
+Do NOT output markdown formatting. Do NOT output asterisks. Use only clean HTML tags.
 
-Use clear, calm and professional journalistic style.
-You never use raw HTML tags.
+Write like a real journalist from the selected viewpoint. Use emotional tone, persuasive framing, and selectively emphasized facts depending on the bias:
+
+• Far Left — socially progressive, anti-corporate, pro-worker, skeptical of authority.
+• Left — moderately progressive tone.
+• Center — fully neutral, factual, calm.
+• Right — moderately conservative tone.
+• Far Right — nationalist, traditionalist, strongly critical of liberal policies.
+
+You MUST output clean HTML content for the article body.
 `;
 
-/* --------------------------
-   DOM
----------------------------*/
-const newsBox = document.getElementById("news-box");
+/* DOM */
+const articleBox = document.getElementById("article");
 const loading = document.getElementById("loading");
-const generateBtn = document.getElementById("generate-btn");
+const slider = document.getElementById("bias-slider");
+const btn = document.getElementById("generate-btn");
 
-/* --------------------------
-   MAIN FUNCTION
----------------------------*/
+/* Perspective Map */
+function getBiasName() {
+    switch (parseInt(slider.value)) {
+        case 0: return "far-left";
+        case 1: return "left";
+        case 2: return "center";
+        case 3: return "right";
+        case 4: return "far-right";
+    }
+}
+
+/* Main Function */
 async function generateNews() {
-    loading.style.display = "block";
-    newsBox.textContent = "";
+    const bias = getBiasName();
 
-    // API body must match your original chat-style structure
+    loading.style.display = "block";
+    articleBox.innerHTML = "";
+
     const body = {
         contents: [
             {
                 role: "user",
-                parts: [{ text: "Generate an unbiased news report." }]
+                parts: [{
+                    text: `Write a full HTML news article. Bias level: ${bias}.`
+                }]
             }
         ],
         system_instruction: {
@@ -122,24 +197,21 @@ async function generateNews() {
 
         if (!res.ok) {
             const err = await res.json();
-            newsBox.textContent = "Error: " + (err.error || res.status);
+            articleBox.innerHTML = "<p>Error: " + (err.error || res.status) + "</p>";
             return;
         }
 
         const data = await res.json();
-        newsBox.textContent = data.text;
+        articleBox.innerHTML = data.text; // <-- HTML is inserted directly
 
     } catch (err) {
         loading.style.display = "none";
-        newsBox.textContent = "Network or API error—please try again later.";
+        articleBox.innerHTML = "<p>Network error. Try again.</p>";
         console.error(err);
     }
 }
 
-/* --------------------------
-   EVENTS
----------------------------*/
-generateBtn.addEventListener("click", generateNews);
+btn.addEventListener("click", generateNews);
 </script>
 
 </body>
