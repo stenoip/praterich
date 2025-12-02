@@ -1,71 +1,56 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Image Generator</title>
+    <meta charset="UTF-8">
+    <title> Image Generator</title>
 </head>
 <body>
-  <h1>Generate an Image</h1>
-  <label for="description">Enter a description:</label>
-  <textarea id="description" rows="4" cols="50"></textarea><br><br>
-  <button id="generateButton">Generate Image</button>
+    <h1>Horde Image Generator</h1>
 
-  <div id="imageContainer"></div>
+    <label>Prompt:</label><br>
+    <input id="prompt" type="text" size="60" value="a futuristic city at sunset"><br><br>
 
-  <script>
-    document.getElementById('generateButton').onclick = function() {
-      var description = document.getElementById('description').value;
-      if (description) {
-        var apiUrl = 'https://praterich.vercel.app/api/image';
+    <button onclick="generate()">Generate Image</button>
 
-        fetch(apiUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ description: description })
-        })
-        .then(response => {
-          if (!response.ok) {
-            return response.text().then(text => {
-              throw new Error('HTTP ' + response.status + ' ' + response.statusText + '\n' + text);
+    <h2>Status</h2>
+    <pre id="status"></pre>
+
+    <h2>Image</h2>
+    <img id="resultImage" style="max-width:512px">
+
+    <script>
+        const API_URL = "https://praterich.vercel.app/api/image";
+
+        async function generate() {
+            const prompt = document.getElementById("prompt").value;
+            document.getElementById("status").textContent = "Submitting request...";
+
+            const response = await fetch(API_URL, {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({ prompt })
             });
-          }
-          return response.json();
-        })
-        .then(data => {
-          console.log('Raw backend response:', data);
 
-          var container = document.getElementById('imageContainer');
-          container.innerHTML = '';
+            const data = await response.json();
+            document.getElementById("status").textContent = "ID: " + data.id;
 
-          if (data.result_url) {
-            var img = document.createElement('img');
-            img.src = data.result_url;
-            img.alt = description;
-            img.style.maxWidth = '400px';
-            img.style.display = 'block';
+            let done = false;
+            while (!done) {
+                const checkRes = await fetch(API_URL + "?id=" + data.id);
+                const info = await checkRes.json();
 
-            var link = document.createElement('a');
-            link.href = data.result_url;
-            link.download = 'generated-image.jpg';
-            link.textContent = 'Download Image';
-            link.style.display = 'block';
-            link.style.marginTop = '10px';
+                document.getElementById("status").textContent =
+                    JSON.stringify(info, null, 2);
 
-            container.appendChild(img);
-            container.appendChild(link);
-          } else {
-            container.textContent = 'No result_url found in response. Check console for details.';
-          }
-        })
-        .catch(error => {
-          console.error('Error:', error);
-          alert('Failed to generate image:\n' + (error.message || error));
-        });
-      } else {
-        alert('Please enter a description.');
-      }
-    };
-  </script>
+                if (info.done && info.generations) {
+                    const url = info.generations[0].img;
+                    document.getElementById("resultImage").src = url;
+                    done = true;
+                }
+
+                await new Promise(r => setTimeout(r, 1500));
+            }
+        }
+    </script>
 </body>
 </html>
