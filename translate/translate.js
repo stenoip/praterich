@@ -8,46 +8,34 @@ You are Praterich. Translate text naturally and accurately.
 Respond ONLY with the translation.
 `;
 
-// 20 LANGUAGES
+let mergedLanguageData = null;
+
+// Languages available
 const LANGUAGES = [
-    "English",
-    "Spanish",
-    "French",
-    "German",
-    "Italian",
-    "Portuguese",
-    "Russian",
-    "Chinese",
-    "Japanese",
-    "Korean",
-    "Arabic",
-    "Turkish",
-    "Dutch",
-    "Polish",
-    "Swedish",
-    "Norwegian",
-    "Finnish",
-    "Greek",
-    "Hindi",
-    "Thai"
+    "English", "Spanish", "French", "German", "Italian",
+    "Portuguese", "Russian", "Chinese", "Japanese", "Korean",
+    "Arabic", "Turkish", "Dutch", "Polish", "Swedish",
+    "Norwegian", "Finnish", "Greek", "Hindi", "Thai", "Ga"
 ];
 
+// ==========================
 // Populate dropdowns
-const fromLang = document.getElementById("fromLang");
-const toLang = document.getElementById("toLang");
+// ==========================
+function populateDropdown(id) {
+    const element = document.getElementById(id);
+    LANGUAGES.forEach(lang => {
+        let opt = document.createElement("option");
+        opt.value = lang;
+        opt.textContent = lang;
+        element.appendChild(opt);
+    });
+}
 
-LANGUAGES.forEach(lang => {
-    let opt1 = document.createElement("option");
-    opt1.value = lang;
-    opt1.textContent = lang;
+populateDropdown("fromLang");
+populateDropdown("toLang");
+populateDropdown("mergeLang1");
+populateDropdown("mergeLang2");
 
-    let opt2 = opt1.cloneNode(true);
-
-    fromLang.appendChild(opt1);
-    toLang.appendChild(opt2);
-});
-
-// Default
 fromLang.value = "English";
 toLang.value = "Spanish";
 
@@ -59,41 +47,90 @@ document.getElementById("swapBtn").addEventListener("click", () => {
     fromLang.value = toLang.value;
     toLang.value = temp;
 
-    // Swap text fields too (Google Translate behavior)
-    let t1 = document.getElementById("inputText").value;
-    document.getElementById("inputText").value = document.getElementById("outputText").value;
-    document.getElementById("outputText").value = t1;
+    let t1 = inputText.value;
+    inputText.value = outputText.value;
+    outputText.value = t1;
 });
 
 // ==========================
-// TRANSLATION
+// Standard Translation
 // ==========================
-document.getElementById("translateBtn").addEventListener("click", async () => {
-    const input = document.getElementById("inputText").value.trim();
+translateBtn.addEventListener("click", async () => {
+    const input = inputText.value.trim();
     const source = fromLang.value;
     const target = toLang.value;
-    const outputBox = document.getElementById("outputText");
-    const loading = document.getElementById("loading");
 
     if (!input) {
-        outputBox.value = "Enter text to translate.";
+        outputText.value = "Enter text to translate.";
         return;
     }
 
     loading.textContent = "Translating...";
-    outputBox.value = "";
+    outputText.value = "";
 
-    const requestBody = {
+    const body = {
+        contents: [
+            { role: "user", parts: [{ text: `Translate from ${source} to ${target}: ${input}` }] }
+        ],
+        system_instruction: { parts: [{ text: systemInstruction }] }
+    };
+
+    try {
+        const response = await fetch(API_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body)
+        });
+
+        loading.textContent = "";
+
+        if (!response.ok) {
+            outputText.value = "Translation failed.";
+            return;
+        }
+
+        const data = await response.json();
+        outputText.value = data.text || "No translation.";
+    } catch {
+        loading.textContent = "";
+        outputText.value = "Network error.";
+    }
+});
+
+// ==========================
+// LANGUAGE LEARNING CHAT
+// ==========================
+learnBtn.addEventListener("click", async () => {
+    const question = learnInput.value.trim();
+    const selectedLang = toLang.value;
+
+    if (!question) {
+        learnOutput.value = "Please enter a question.";
+        return;
+    }
+
+    learnLoading.textContent = "Thinking...";
+    learnOutput.value = "";
+
+    const body = {
         contents: [
             {
                 role: "user",
                 parts: [
-                    { text: `Translate from ${source} to ${target}: ${input}` }
+                    { text: `Explain the following about ${selectedLang}: ${question}` }
                 ]
             }
         ],
         system_instruction: {
-            parts: [{ text: systemInstruction }]
+            parts: [
+                {
+                    text: `
+You are Praterich, a language tutor.
+Explain grammar, vocabulary, pronunciation, cultural context, and examples.
+Avoid translation unless asked directly.
+`
+                }
+            ]
         }
     };
 
@@ -101,21 +138,179 @@ document.getElementById("translateBtn").addEventListener("click", async () => {
         const response = await fetch(API_URL, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(requestBody)
+            body: JSON.stringify(body)
         });
 
-        loading.textContent = "";
-
-        if (!response.ok) {
-            outputBox.value = "Translation failed.";
-            return;
-        }
-
+        learnLoading.textContent = "";
         const data = await response.json();
-        outputBox.value = data.text || "No translation received.";
-    } catch (err) {
-        loading.textContent = "";
-        outputBox.value = "Network error.";
-        console.error(err);
+        learnOutput.value = data.text || "No response.";
+    } catch {
+        learnLoading.textContent = "";
+        learnOutput.value = "Network error.";
     }
 });
+
+// ==========================
+// MERGE TWO LANGUAGES
+// ==========================
+mergeBtn.addEventListener("click", async () => {
+    const A = document.getElementById("mergeLang1").value;
+    const B = document.getElementById("mergeLang2").value;
+
+    mergeLoading.textContent = "Merging languages...";
+    mergedPreview.value = "";
+
+    const body = {
+        system_instruction: {
+            parts: [
+                {
+                    text: `
+You are Praterich.
+When creating merged languages, you MUST output ONLY valid JSON.
+No markdown. No comments. No backticks. No explanations.
+Respond ONLY with strict valid JSON.
+`
+                }
+            ]
+        },
+        contents: [
+            {
+                role: "user",
+                parts: [
+                    {
+                        text: `
+Create a merged language using ${A} and ${B}.
+Output ONLY valid JSON like this:
+
+{
+  "name": "<merged language name>",
+  "description": "...",
+  "alphabet": [...],
+  "grammar_rules": [...],
+  "word_creation_rules": [...],
+  "sample_vocabulary": [
+    { "word": "", "meaning": "" }
+  ],
+  "translation_logic": "Explain how translation works."
+}
+
+No backticks. No extra text.
+`
+                    }
+                ]
+            }
+        ]
+    };
+
+    try {
+        const response = await fetch(API_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body)
+        });
+
+        const data = await response.json();
+        mergeLoading.textContent = "";
+
+        // clean possible code fences
+        let text = data.text.trim();
+        text = text.replace(/```json|```/g, "").trim();
+
+        try {
+            mergedLanguageData = JSON.parse(text);
+            mergedPreview.value = JSON.stringify(mergedLanguageData, null, 2);
+        } catch {
+            mergedPreview.value = "Invalid JSON returned. Try again.";
+        }
+    } catch {
+        mergeLoading.textContent = "";
+        mergedPreview.value = "Network error.";
+    }
+});
+
+// ==========================
+// DOWNLOAD MERGED LANGUAGE JSON
+// ==========================
+downloadMerged.addEventListener("click", () => {
+    if (!mergedLanguageData) {
+        alert("No merged language to download!");
+        return;
+    }
+
+    const blob = new Blob(
+        [JSON.stringify(mergedLanguageData, null, 2)],
+        { type: "application/json" }
+    );
+
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `${mergedLanguageData.name || "merged_language"}.json`;
+    a.click();
+});
+
+// ==========================
+// UPLOAD MERGED LANGUAGE JSON
+// ==========================
+uploadMerged.addEventListener("change", async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const text = await file.text();
+    try {
+        mergedLanguageData = JSON.parse(text);
+        mergedPreview.value = JSON.stringify(mergedLanguageData, null, 2);
+    } catch {
+        alert("Invalid JSON file.");
+    }
+});
+
+// ==========================
+// MERGED LANGUAGE TRANSLATOR
+// ==========================
+mergeTranslateBtn.addEventListener("click", async () => {
+    const input = mergeInput.value.trim();
+
+    if (!mergedLanguageData) {
+        mergeOutput.value = "No merged language loaded!";
+        return;
+    }
+
+    mergeTranslateLoading.textContent = "Translating...";
+    mergeOutput.value = "";
+
+    const body = {
+        contents: [
+            {
+                role: "user",
+                parts: [
+                    {
+                        text: `
+Using this merged language definition:
+
+${JSON.stringify(mergedLanguageData)}
+
+Translate the following text using the merged language rules:
+${input}
+`
+                    }
+                ]
+            }
+        ]
+    };
+
+    try {
+        const response = await fetch(API_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body)
+        });
+
+        mergeTranslateLoading.textContent = "";
+        const data = await response.json();
+        mergeOutput.value = data.text || "No translation.";
+    } catch {
+        mergeTranslateLoading.textContent = "";
+        mergeOutput.value = "Network error.";
+    }
+});
+
