@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -135,6 +136,73 @@
     <button id="translateBtn">Translate</button>
     <div id="loading"></div>
 </div>
+  
+  
+  <div style="margin: 40px auto; max-width: 1100px;">
+    <div class="panel" style="padding: 20px;">
+        <h2>Learn About Your Selected Language</h2>
+        <p style="margin-top: -5px; color: #444;">
+            Ask Praterich anything about <span id="currentLang">Spanish</span>.
+        </p>
+
+        <textarea id="learnInput" placeholder="Ask a question... (e.g., 'How do verb tenses work in this language?')"></textarea>
+
+        <button id="learnBtn" style="margin-top: 15px; padding: 14px; width:100%; background: green; color:white; font-size:18px; border:none; border-radius:8px; cursor:pointer;">
+            Ask Praterich
+        </button>
+
+        <textarea id="learnOutput" readonly placeholder="Praterich will answer here..." style="margin-top:15px; min-height:150px;"></textarea>
+
+        <div id="learnLoading" style="text-align:center; margin-top:10px; color:#555;"></div>
+    </div>
+</div>
+  
+  
+  <!-- MERGED LANGUAGE SECTION -->
+<div style="margin: 40px auto; max-width: 1100px;">
+    <div class="panel" style="padding: 20px;">
+        <h2>Merge Two Languages</h2>
+
+        <label>Select languages to merge:</label>
+        <div style="display:flex; gap:10px; margin-bottom:10px;">
+            <select id="mergeLang1"></select>
+            <select id="mergeLang2"></select>
+        </div>
+
+        <button id="mergeBtn" style="padding:12px; background:#8a2be2; color:white; border:none; border-radius:8px; cursor:pointer; width:100%;">
+            Generate Merged Language
+        </button>
+
+        <div id="mergeLoading" style="margin-top:10px; color:#555;"></div>
+
+        <textarea id="mergedPreview" readonly placeholder="Your merged language will appear here..." style="margin-top:15px; min-height:150px;"></textarea>
+
+        <button id="downloadMerged" style="margin-top:10px; padding:12px; background:#333; color:white; border:none; border-radius:8px; cursor:pointer; width:100%;">
+            Download Merged Language JSON
+        </button>
+
+        <h3 style="margin-top:25px;">Upload a Merged Language JSON</h3>
+        <input type="file" id="uploadMerged" accept=".json" style="margin-top:10px;" />
+    </div>
+</div>
+
+<!-- MERGED LANGUAGE TRANSLATOR -->
+<div style="margin: 40px auto; max-width: 1100px;">
+    <div class="panel" style="padding:20px;">
+        <h2>Merged Language Translator</h2>
+
+        <textarea id="mergeInput" placeholder="Enter text..."></textarea>
+
+        <button id="mergeTranslateBtn" style="margin-top: 15px; padding: 14px; width:100%; background: teal; color:white; font-size:18px; border:none; border-radius:8px; cursor:pointer;">
+            Translate Using Merged Language
+        </button>
+
+        <textarea id="mergeOutput" readonly placeholder="Translation will appear here..." style="margin-top:15px; min-height:150px;"></textarea>
+
+        <div id="mergeTranslateLoading" style="margin-top:10px; color:#555;"></div>
+    </div>
+</div>
+
 
 <script src="translate.js"></script>
 
