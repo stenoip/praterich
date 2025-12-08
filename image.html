@@ -1,39 +1,214 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Image Generator</title>
+  <style>
+    /* FRUTIGER AERO STYLING */
+    :root {
+        --glass-color: rgba(255, 255, 255, 0.5);
+        --glass-border: rgba(255, 255, 255, 0.8);
+        --water-color: #88d0ff;
+        --sky-color: #e0f2ff;
+        --shadow-color: rgba(0, 0, 0, 0.15);
+        --light-orange: #ff9900;
+        --dark-orange: #cc6600;
+        --sidebar-width: 250px;
+    }
+
+    /* --- FULL SCREEN FIX START --- */
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, var(--sky-color) 0%, var(--water-color) 100%);
+        display: flex;
+        min-height: 100vh;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+    }
+
+    #app-wrapper {
+        display: flex;
+        width: 100vw;
+        height: 100vh;
+        border-radius: 0;
+        box-shadow: none;
+        overflow: hidden;
+        background: var(--glass-color);
+        backdrop-filter: blur(15px);
+        border: none;
+        box-shadow: inset 0 0 50px rgba(255, 255, 255, 0.4);
+        position: relative;
+    }
+
+    #app-wrapper::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 5px;
+        background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.8) 50%, transparent 100%);
+        opacity: 0.7;
+        pointer-events: none;
+    }
+
+    /* --- FULL SCREEN FIX END --- */
+
+    /* --- FORM ELEMENTS --- */
+    label {
+        color: black; /* Changed text color to black */
+        font-weight: 600;
+        margin-bottom: 5px;
+        display: inline-block;
+    }
+
+    input, select, button {
+        margin: 10px 0;
+        padding: 10px;
+        border-radius: 8px;
+        border: 1px solid var(--glass-border);
+        background: var(--glass-color);
+        color: black; /* Changed input text color to black */
+        font-size: 1em;
+        font-weight: 600;
+        box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.1);
+        backdrop-filter: blur(5px);
+    }
+
+    input:focus, select:focus, button:focus {
+        outline: none;
+        border-color: var(--light-orange);
+    }
+
+    button {
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0) 50%, rgba(0, 0, 0, 0.1) 100%), var(--light-orange);
+        cursor: pointer;
+        transition: background-color 0.3s, box-shadow 0.3s;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    button:hover {
+        background-color: var(--dark-orange);
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.4) 0%, rgba(255, 255, 255, 0) 50%, rgba(0, 0, 0, 0.1) 100%), var(--dark-orange);
+        box-shadow: 0 6px 10px rgba(0, 0, 0, 0.4);
+    }
+
+    button:active {
+        transform: translateY(1px);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    /* --- STATUS AND IMAGES --- */
+    #status {
+        color: black; 
+        font-weight: 600;
+        white-space: pre-wrap;
+        padding: 10px;
+        background-color: rgba(0, 0, 0, 0.5);
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+
+    #imageContainer {
+        display: flex;
+        gap: 15px;
+        flex-wrap: wrap;
+    }
+
+    img {
+        max-width: 400px;
+        border-radius: 10px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    /* --- PRATERICH ICON AND COPYRIGHT --- */
+    #praterich-container {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-top: 20px;
+        font-size: 0.9em;
+        color: black; 
+    }
+
+    #praterich-icon {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 2px solid black; 
+        margin-right: 10px;
+    }
+
+    #copyright {
+        color: black; 
+    }
+  </style>
 </head>
 <body>
-  <h1>Horde Image Generator</h1>
+  <div id="app-wrapper">
+    <div style="flex-grow: 1; padding: 20px;">
+      <h1 style="color: black;">Horde Image Generator</h1>
 
-  <label>Prompt:</label><br>
-  <input id="prompt" type="text" size="60" value="a futuristic city at sunset"><br><br>
+      <label for="prompt">Prompt:</label><br>
+      <input id="prompt" type="text" size="60" value="a futuristic city at sunset"><br>
 
-  <label>Jolden Token:</label><br>
-  <input id="joldenToken" type="text" size="30"><br><br>
+      <label for="joldenToken">Jolden Token:</label><br>
+      <input id="joldenToken" type="text" size="30"><br>
 
-  <button onclick="generate()">Generate Image</button>
+      <label for="numImages">Number of Images:</label><br>
+      <select id="numImages">
+        <option value="3">3 Images</option>
+        <option value="6">6 Images</option>
+      </select><br>
 
-  <h2>Status</h2>
-  <pre id="status"></pre>
+      <button onclick="generate()">Generate Images</button>
 
-  <h2>Image</h2>
-  <img id="resultImage" style="max-width:512px">
+      <h2>Status</h2>
+      <pre id="status"></pre>
+
+      <h2>Generated Images</h2>
+      <div id="imageContainer"></div>
+
+      <!-- PRATERICH ICON AND COPYRIGHT -->
+      <div id="praterich-container">
+        <img id="praterich-icon" src="https://stenoip.github.io/praterich/praterich.png" alt="Praterich A.I. Icon" onerror="this.onerror=null; this.src='https://via.placeholder.com/30/ff9900/ffffff?text=P';">
+        <span>Praterich A.I.</span>
+      </div>
+      <div id="copyright">
+        &copy; 2025 Stenoip Company
+      </div>
+    </div>
+  </div>
 
   <script>
     const API_URL = "https://praterich.vercel.app/api/image";
 
+    // Check if there's a saved session in localStorage
+    window.onload = function () {
+      const savedSession = JSON.parse(localStorage.getItem("lastSession"));
+      if (savedSession && confirm(`Would you like to continue the last image generation from session ${savedSession.id}?`)) {
+        document.getElementById("status").textContent = `Continuing from last session...`;
+        fetchImageStatus(savedSession.id, savedSession.joldenToken);
+      }
+    };
+
     async function generate() {
       const prompt = document.getElementById("prompt").value;
       const joldenToken = document.getElementById("joldenToken").value;
+      const numImages = document.getElementById("numImages").value;
       document.getElementById("status").textContent = "Submitting request...";
+
+      // Clear any previously displayed images
+      document.getElementById("imageContainer").innerHTML = "";
 
       try {
         const response = await fetch(API_URL, {
           method: "POST",
           headers: {"Content-Type": "application/json"},
-          body: JSON.stringify({ prompt, joldenToken })
+          body: JSON.stringify({ prompt, joldenToken, numImages })
         });
 
         const data = await response.json();
@@ -42,22 +217,34 @@
           return;
         }
 
+        // Save session data in localStorage
+        const session = {
+          id: data.id,
+          prompt,
+          joldenToken,
+          numImages
+        };
+        localStorage.setItem("lastSession", JSON.stringify(session));
+
         document.getElementById("status").textContent = "ID: " + data.id;
 
         let done = false;
         let retries = 0;
 
-        while (!done && retries < 40) { // ~60 seconds max
+        while (!done && retries < 40) {
           retries++;
           const checkRes = await fetch(API_URL + "?id=" + data.id + "&joldenToken=" + joldenToken);
           const info = await checkRes.json();
 
-          document.getElementById("status").textContent =
-            JSON.stringify(info, null, 2);
+          document.getElementById("status").textContent = JSON.stringify(info, null, 2);
 
           if (info.done && info.generations) {
-            const url = info.generations[0].img;
-            document.getElementById("resultImage").src = url;
+            const imageContainer = document.getElementById("imageContainer");
+            info.generations.forEach(gen => {
+              const img = document.createElement("img");
+              img.src = gen.img;
+              imageContainer.appendChild(img);
+            });
             done = true;
           }
 
@@ -66,6 +253,24 @@
 
         if (!done) {
           document.getElementById("status").textContent = "Timed out waiting for image.";
+        }
+      } catch (err) {
+        document.getElementById("status").textContent = "Error: " + err.message;
+      }
+    }
+
+    async function fetchImageStatus(id, joldenToken) {
+      try {
+        const response = await fetch(`${API_URL}?id=${id}&joldenToken=${joldenToken}`);
+        const data = await response.json();
+
+        if (data.done && data.generations) {
+          const imageContainer = document.getElementById("imageContainer");
+          data.generations.forEach(gen => {
+            const img = document.createElement("img");
+            img.src = gen.img;
+            imageContainer.appendChild(img);
+          });
         }
       } catch (err) {
         document.getElementById("status").textContent = "Error: " + err.message;
