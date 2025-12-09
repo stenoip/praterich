@@ -31,13 +31,14 @@ function populateDropdown(id) {
     });
 }
 
-populateDropdown("fromLang");
-populateDropdown("toLang");
-populateDropdown("mergeLang1");
-populateDropdown("mergeLang2");
+// Function calls moved to the bottom initialization block for consistency
+// populateDropdown("fromLang");
+// populateDropdown("toLang");
+// populateDropdown("mergeLang1");
+// populateDropdown("mergeLang2");
 
-fromLang.value = "English";
-toLang.value = "Spanish";
+// fromLang.value = "English";
+// toLang.value = "Spanish";
 
 // ==========================
 // SWAP LANGUAGES
@@ -55,11 +56,7 @@ document.getElementById("swapBtn").addEventListener("click", () => {
 // ==========================
 // Standard Translation
 // ==========================
-translateBtn.addEventListener("click", async () => {
-    const input = inputText.value.trim();
-    const source = fromLang.value;
-    const target = toLang.value;
-
+async function performStandardTranslation(input, source, target) {
     if (!input) {
         outputText.value = "Enter text to translate.";
         return;
@@ -95,7 +92,13 @@ translateBtn.addEventListener("click", async () => {
         loading.textContent = "";
         outputText.value = "Network error.";
     }
+}
+
+// Event listener uses the new standalone function
+translateBtn.addEventListener("click", () => {
+    performStandardTranslation(inputText.value.trim(), fromLang.value, toLang.value);
 });
+
 
 // ==========================
 // LANGUAGE LEARNING CHAT
@@ -314,3 +317,40 @@ ${input}
     }
 });
 
+// ==========================
+// AUTO-TRANSLATE FROM URL QUERY (NEW)
+// ==========================
+function autoTranslateQuery() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const query = urlParams.get('q');
+    
+    if (query) {
+        // 1. Decode and clean the query
+        const textToTranslate = decodeURIComponent(query).trim();
+
+        // 2. Pre-fill the input box
+        inputText.value = textToTranslate;
+        
+        // 3. Immediately trigger the translation
+        // Use default languages (English to Spanish) since the query doesn't specify
+        performStandardTranslation(textToTranslate, fromLang.value, toLang.value);
+    }
+}
+
+// ==========================
+// INITIALIZATION
+// ==========================
+document.addEventListener('DOMContentLoaded', () => {
+    // Populate dropdowns
+    populateDropdown("fromLang");
+    populateDropdown("toLang");
+    populateDropdown("mergeLang1");
+    populateDropdown("mergeLang2");
+
+    // Set defaults
+    fromLang.value = "English";
+    toLang.value = "Spanish";
+
+    // Check URL for query and auto-translate if found
+    autoTranslateQuery();
+});
