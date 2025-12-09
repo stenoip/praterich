@@ -82,7 +82,7 @@ async function getNewsContent() {
  */
 async function fetchFromModelWithRetry(genAI, payload, retries = MAX_RETRIES) {
     try {
-        var model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        var model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
         var result = await model.generateContent(payload);
         return result.response.text();  // Return the content from the response
     } catch (error) {
