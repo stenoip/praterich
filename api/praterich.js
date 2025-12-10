@@ -1,17 +1,11 @@
 /* Copyright Stenoip Company. All rights reserved.
 
-This file acts as a Vercel serverless function (API endpoint) that proxies requests to the Google Gemini API.
+This file acts as a Vercel serverless function (API endpoint) that proxies requests to the Hugging Face Inference API.
 It injects custom context, including news headlines and site content, to ground the model's responses.
-
-NOTE: For the "Design your own Praterich" feature in the frontend, you can add a second system
-instruction in the request body (request.body.system_instruction), which will be evaluated 
-and combined with the backend's core system instruction. 
-However, any inappropriate commands to Praterich will be denied.
-
-If you want a Praterich A.I chatbot on your site, send a request to customerserviceforstenoip@gmail.com
 */
 
-import { GoogleGenerativeAI } from "@google/generative-ai";
+// --- Hugging Face-Specific Imports ---
+// We remove the @google/generative-ai import. We'll use standard 'fetch' for the Hugging Face API.
 import fs from 'fs/promises';
 import path from 'path';
 import Parser from 'rss-parser';
@@ -26,7 +20,16 @@ const TIMEZONE = 'America/New_York';
 const MAX_RETRIES = 3;  // Maximum retry attempts for the API call
 const RETRY_DELAY = 5000;  // Delay between retries in milliseconds (5 seconds)
 
-// --- Helper Functions ---
+// --- Hugging Face Configuration ---
+// Get your Hugging Face API token from environment variables
+const HF_API_TOKEN = process.env.HF_API_TOKEN;
+
+// Replace this with the URL for your desired model on the Hugging Face Hub
+// Example: Mistral 7B Instruct v0.2
+const HF_INFERENCE_API_URL = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2";
+
+
+// --- Helper Functions (getSiteContentFromFile, getNewsContent remain unchanged) ---
 
 async function getSiteContentFromFile() {
     // Path to the index.json file
@@ -74,36 +77,77 @@ async function getNewsContent() {
 }
 
 /**
- * Attempts to fetch content from the Google Gemini API with retry logic for transient errors.
- * @param {GoogleGenerativeAI} genAI - The generative AI instance.
- * @param {Object} payload - The request payload to be sent to the API.
+ * Attempts to fetch content from the Hugging Face Inference API with retry logic.
+ * @param {string} prompt - The entire formatted prompt to send to the model.
  * @param {number} retries - The number of retries remaining.
- * @returns {Promise<string>} The response text from the API.
+ * @returns {Promise<string>} The generated response text.
  */
-async function fetchFromModelWithRetry(genAI, payload, retries = MAX_RETRIES) {
+async function fetchFromModelWithRetry(prompt, retries = MAX_RETRIES) {
+    if (!HF_API_TOKEN) {
+        throw new Error("HF_API_TOKEN environment variable is not set.");
+    }
+    
+    // Hugging Face uses HTTP status 503 for models that are loading ("warm up")
+    const WARM_UP_STATUS_CODE = 503; 
+
     try {
-        var model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
-        var result = await model.generateContent(payload);
-        return result.response.text();  // Return the content from the response
+        const response = await fetch(HF_INFERENCE_API_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${HF_API_TOKEN}` // Authorization Header
+            },
+            body: JSON.stringify({
+                // The 'inputs' key contains the full text prompt for the model
+                inputs: prompt, 
+                // Adjust parameters as needed for your chosen model/API
+                parameters: {
+                    max_new_tokens: 500,
+                    temperature: 0.7,
+                    do_sample: true,
+                    // The API can return an error if a model is loading (503)
+                    wait_for_model: true, 
+                }
+            })
+        });
+
+        if (!response.ok) {
+            // Handle HTTP errors specifically
+            const errorBody = await response.json().catch(() => ({ error: 'Unknown API error' }));
+            throw new Error(`Hugging Face API Error ${response.status}: ${JSON.stringify(errorBody)}`);
+        }
+        
+        // The Inference API returns an array of results, usually with one element.
+        const result = await response.json();
+        
+        // Extract the generated text from the Hugging Face response structure
+        // The structure is typically: [{ generated_text: "..." }]
+        if (result && result.length > 0 && result[0].generated_text) {
+            // The result includes the input prompt, so we need to remove it.
+            const full_text = result[0].generated_text;
+            // Find the start of the response by looking for the end of the prompt
+            // This is model-dependent, but often a simple prompt subtraction works
+            return full_text.substring(prompt.length).trim();
+        } else {
+            throw new Error("Hugging Face API returned an unexpected response format.");
+        }
+
     } catch (error) {
         console.error("Error fetching from model:", error.message);
 
-        // Handle specific error types
-        if (error.status === 503 && retries > 0) {
-            console.log(`503 error encountered. Retrying in ${RETRY_DELAY / 1000} seconds...`);
+        // Check for 503 (model loading) or other transient errors and retry
+        // Note: The 'wait_for_model: true' parameter *should* handle 503, but this retry block is a good safeguard.
+        if (retries > 0) {
+            console.log(`Transient error encountered. Retrying in ${RETRY_DELAY / 1000} seconds...`);
             await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));  // Wait before retrying
-            return fetchFromModelWithRetry(genAI, payload, retries - 1);  // Retry the request
+            return fetchFromModelWithRetry(prompt, retries - 1);  // Retry the request
         }
 
-        // If it's a rate limit issue or another retriable error, handle it gracefully
-        if (error.status === 429) {
-            throw new Error("Rate limit exceeded. Please wait and try again.");
-        }
-
-        // If it's a non-retriable error, throw it
+        // If all retries fail, re-throw the final error
         throw error;  
     }
 }
+
 
 export default async function handler(request, response) {
     // These are the only allowed origins.
@@ -131,15 +175,14 @@ export default async function handler(request, response) {
     }
 
     try {
-        var API_KEY = process.env.API_KEY;
-        if (!API_KEY) {
-            throw new Error("API_KEY environment variable is not set.");
+        if (!HF_API_TOKEN) {
+            throw new Error("HF_API_TOKEN environment variable is not set.");
         }
 
         var PRAT_CONTEXT_INJ = process.env.PRAT_CONTEXT_INJ || "Praterich Context Injection not set.";
         // -----------------------------------------------------------------
 
-        var genAI = new GoogleGenerativeAI(API_KEY);
+        // In the Hugging Face setup, we don't initialize a client object here.
         const { contents, system_instruction } = request.body;
 
         // --- Fetch and Prepare Context ---
@@ -158,14 +201,26 @@ export default async function handler(request, response) {
             second: '2-digit'
         });
 
-        // The website content is now passed in full without truncation.
         var trimmedContent = scrapedContent;
 
         // Extract user's instruction from the front-end payload
+        // This is where you have to adapt the 'contents' structure. 
+        // Gemini uses 'contents' (History) and 'systemInstruction'.
+        // Hugging Face models often use a single 'prompt' string, often formatted with special tokens.
+
+        // Assuming 'contents' is an array of objects like: [{ role: 'user', parts: [{ text: '...' }] }, ...]
+        // We will extract the latest user message.
+        const userMessage = contents?.at(-1)?.parts?.[0]?.text || "Hello.";
+        
+        // Extract user's instruction from the front-end payload (the design-your-own-praterich part)
         var baseInstruction = system_instruction?.parts?.[0]?.text || "No additional instruction provided.";
 
-        // --- Combine ALL context into a new System Instruction ---
-        var combinedSystemInstruction = `
+
+        // --- Combine ALL context into a single prompt string ---
+        // For Instruction-Tuned Models (like Mistral-Instruct or Llama-2-Chat), 
+        // it is crucial to use the model's specific prompt template. 
+        // Here, we use a generic template that combines the System Instruction and the User Query.
+        var fullPrompt = `
 You are Praterich A.I., an LLM made by Stenoip Company.
 
 **INSTRUCTION FILTERING RULE:**
@@ -184,33 +239,30 @@ ${baseInstruction}
 - **Latest Global News Headlines:**
   ${newsContent}
 
-
 ${PRAT_CONTEXT_INJ}
 ----------------------------------
-`; 
 
-        var payload = {
-            contents,
-            safetySettings: [],
-            generationConfig: {},
-            systemInstruction: {
-                parts: [{ text: combinedSystemInstruction }]
-            }
-        };
+Based on the context and instructions above, please provide a helpful and professional response to the following user message:
 
-        // Fetch the generated content with retry logic
-        var apiResponseText = await fetchFromModelWithRetry(genAI, payload);
+USER: ${userMessage}
+
+ASSISTANT: 
+`;
+
+        // Note: For models like Mistral or Llama, the prompt is typically enclosed in special tokens
+        // e.g., <s>[INST] {SYSTEM_PROMPT} USER: {USER_MESSAGE} [/INST]
+        // You should find the exact template for your chosen model and apply it to `fullPrompt`.
+        
+        // The fetch call now uses the fullPrompt string directly
+        var apiResponseText = await fetchFromModelWithRetry(fullPrompt);
+        
         response.status(200).json({ text: apiResponseText });
 
     } catch (error) {
         console.error("API call failed:", error);
 
-        if (error.status === 429) {
-            return response.status(429).json({
-                error: "Rate limit exceeded. Please wait and try again.",
-                retryAfter: "60 seconds"
-            });
-        }
+        // Hugging Face doesn't typically return '429' for rate limiting on the Inference API
+        // but it's good practice to handle API-specific errors here.
 
         response.status(500).json({
             error: "Failed to generate content.",
