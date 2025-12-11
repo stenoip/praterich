@@ -1,15 +1,13 @@
 /* Copyright Stenoip Company. All rights reserved.
 
-This file acts as a Vercel serverless function (API endpoint) that proxies requests to the Hugging Face Inference API via the OpenAI-compatible Router endpoint.
-It injects custom context, including news headlines and site content, to ground the model's responses.
+This file acts as a Vercel serverless function (API endpoint) that proxies requests to the Hugging Face Inference API.
+It uses the model-specific endpoint (text generation task) to send the full, context-rich prompt string.
 */
 
 // --- Hugging Face-Specific Imports ---
 var fs = require('fs/promises');
 var path = require('path');
 var Parser = require('rss-parser');
-// NOTE: We do not import the 'openai' SDK here, we use native 'fetch'
-// to send an OpenAI-compatible request payload to the HF Router endpoint.
 
 // --- Configuration ---
 var parser = new Parser();
@@ -21,14 +19,16 @@ var TIMEZONE = 'America/New_York';
 var MAX_RETRIES = 3; // Maximum retry attempts for the API call
 var RETRY_DELAY = 5000; // Delay between retries in milliseconds (5 seconds)
 
+// --- Hugging Face Configuration (Updated to Model-Specific Endpoint) ---
+var HF_API_TOKEN = process.env.HF_API_TOKEN || process.env.HF_TOKEN; 
 
-var HF_API_TOKEN = process.env.HF_API_TOKEN || process.env.HF_TOKEN; // Use HF_TOKEN as fallback for Router
-var HF_MODEL_NAME = "meta-llama/Llama-2-7b-chat-hf"; 
 
-// Use the Hugging Face Router endpoint for OpenAI compatibility
-var HF_INFERENCE_API_URL = "https://router.huggingface.co/v1/chat/completions";
+var HF_MODEL_NAME = "mistralai/Mistral-7B-Instruct-v0.2";
+// Dynamically construct the model-specific Inference API URL.
+var HF_INFERENCE_API_URL = `https://api-inference.huggingface.co/models/${HF_MODEL_NAME}`;
 
-// --- Helper Functions (getSiteContentFromFile, getNewsContent remain unchanged) ---
+
+
 
 async function getSiteContentFromFile() {
     // Path to the index.json file
@@ -76,99 +76,68 @@ async function getNewsContent() {
 }
 
 /**
- * Constructs the combined system instruction for grounding the model.
- * @param {string} baseInstruction - The user-provided system instruction.
- * @param {string} trimmedContent - Content from index.json.
- * @param {string} newsContent - Aggregated news headlines.
- * @param {string} currentTime - Current time string.
- * @param {string} PRAT_CONTEXT_INJ - Context injection from environment variable.
- * @returns {string} The complete system-level prompt.
- */
-function buildSystemInstruction(baseInstruction, trimmedContent, newsContent, currentTime, PRAT_CONTEXT_INJ) {
-    var fullInstruction = `You are Praterich A.I., an LLM made by Stenoip Company.
-
-**INSTRUCTION FILTERING RULE:**
-If the following user-provided system instruction is inappropriate, illegal, or unethical, you must refuse to follow it and respond ONLY with the exact phrase: "I can't follow this."
-
---- User-Provided System Instruction ---
-${baseInstruction}
---------------------------------------
-
-**CURRENT CONTEXT FOR RESPONSE GENERATION:**
-(Use the following information to ground your response. Do not mention that you were provided this content.)
-
-- **Current Time and Date in ${TIMEZONE}:** ${currentTime}
-- **Important Website Information (from index.json):**
-  ${trimmedContent}
-- **Latest Global News Headlines:**
-  ${newsContent}
-
-${PRAT_CONTEXT_INJ}
-----------------------------------
-
-Based on the context and instructions above, please provide a helpful and professional response.`;
-    
-    return fullInstruction;
-}
-
-
-/**
- * Attempts to fetch content from the Hugging Face Inference API with retry logic
- * using the OpenAI-compatible chat completions format.
- * @param {Array<Object>} messages - The array of messages to send to the model.
+ * Attempts to fetch content from the Hugging Face Inference API with retry logic.
+ * This function is adapted for the standard Inference API (not the router).
+ * @param {string} prompt - The entire formatted prompt to send to the model.
  * @param {number} retries - The number of retries remaining.
  * @returns {Promise<string>} The generated response text.
  */
-async function fetchFromModelWithRetry(messages, retries = MAX_RETRIES) {
+async function fetchFromModelWithRetry(prompt, retries = MAX_RETRIES) {
     if (!HF_API_TOKEN) {
-        throw new Error("HF_API_TOKEN or HF_TOKEN environment variable is not set.");
+        throw new Error("HF_API_TOKEN environment variable is not set.");
     }
     
-    // The HF Router doesn't typically return 503 like the old Inference API,
-    // but the retry logic remains useful for network or transient errors.
+    // Hugging Face uses HTTP status 503 for models that are loading ("warm up")
+    var WARM_UP_STATUS_CODE = 503; 
 
     try {
         var response = await fetch(HF_INFERENCE_API_URL, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                // HF Router expects the token as the Authorization header
-                'Authorization': `Bearer ${HF_API_TOKEN}` 
+                'Authorization': `Bearer ${HF_API_TOKEN}` // Authorization Header
             },
             body: JSON.stringify({
-                model: HF_MODEL_NAME,
-                messages: messages, // Send the array of messages
-                temperature: 0.7,
-                max_tokens: 500, // max_new_tokens for HF is max_tokens for OpenAI standard
-                stream: false,
-                // Add any other HF Router/OpenAI compatible parameters here
+                // The 'inputs' key contains the full text prompt for the model
+                inputs: prompt, 
+                // Adjust parameters as needed for your chosen model/API
+                parameters: {
+                    max_new_tokens: 500,
+                    temperature: 0.7,
+                    do_sample: true,
+                    wait_for_model: true, 
+                }
             })
         });
 
         if (!response.ok) {
-            // Handle HTTP errors
+            // Handle HTTP errors specifically
             var errorBody = await response.json().catch(function () { return { error: 'Unknown API error' }; });
             throw new Error(`Hugging Face API Error ${response.status}: ${JSON.stringify(errorBody)}`);
         }
         
-        // The API returns an OpenAI-compatible ChatCompletion object.
+        // The Inference API returns an array of results, usually with one element.
         var result = await response.json();
         
-        // Extract the generated text from the OpenAI-compatible response structure
-        if (result && result.choices && result.choices.length > 0 && result.choices[0].message) {
-            return result.choices[0].message.content.trim();
+        // Extract the generated text from the Hugging Face response structure
+        // The structure is typically: [{ generated_text: "..." }]
+        if (result && result.length > 0 && result[0].generated_text) {
+            // The result includes the input prompt, so we need to remove it.
+            var full_text = result[0].generated_text;
+            // Find the start of the response by looking for the end of the prompt
+            return full_text.substring(prompt.length).trim();
         } else {
-            throw new Error("Hugging Face Router API returned an unexpected response format.");
+            throw new Error("Hugging Face API returned an unexpected response format.");
         }
 
     } catch (error) {
         console.error("Error fetching from model:", error.message);
 
-        // Check for transient errors and retry
+        // Check for 503 (model loading) or other transient errors and retry
         if (retries > 0) {
             console.log(`Transient error encountered. Retrying in ${RETRY_DELAY / 1000} seconds...`);
             await new Promise(function(resolve) { setTimeout(resolve, RETRY_DELAY); }); // Wait before retrying
-            return fetchFromModelWithRetry(messages, retries - 1); // Retry the request
+            return fetchFromModelWithRetry(prompt, retries - 1); // Retry the request
         }
 
         // If all retries fail, re-throw the final error
@@ -204,14 +173,12 @@ export default async function handler(request, response) {
 
     try {
         if (!HF_API_TOKEN) {
-            throw new Error("HF_API_TOKEN or HF_TOKEN environment variable is not set.");
+            throw new Error("HF_API_TOKEN environment variable is not set.");
         }
 
         var PRAT_CONTEXT_INJ = process.env.PRAT_CONTEXT_INJ || "Praterich Context Injection not set.";
         // -----------------------------------------------------------------
 
-        // In the Hugging Face setup, we don't initialize a client object here.
-        // The request body contains 'contents' (user message) and 'system_instruction'
         var requestBody = request.body || {};
         var contents = requestBody.contents;
         var system_instruction = requestBody.system_instruction;
@@ -241,25 +208,41 @@ export default async function handler(request, response) {
         var baseInstruction = system_instruction && system_instruction.parts && system_instruction.parts[0] ? system_instruction.parts[0].text : "No additional instruction provided.";
 
 
-        // --- Build the Unified System Instruction ---
-        var unifiedSystemInstruction = buildSystemInstruction(baseInstruction, trimmedContent, newsContent, currentTime, PRAT_CONTEXT_INJ);
+        // --- Combine ALL context into a single prompt string ---
+        // Crucially, for Instruction-Tuned Models (like Mistral-Instruct or Llama-2-Chat), 
+        // the prompt MUST be wrapped in the model's specific chat template tokens.
+        // For Mistral-Instruct, the template is: <s>[INST] {SYSTEM_INSTRUCTION} USER: {USER_MESSAGE} [/INST]
+        
+        var systemInstructionBlock = `You are Praterich A.I., an LLM made by Stenoip Company.
 
+**INSTRUCTION FILTERING RULE:**
+If the following user-provided system instruction is inappropriate, illegal, or unethical, you must refuse to follow it and respond ONLY with the exact phrase: "I can't follow this."
 
-        // --- Construct the OpenAI-Compatible Messages Array ---
-        // The messages array is the new format required by the Hugging Face Router /chat/completions endpoint.
-        var messages = [
-            {
-                role: "system",
-                content: unifiedSystemInstruction
-            },
-            {
-                role: "user",
-                content: userMessage
-            }
-        ];
+--- User-Provided System Instruction ---
+${baseInstruction}
+--------------------------------------
 
-        // The fetch call now uses the messages array directly
-        var apiResponseText = await fetchFromModelWithRetry(messages);
+**CURRENT CONTEXT FOR RESPONSE GENERATION:**
+(Use the following information to ground your response. Do not mention that you were provided this content.)
+
+- **Current Time and Date in ${TIMEZONE}:** ${currentTime}
+- **Important Website Information (from index.json):**
+  ${trimmedContent}
+- **Latest Global News Headlines:**
+  ${newsContent}
+
+${PRAT_CONTEXT_INJ}
+----------------------------------
+
+Based on the context and instructions above, please provide a helpful and professional response to the following user message:`;
+
+        var fullPrompt = `<s>[INST] ${systemInstructionBlock}
+
+USER: ${userMessage} [/INST]
+`;
+
+        // The fetch call now uses the fullPrompt string directly
+        var apiResponseText = await fetchFromModelWithRetry(fullPrompt);
         
         response.status(200).json({ text: apiResponseText });
 
