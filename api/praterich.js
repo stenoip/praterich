@@ -23,7 +23,7 @@ var RETRY_DELAY = 5000; // Delay between retries in milliseconds (5 seconds)
 
 
 var HF_API_TOKEN = process.env.HF_API_TOKEN || process.env.HF_TOKEN; // Use HF_TOKEN as fallback for Router
-var HF_MODEL_NAME = "mistralai/Mistral-7B-Instruct-v0.2"; // The model name to call
+var HF_MODEL_NAME = "meta-llama/Llama-2-7b-chat-hf"; 
 
 // Use the Hugging Face Router endpoint for OpenAI compatibility
 var HF_INFERENCE_API_URL = "https://router.huggingface.co/v1/chat/completions";
