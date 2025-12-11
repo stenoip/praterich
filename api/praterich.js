@@ -22,12 +22,11 @@ var RETRY_DELAY = 5000; // Delay between retries in milliseconds (5 seconds)
 // --- Hugging Face Configuration (Updated to Model-Specific Endpoint) ---
 var HF_API_TOKEN = process.env.HF_API_TOKEN || process.env.HF_TOKEN; 
 
+// FIX: Updated to v0.3 as v0.2 is often deprecated on the free tier
+var HF_MODEL_NAME = "mistralai/Mistral-7B-Instruct-v0.3";
 
-var HF_MODEL_NAME = "mistralai/Mistral-7B-Instruct-v0.2";
-// Dynamically construct the model-specific Inference API URL.
-var HF_INFERENCE_API_URL = `https://router.huggingface.co/models/${HF_MODEL_NAME}`;
-
-
+// FIX: Updated URL structure to include 'hf-inference' path
+var HF_INFERENCE_API_URL = `https://router.huggingface.co/hf-inference/models/${HF_MODEL_NAME}`;
 
 
 async function getSiteContentFromFile() {
