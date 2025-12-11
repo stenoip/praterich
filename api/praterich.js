@@ -25,7 +25,7 @@ var HF_API_TOKEN = process.env.HF_API_TOKEN || process.env.HF_TOKEN;
 
 var HF_MODEL_NAME = "mistralai/Mistral-7B-Instruct-v0.2";
 // Dynamically construct the model-specific Inference API URL.
-var HF_INFERENCE_API_URL = `https://api-inference.huggingface.co/models/${HF_MODEL_NAME}`;
+var HF_INFERENCE_API_URL = `https://router.huggingface.co/models/${HF_MODEL_NAME}`;
 
 
 
