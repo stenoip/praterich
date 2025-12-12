@@ -140,11 +140,12 @@ export default async function handler(request, response) {
         // ***************************************************************
         // FIX: Manually configure the endpoint to the new, supported URL.
         const hf = new HfInference(
-            { 
-                accessToken: HF_API_KEY, 
-                endpoint: "https://router.huggingface.co" // <-- THIS IS THE CORRECT FIX
-            }
-        );
+    { 
+        accessToken: HF_API_KEY, 
+        // Using baseUrl, which often defines the root for all API calls
+        baseUrl: "https://router.huggingface.co/v1" 
+    }
+);
         // ***************************************************************
         
         const { contents, system_instruction } = request.body;
