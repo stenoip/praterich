@@ -23,7 +23,7 @@ var TIMEZONE = 'America/New_York';
 var MAX_RETRIES = 3;  
 var RETRY_DELAY = 5000;
 // Groq Configuration
-var GROQ_MODEL_ID = "llama3-8b-8192";
+var GROQ_MODEL_ID = "llama-3.3-70b-versatile";
 var GROQ_ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions';
 
 // --- Helper Functions ---
