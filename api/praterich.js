@@ -3,9 +3,8 @@
 This file acts as a Vercel serverless function (API endpoint) that proxies requests to the Hugging Face Inference API.
 It injects custom context, including news headlines and site content, to ground the model's responses.
 
-NOTE: This code is fixed for the "SyntaxError: Unexpected identifier 'origin'" issue, ensuring 
-all top-level and in-function syntax is correct and terminated properly.
-It assumes you have successfully added "type": "module" to your package.json.
+FIX: The HfInference object is now explicitly configured with the new endpoint URL 
+("https://router.huggingface.co") to bypass the deprecated URL used by older library versions.
 */
 
 import { HfInference } from "@huggingface/inference";
@@ -105,13 +104,11 @@ export default async function handler(request, response) {
         'https://stenoip.github.io', 
         'https://www.khanacademy.org/computer-programming/praterich_ai/5593365421342720'
     ];
-    // This is where the error pointed. Ensuring perfect syntax here.
     const origin = request.headers['origin']; 
 
     if (allowedOrigins.includes(origin)) {
         response.setHeader('Access-Control-Allow-Origin', origin);
     } else {
-        // Exit immediately if origin is forbidden
         return response.status(403).json({ error: 'Forbidden: Unauthorized origin.' }); 
     }
 
@@ -137,7 +134,15 @@ export default async function handler(request, response) {
 
         const PRAT_CONTEXT_INJ = process.env.PRAT_CONTEXT_INJ || "Praterich Context Injection not set.";
         
-        const hf = new HfInference(HF_API_KEY);
+        // ***************************************************************
+        // FIX: Manually configure the endpoint to the new, supported URL.
+        const hf = new HfInference(
+            { 
+                accessToken: HF_API_KEY, 
+                endpoint: "https://router.huggingface.co" 
+            }
+        );
+        // ***************************************************************
         
         const { contents, system_instruction } = request.body;
 
