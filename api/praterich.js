@@ -3,7 +3,7 @@
 This file acts as a Vercel serverless function (API endpoint) that proxies requests to the Hugging Face Inference API.
 It injects custom context, including news headlines and site content, to ground the model's responses.
 
-// ----------------------------------------------------------------------------------
+// ---------------------------------------------------------------------------------
 // **FIX APPLIED:** The HfInference object is explicitly configured with the new endpoint URL 
 // ("https://router.huggingface.co") to bypass the deprecated URL used by older library versions.
 // ----------------------------------------------------------------------------------
