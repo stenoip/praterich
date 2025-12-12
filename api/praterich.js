@@ -3,7 +3,7 @@
 This file acts as a Vercel serverless function (API endpoint) that proxies requests to the 
 Groq Chat Completions API using a direct fetch.
 It injects custom context, including news headlines and site content, to ground the model's responses.
-
+ 
 FIXES: 
 1. Implemented News Caching (15 min) to minimize external requests.
 2. Implemented Content Truncation to minimize tokens per request.
