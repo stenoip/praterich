@@ -4,15 +4,14 @@
   "description": "API for Praterich AI Assistant",
   "main": "api/praterich.js",
   
-  // FIX 1: Enables modern JavaScript 'import' syntax
+
   "type": "module", 
   
   "scripts": {
     "start": "vercel dev"
   },
   "dependencies": {
-    // FIX 2: Using the latest major version range 
-    // to ensure the new supported URL (router.huggingface.co) is used.
+    
     "@huggingface/inference": "^2.6.4", 
     "rss-parser": "^3.13.0"
   }
