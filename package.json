@@ -4,12 +4,14 @@
   "description": "API for Praterich AI Assistant",
   "main": "api/praterich.js",
   
+
   "type": "module", 
   
   "scripts": {
     "start": "vercel dev"
   },
   "dependencies": {
+    
     "rss-parser": "^3.13.0"
   }
 }
