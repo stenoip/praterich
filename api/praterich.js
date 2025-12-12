@@ -1,15 +1,14 @@
 /* Copyright Stenoip Company. All rights reserved.
 
-This file acts as a Vercel serverless function (API endpoint) that proxies requests to the Hugging Face Inference API.
+This file acts as a Vercel serverless function (API endpoint) that proxies requests to the 
+Groq Chat Completions API using a direct fetch.
 It injects custom context, including news headlines and site content, to ground the model's responses.
 
-// ---------------------------------------------------------------------------------
-// **FIX APPLIED:** The HfInference object is explicitly configured with the new endpoint URL 
-// ("https://router.huggingface.co") to bypass the deprecated URL used by older library versions.
-// ----------------------------------------------------------------------------------
+FIX: Switched from the deprecated Hugging Face Inference API to the Groq API.
 */
 
-import { HfInference } from "@huggingface/inference";
+
+
 import fs from 'fs/promises';
 import path from 'path';
 import Parser from 'rss-parser';
@@ -20,17 +19,20 @@ var NEWS_FEEDS = {
     BBC: 'http://feeds.bbci.co.uk/news/world/rss.xml',
     CNN: 'http://rss.cnn.com/rss/cnn_topstories.rss'
 };
-const TIMEZONE = 'America/New_York';
-const MAX_RETRIES = 3;  
-const RETRY_DELAY = 5000;
+var TIMEZONE = 'America/New_York';
+var MAX_RETRIES = 3;  
+var RETRY_DELAY = 5000;
+// Groq Configuration
+var GROQ_MODEL_ID = "llama3-8b-8192";
+var GROQ_ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions';
 
 // --- Helper Functions ---
 
 async function getSiteContentFromFile() {
     // Path to the index.json file
-    const filePath = path.join(process.cwd(), 'api', 'index.json');
+    var filePath = path.join(process.cwd(), 'api', 'index.json');
     try {
-        const data = await fs.readFile(filePath, 'utf8');
+        var data = await fs.readFile(filePath, 'utf8');
         return data;
     } catch (error) {
         console.error("Error reading index.json:", error.message);
@@ -42,20 +44,20 @@ async function getSiteContentFromFile() {
  * Fetches and aggregates the top headlines from specified RSS feeds.
  */
 async function getNewsContent() {
-    let newsText = "\n--- Global News Headlines ---\n";
+    var newsText = "\n--- Global News Headlines ---\n";
     try {
-        const allNewsPromises = Object.entries(NEWS_FEEDS).map(async ([source, url]) => {
-            const feed = await parser.parseURL(url);
-            let sourceNews = `\n**${source} Top Stories (Latest):**\n`;
+        var allNewsPromises = Object.entries(NEWS_FEEDS).map(async function ([source, url]) {
+            var feed = await parser.parseURL(url);
+            var sourceNews = `\n**${source} Top Stories (Latest):**\n`;
             
-            feed.items.slice(0, 3).forEach((item, index) => {
-                const safeTitle = item.title.replace(/[\*\_\[\]]/g, ''); 
+            feed.items.slice(0, 3).forEach(function (item, index) {
+                var safeTitle = item.title.replace(/[\*\_\[\]]/g, ''); 
                 sourceNews += `  ${index + 1}. ${safeTitle}\n`;
             });
             return sourceNews;
         });
 
-        const newsResults = await Promise.all(allNewsPromises);
+        var newsResults = await Promise.all(allNewsPromises);
         newsText += newsResults.join('');
         return newsText;
 
@@ -66,48 +68,63 @@ async function getNewsContent() {
 }
 
 /**
- * Attempts to fetch content from the Hugging Face API with retry logic.
+ * Attempts to fetch content from the Groq API with retry logic using native fetch.
  */
-async function fetchFromModelWithRetry(hf, payload, retries = MAX_RETRIES) {
-    try {
-        // The 'hf' object passed here already has the correct endpoint configured.
-        const chatCompletion = await hf.chatCompletion({
-            model: "mistralai/Mistral-7B-Instruct-v0.3",
-            messages: payload.messages,
-            max_tokens: 1024,
-            temperature: 0.7
-        });
+async function fetchFromModelWithRetry(payload, retries) {
+    retries = retries === undefined ? MAX_RETRIES : retries;
+    var GROQ_API_KEY = process.env.GROQ_API_KEY;
 
-        return chatCompletion.choices[0].message.content;
+    var body = JSON.stringify({
+        messages: payload.messages,
+        model: GROQ_MODEL_ID,
+        max_tokens: 1024,
+        temperature: 0.7
+    });
 
-    } catch (error) {
-        console.error("Error fetching from model:", error.message);
+    try {
+        var response = await fetch(GROQ_ENDPOINT, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${GROQ_API_KEY}`,
+            },
+            body: body
+        });
 
-        if (error.status === 503 && retries > 0) {
-            console.log(`Model loading (503). Retrying in ${RETRY_DELAY / 1000} seconds...`);
-            await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
-            return fetchFromModelWithRetry(hf, payload, retries - 1);
-        }
+        var data = await response.json();
 
-        if (error.status === 429) {
-            const rateLimitError = new Error("Rate limit exceeded. Please wait and try again.");
-            rateLimitError.status = 429;
-            throw rateLimitError; 
-        }
+        if (!response.ok) {
+            var errorMessage = data.error && data.error.message ? data.error.message : response.statusText;
+            
+            if (response.status === 429 && retries > 0) {
+                console.log(`Groq Rate Limit (429). Retrying in ${RETRY_DELAY / 1000} seconds...`);
+                await new Promise(function (resolve) { return setTimeout(resolve, RETRY_DELAY); });
+                return fetchFromModelWithRetry(payload, retries - 1);
+            }
+            
+            var fetchError = new Error(`Groq API Error (${response.status}): ${errorMessage}`);
+            fetchError.status = response.status;
+            throw fetchError;
+        }
 
-        throw error;  
-    }
+        // Groq/OpenAI response format
+        return data.choices[0].message.content;
+
+    } catch (error) {
+        console.error("Error fetching from Groq:", error.message);
+        throw error;
+    }
 }
 
 // --- Main Vercel Handler ---
 
 export default async function handler(request, response) {
-    // 1. CORS Origin Check (Strictly Formatted)
-    const allowedOrigins = [
+    // 1. CORS Origin Check
+    var allowedOrigins = [
         'https://stenoip.github.io', 
         'https://www.khanacademy.org/computer-programming/praterich_ai/5593365421342720'
     ];
-    const origin = request.headers['origin']; 
+    var origin = request.headers['origin']; 
 
     if (allowedOrigins.includes(origin)) {
         response.setHeader('Access-Control-Allow-Origin', origin);
@@ -129,42 +146,32 @@ export default async function handler(request, response) {
     }
 
     try {
-        // 4. API Key Check
-        const HF_API_KEY = process.env.HF_API_KEY; 
-        if (!HF_API_KEY) {
-            throw new Error("HF_API_KEY environment variable is not set.");
+        // 4. API Key Check (Groq)
+        var GROQ_API_KEY = process.env.GROQ_API_KEY; 
+        if (!GROQ_API_KEY) {
+            throw new Error("GROQ_API_KEY environment variable is not set.");
         }
 
-        const PRAT_CONTEXT_INJ = process.env.PRAT_CONTEXT_INJ || "Praterich Context Injection not set.";
+        var PRAT_CONTEXT_INJ = process.env.PRAT_CONTEXT_INJ || "Praterich Context Injection not set.";
         
-        // ***************************************************************
-        // FIX: Manually configure the endpoint to the new, supported URL.
-        const hf = new HfInference(
-    { 
-        accessToken: HF_API_KEY, 
-        // Using baseUrl, which often defines the root for all API calls
-        baseUrl: "https://router.huggingface.co/v1" 
-    }
-);
-        // ***************************************************************
-        
-        const { contents, system_instruction } = request.body;
+        var contents = request.body.contents;
+        var system_instruction = request.body.system_instruction;
 
         // --- Fetch and Prepare Context ---
-        const scrapedContent = await getSiteContentFromFile();
-        const newsContent = await getNewsContent();
+        var scrapedContent = await getSiteContentFromFile();
+        var newsContent = await getNewsContent();
 
-        const currentTime = new Date().toLocaleString('en-US', {
+        var currentTime = new Date().toLocaleString('en-US', {
             timeZone: TIMEZONE,
             weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
             hour: '2-digit', minute: '2-digit', second: '2-digit'
         });
 
-        const trimmedContent = scrapedContent;
-        const baseInstruction = system_instruction?.parts?.[0]?.text || "No additional instruction provided.";
+        var trimmedContent = scrapedContent;
+        var baseInstruction = system_instruction && system_instruction.parts && system_instruction.parts[0] ? system_instruction.parts[0].text : "No additional instruction provided.";
 
         // --- Combine ALL context into a new System Instruction ---
-        const combinedSystemInstruction = `
+        var combinedSystemInstruction = `
 You are Praterich A.I., an LLM made by Stenoip Company.
 
 **INSTRUCTION FILTERING RULE:**
@@ -188,8 +195,8 @@ ${PRAT_CONTEXT_INJ}
 ----------------------------------
 `; 
 
-        // --- DATA TRANSFORMATION ---
-        const messages = [];
+        // --- DATA TRANSFORMATION (Groq uses 'system', 'user', 'assistant') ---
+        var messages = [];
 
         // 1. Add System Prompt first
         messages.push({
@@ -199,9 +206,9 @@ ${PRAT_CONTEXT_INJ}
 
         // 2. Append Chat History
         if (contents && Array.isArray(contents)) {
-            contents.forEach(msg => {
-                const role = (msg.role === 'model') ? 'assistant' : 'user';
-                const text = msg.parts && msg.parts[0] ? msg.parts[0].text : "";
+            contents.forEach(function (msg) {
+                var role = (msg.role === 'model') ? 'assistant' : 'user';
+                var text = msg.parts && msg.parts[0] ? msg.parts[0].text : "";
                 
                 if (text) {
                     messages.push({ role: role, content: text });
@@ -209,12 +216,12 @@ ${PRAT_CONTEXT_INJ}
             });
         }
 
-        const payload = {
+        var payload = {
             messages: messages
         };
 
-        // Fetch the generated content
-        const apiResponseText = await fetchFromModelWithRetry(hf, payload);
+        // Fetch the generated content using the new Groq implementation
+        var apiResponseText = await fetchFromModelWithRetry(payload);
         response.status(200).json({ text: apiResponseText });
 
     } catch (error) {
