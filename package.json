@@ -1,5 +1,4 @@
-{
-   "name": "praterich-api",
+{"name": "praterich-api",
    "version": "1.0.0",
    "description": "API for Praterich AI Assistant",
    "main": "api/praterich.js",
