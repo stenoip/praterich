@@ -3,11 +3,17 @@
   "version": "1.0.0",
   "description": "API for Praterich AI Assistant",
   "main": "api/praterich.js",
+  
+  
+  "type": "module", 
+  
   "scripts": {
     "start": "vercel dev"
   },
   "dependencies": {
-    "@google/generative-ai": "^0.15.0",
+  
+    
+    "@huggingface/inference": "^2.6.4", 
     "rss-parser": "^3.13.0"
   }
 }
