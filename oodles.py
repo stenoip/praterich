@@ -5,6 +5,11 @@ Copyright Stenoip Company. All rights reserved.
 Multithreaded website crawler with progress bar.
 Collects visible text from multiple pages of each site
 and organizes it by page in `api/index.json`.
+
+
+NOTE: YOU MUST RUN THIS IN TERMINAL. THIS IS NOT FOR THE WEB!
+
+
 """
 
 import requests
