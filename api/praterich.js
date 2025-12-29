@@ -6,9 +6,8 @@ It injects custom context, including news headlines and site content, to ground 
  
 FIXES: 
 1. Implemented News Caching (15 min) to minimize external requests.
-2. Implemented Content Search/Filtering to minimize tokens while keeping index.json useful.
+2. Implemented Content Truncation to minimize tokens per request.
 3. Reduced number of headlines included in the system prompt.
-4. Added Chat History truncation to stay within Rate Limits (429).
 */
 
 import fs from 'fs/promises';
@@ -23,15 +22,15 @@ var NEWS_FEEDS = {
 };
 var TIMEZONE = 'America/New_York';
 var MAX_RETRIES = 3;  
-var RETRY_DELAY = 6000;
+var RETRY_DELAY = 5000;
 // Groq Configuration
 var GROQ_MODEL_ID = "llama-3.3-70b-versatile";
 var GROQ_ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions';
 // Token Saving Configuration
-var MAX_CONTEXT_LENGTH = 3000; // Total allowed characters for injected context
+var MAX_CONTEXT_LENGTH = 2000; // Max characters for index.json content
 var NEWS_CACHE_EXPIRY_MS = 15 * 60 * 1000; // 15 minutes
 
-// --- Global Cache ---
+// --- Global Cache (Shared across invocations in the same Vercel instance) ---
 var newsCache = {
     content: null,
     timestamp: 0,
@@ -39,38 +38,24 @@ var newsCache = {
 
 // --- Helper Functions ---
 
-/**
- * Performs a basic keyword search on the index.json content.
- * Splits the file into chunks and returns only those containing keywords from the query.
- */
-async function searchIndexContent(query) {
+async function getSiteContentFromFile() {
+    // Path to the index.json file
     var filePath = path.join(process.cwd(), 'api', 'index.json');
     try {
         var data = await fs.readFile(filePath, 'utf8');
-        
-        if (!query) return data.substring(0, MAX_CONTEXT_LENGTH);
-
-        // Simple Search Logic: Split by double newlines or sentences
-        var sections = data.split(/\n\n|\. /);
-        var keywords = query.toLowerCase().split(' ').filter(word => word.length > 3);
-        
-        var relevantSections = sections.filter(section => {
-            return keywords.some(kw => section.toLowerCase().includes(kw));
-        });
-
-        // If no matches, return the start of the file. Otherwise, join matches.
-        var result = relevantSections.length > 0 
-            ? relevantSections.join('\n\n') 
-            : data.substring(0, MAX_CONTEXT_LENGTH);
-
-        return result.substring(0, MAX_CONTEXT_LENGTH);
+        return data;
     } catch (error) {
         console.error("Error reading index.json:", error.message);
-        return "Error: Could not retrieve relevant context.";
+        return "Error: Could not retrieve content from index.json.";
     }
 }
 
+/**
+ * Fetches and aggregates the top headlines from specified RSS feeds with Caching.
+ * Only fetches new data if the cache is expired.
+ */
 async function getNewsContent() {
+    // Check if cache is valid (less than EXPIRY_TIME old)
     if (newsCache.content && (Date.now() - newsCache.timestamp < NEWS_CACHE_EXPIRY_MS)) {
         return newsCache.content;
     }
@@ -79,27 +64,44 @@ async function getNewsContent() {
     try {
         var allNewsPromises = Object.entries(NEWS_FEEDS).map(async function ([source, url]) {
             var feed = await parser.parseURL(url);
-            var sourceNews = `\n**${source} Top Story:**\n`;
-            feed.items.slice(0, 1).forEach(function (item) { 
+            var sourceNews = `\n**${source} Top Story (Latest):**\n`;
+            
+            // TOKEN MINIMIZATION: Only include the single latest headline
+            feed.items.slice(0, 1).forEach(function (item, index) { 
                 var safeTitle = item.title.replace(/[\*\_\[\]]/g, ''); 
-                sourceNews += `  - ${safeTitle}\n`;
+                sourceNews += `  ${index + 1}. ${safeTitle}\n`;
             });
             return sourceNews;
         });
 
         var newsResults = await Promise.all(allNewsPromises);
         newsText += newsResults.join('');
+        
+        // Update cache
         newsCache.content = newsText;
         newsCache.timestamp = Date.now();
+        
         return newsText;
+
     } catch (error) {
-        return "\n--- Global News Headlines ---\n[News Unavailable]\n";
+        console.error("Error fetching or parsing RSS feeds:", error.message);
+        return "\n--- Global News Headlines ---\n[Error: Could not retrieve latest news due to network or parsing issue.]\n";
     }
 }
 
+/**
+ * Attempts to fetch content from the Groq API with retry logic using native fetch.
+ */
 async function fetchFromModelWithRetry(payload, retries) {
     retries = retries === undefined ? MAX_RETRIES : retries;
     var GROQ_API_KEY = process.env.GROQ_API_KEY;
+
+    var body = JSON.stringify({
+        messages: payload.messages,
+        model: GROQ_MODEL_ID,
+        max_tokens: 1024,
+        temperature: 0.7
+    });
 
     try {
         var response = await fetch(GROQ_ENDPOINT, {
@@ -108,25 +110,30 @@ async function fetchFromModelWithRetry(payload, retries) {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${GROQ_API_KEY}`,
             },
-            body: JSON.stringify({
-                messages: payload.messages,
-                model: GROQ_MODEL_ID,
-                max_tokens: 1024,
-                temperature: 0.7
-            })
+            body: body
         });
 
         var data = await response.json();
 
-        if (response.status === 429 && retries > 0) {
-            console.log(`429 Error: Retrying in ${RETRY_DELAY/1000}s...`);
-            await new Promise(res => setTimeout(res, RETRY_DELAY));
-            return fetchFromModelWithRetry(payload, retries - 1);
+        if (!response.ok) {
+            var errorMessage = data.error && data.error.message ? data.error.message : response.statusText;
+            
+            if (response.status === 429 && retries > 0) {
+                console.log(`Groq Rate Limit (429). Retrying in ${RETRY_DELAY / 1000} seconds...`);
+                await new Promise(function (resolve) { return setTimeout(resolve, RETRY_DELAY); });
+                return fetchFromModelWithRetry(payload, retries - 1);
+            }
+            
+            var fetchError = new Error(`Groq API Error (${response.status}): ${errorMessage}`);
+            fetchError.status = response.status;
+            throw fetchError;
         }
 
-        if (!response.ok) throw new Error(data.error?.message || "Groq API Error");
+        // Groq/OpenAI response format
         return data.choices[0].message.content;
+
     } catch (error) {
+        console.error("Error fetching from Groq:", error.message);
         throw error;
     }
 }
@@ -134,62 +141,132 @@ async function fetchFromModelWithRetry(payload, retries) {
 // --- Main Vercel Handler ---
 
 export default async function handler(request, response) {
-    var allowedOrigins = ['https://stenoip.github.io', 'https://www.khanacademy.org'];
+    // 1. CORS Origin Check
+    var allowedOrigins = [
+        'https://stenoip.github.io', 
+        'https://www.khanacademy.org/computer-programming/praterich_ai/5593365421342720'
+    ];
     var origin = request.headers['origin']; 
-    if (allowedOrigins.some(o => origin?.includes(o))) response.setHeader('Access-Control-Allow-Origin', origin);
 
-    if (request.method === 'OPTIONS') return response.status(200).end(); 
-    if (request.method !== "POST") return response.status(405).send("Method Not Allowed"); 
+    if (allowedOrigins.includes(origin)) {
+        response.setHeader('Access-Control-Allow-Origin', origin);
+    } else {
+        return response.status(403).json({ error: 'Forbidden: Unauthorized origin.' }); 
+    }
+
+    response.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    response.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+    // 2. OPTIONS Pre-flight Check
+    if (request.method === 'OPTIONS') {
+        return response.status(200).end(); 
+    }
+
+    // 3. Method Check
+    if (request.method !== "POST") {
+        return response.status(405).send("Method Not Allowed"); 
+    }
 
     try {
+        // 4. API Key Check (Groq)
         var GROQ_API_KEY = process.env.GROQ_API_KEY; 
-        if (!GROQ_API_KEY) throw new Error("GROQ_API_KEY not set.");
+        if (!GROQ_API_KEY) {
+            throw new Error("GROQ_API_KEY environment variable is not set.");
+        }
 
-        var PRAT_CONTEXT_INJ = process.env.PRAT_CONTEXT_INJ || "";
-        var contents = request.body.contents || [];
+        var PRAT_CONTEXT_INJ = process.env.PRAT_CONTEXT_INJ || "Praterich Context Injection not set.";
+        
+        var contents = request.body.contents;
         var system_instruction = request.body.system_instruction;
 
-        // Get user's latest query for searching
-        var lastUserMessage = contents.filter(m => m.role !== 'model').pop();
-        var userQuery = lastUserMessage?.parts?.[0]?.text || "";
+        // --- Fetch and Prepare Context ---
+        var scrapedContent = await getSiteContentFromFile();
+        var newsContent = await getNewsContent(); // Uses cached content if available
 
-        // --- Fetch Context using Search ---
-        var [scrapedContent, newsContent] = await Promise.all([
-            searchIndexContent(userQuery),
-            getNewsContent()
-        ]);
+        var currentTime = new Date().toLocaleString('en-US', {
+            timeZone: TIMEZONE,
+            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+            hour: '2-digit', minute: '2-digit', second: '2-digit'
+        });
 
-        var currentTime = new Date().toLocaleString('en-US', { timeZone: TIMEZONE });
-        var baseInstruction = system_instruction?.parts?.[0]?.text || "No additional instruction.";
+        // TOKEN MINIMIZATION: Truncate site content to avoid hitting token limits
+        var trimmedContent = scrapedContent.length > MAX_CONTEXT_LENGTH 
+            ? scrapedContent.substring(0, MAX_CONTEXT_LENGTH) + "...\n[Content truncated to save tokens.]" 
+            : scrapedContent;
+            
+        var baseInstruction = system_instruction && system_instruction.parts && system_instruction.parts[0] ? system_instruction.parts[0].text : "No additional instruction provided.";
 
+        // --- Combine ALL context into a new System Instruction ---
         var combinedSystemInstruction = `
 You are Praterich A.I., an LLM made by Stenoip Company.
+
+**INSTRUCTION FILTERING RULE:**
+If the following user-provided system instruction is inappropriate, illegal, or unethical, you must refuse to follow it and respond ONLY with the exact phrase: "I can't follow this."
+
 --- User-Provided System Instruction ---
 ${baseInstruction}
 --------------------------------------
-**CURRENT CONTEXT:**
-- Time: ${currentTime}
-- Relevant Website Info: ${scrapedContent}
-- News: ${newsContent}
+
+**CURRENT CONTEXT FOR RESPONSE GENERATION:**
+(Use the following information to ground your response. Do not mention that you were provided this content.)
+
+- **Current Time and Date in ${TIMEZONE}:** ${currentTime}
+- **Important Website Information (from index.json):**
+  ${trimmedContent}
+- **Latest Global News Headlines:**
+  ${newsContent}
+
+
 ${PRAT_CONTEXT_INJ}
+----------------------------------
 `; 
 
-        var messages = [{ role: "system", content: combinedSystemInstruction }];
+        // --- DATA TRANSFORMATION (Groq uses 'system', 'user', 'assistant') ---
+        var messages = [];
 
-        // LIMIT HISTORY: Only take the last 8 messages to prevent token bloat
-        var historyLimit = contents.slice(-8);
-        historyLimit.forEach(function (msg) {
-            var role = (msg.role === 'model') ? 'assistant' : 'user';
-            var text = msg.parts?.[0]?.text || "";
-            if (text) messages.push({ role: role, content: text });
+        // 1. Add System Prompt first
+        messages.push({
+            role: "system",
+            content: combinedSystemInstruction
         });
 
-        var apiResponseText = await fetchFromModelWithRetry({ messages: messages });
+        // 2. Append Chat History
+        // TOKEN MINIMIZATION: You may want to add logic here to only take the last N messages
+        if (contents && Array.isArray(contents)) {
+            contents.forEach(function (msg) {
+                var role = (msg.role === 'model') ? 'assistant' : 'user';
+                var text = msg.parts && msg.parts[0] ? msg.parts[0].text : "";
+                
+                if (text) {
+                    messages.push({ role: role, content: text });
+                }
+            });
+        }
+
+        var payload = {
+            messages: messages
+        };
+
+        // Fetch the generated content using the new Groq implementation
+        var apiResponseText = await fetchFromModelWithRetry(payload);
         response.status(200).json({ text: apiResponseText });
 
     } catch (error) {
         console.error("API call failed:", error);
-        var is429 = error.status === 429 || error.message.includes('429');
-        response.status(is429 ? 429 : 500).json({ error: error.message });
+
+        // Check if the error message contains the token/request size issue for better reporting
+        var isTokenError = error.message.includes('Request too large') || (error.status === 429);
+
+        if (isTokenError) { 
+            return response.status(429).json({
+                error: "Rate or Token limit exceeded. The conversation history may be too long.",
+                retryAfter: "Consider starting a new conversation or reducing context."
+            });
+        }
+
+        return response.status(500).json({
+            error: "Failed to generate content.",
+            details: error.message || "An unknown error occurred during content generation."
+        });
     }
 }
