@@ -24,7 +24,7 @@ var TIMEZONE = 'America/New_York';
 var MAX_RETRIES = 3;  
 var RETRY_DELAY = 5000;
 // Groq Configuration
-var GROQ_MODEL_ID = "llama-3.3-70b-versatile";
+var GROQ_MODEL_ID = "meta-llama/llama-4-scout-17b-16e-instruct";
 var GROQ_ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions';
 // Token Saving Configuration
 var MAX_CONTEXT_LENGTH = 2000; // Max characters for index.json content
