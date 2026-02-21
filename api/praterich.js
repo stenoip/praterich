@@ -40,7 +40,7 @@ var newsCache = {
 
 async function getSiteContentFromFile() {
     // Path to the  knowledge.txt
-    var filePath = path.join(process.cwd(), 'api', 'knowledge.txt);
+    var filePath = path.join(process.cwd(), 'api', 'knowledge.txt');
     try {
         var data = await fs.readFile(filePath, 'utf8');
         return data;
