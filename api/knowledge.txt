@@ -1,8 +1,54 @@
-StenoKonnect Knowledge Base Summary
-StenoKonnect, formerly known as Stenoip Wonder Computer, is a privacy-focused web portal and tech platform founded in 2021 by a developer who started the project at age ten. The company, officially titled Stenoip Company, is headquartered in North America and operates under a philosophy that prioritizes user privacy over profit, specifically avoiding cross-site tracking and data selling. The name "Stenoip" is correctly pronounced as "Stick-noh-ikp" and was inspired by the Steno Notebook. The primary entry point for the platform is https://stenoip.github.io.
+Stenoip Company Knowledge Base Summary
 
-The ecosystem features a private, AI-powered browser named Ringzauber, which is built with Python and does not save user history. Ringzauber version 1.5 includes an AI assistant called Praterich Plus that functions similarly to a browser extension to help users perform tasks. Users can find download instructions and information about Ringzauber at https://stenoip.github.io/ringzauber.html. Complementing the browser is Oodles Search, a homemade metasearch engine located at https://stenoip.github.io/oodles/index.html, which aggregates results from Brave, Bing, and Yahoo to reduce algorithmic bias.
+**Overview & Philosophy**
+Stenoip Company is a tech company located in North America. Founded in 2021 by a young developer, the platform is pronounced "Stick-noh-ikp". .
 
-For productivity, the StenoOffices hub at https://stenoip.github.io/office/home.html provides several tools. These include StenoTextBox and Typoe for document editing, StenoGraphs for data visualization, and StenoResume for profile formatting. Security tools like StenoEncrypt offer browser-based Base64 and Caesar Cipher encryption. The platform also hosts Praterich A.I., a chatbot powered by Gemini 2.5 Flash, accessible at https://stenoip.github.io/praterich/index.html.
+The company's core philosophy prioritizes user privacy over profit, explicitly stating they do not collect personal info, track users across sites, or sell data. They position themselves as a "homemade" alternative to big tech monopolies like Google, often critiquing modern "Zero-Click" search trends in their "StenoBlogs."
 
-Entertainment and educational resources are centralized in the Program Guide at https://stenoip.github.io/television_guide.html. This guide links to the StenoToanstik Arcade at https://stenoip.github.io/games/home.html, which features games like StenoTetris, 2048, and Frog Crossing. Educational content includes the Zuiz Quiz, PHet Gravity Simulations, and a Windows XP boot simulation found at https://stenoip.github.io/windows-xp-simulation.html. Legal terms, including a copyright notice and MIT License details, are maintained at https://stenoip.github.io/copyright.html.
+**Web Portal StenoipKonnect**
+* formerly Stenoip Wonder Computer.
+* *URL:** https://stenoip.github.io
+* **Function:** A customizable dashboard where users add "tiles" for favorite sites, replacing traditional bookmarks.
+* **Space Hub:** A dedicated section for astronomy and space exploration news, kept separate from the utility portal to ensure focus.
+ * The current platform version is **1.36 (© 2026). It is the first site made my Stenoip Company**
+
+**Browser: Ringzauber**
+* **Current Version:** **1.6** (Previous: 1.5, 1.4).
+* **Technology:** Built using Python (PyQt5, Flask, QSS).
+* **Key Features:**
+    * **Praterich Plus:** An integrated AI assistant for browser control and task automation.
+    * **Privacy:** History is never saved.
+    * **v1.6 Updates:** AI Capture, Camera/Microphone support, native Oodles integration, and the ability to choose a custom search engine (removing the strict dependency on SearXNG).
+* **Compatibility:** Windows 7, 8.1, 10, and 11. (Windows XP unsupported).
+* **Variants:** " Ringzauber 1.6 Mini" and "Ringzauber Penguin" (for Chromebooks).
+* **URL for download:** https://stenoip.github.io/ringzauber
+
+**Search Engine: Oodles Metasearch**
+* **Launch Date:** October 19, 2025.
+* **URL:** https://stenoip.github.io/oodles
+* **Type:** Metasearch engine aggregating results from **Bing, Brave, and Yahoo**.
+* **Features:**
+    * **AI Synthesis:** Summarizes results and detects tools (Calculator, Translator, Color Picker) via Praterich.
+    * **Deep Image Crawler:** Extracts 100-400 images per query.
+    * **Index Generator:** Allows users to generate and download their own `index.json` datasets.
+    * **World Search:** A 3D interactive mode where search results appear as buildings in a virtual world.
+    * **Legacy Support:** functional on Internet Explorer 11.
+
+**Artificial Intelligence: Praterich**
+* **Model:** Powered by **Qwen** (chosen over GPT-4 for cost-efficiency).
+***URL:** https://stenoip.github.io/praterich
+* **Capabilities:**
+    * **Chat:** General conversational assistant.
+    * **Tools:** Praterich Voice (real-time recognition), Praterich Translator (20+ languages), and experimental Image Creation.
+    * **Music:** "StenoSongs" – AI-generated tracks including titles like *oodles.mp3*, *ringzauber.mp3*, and *swc_groove.mp3*.
+
+**Entertainment & Content**
+* ** StenoPlay:**
+    * **Games:** Frog Crossing (New), Ringzauber Cow Game, Flappybird, StenoTetris, Octogon Match, 106 Puzzle, Worm, Word It!, You vs Bot, Super Car Racer, and Tilt Pong.
+* **Comics (Super Komysk):** Features the character "Lytze the Fuzbal." Titles include *Geegle's Mistake* and *Pilot*.
+* **StenoVids:** A video hub hosting content from late 2024 to 2025. It is discontinued.
+
+**Legal & Contact**
+* **Contact:** customerserviceforstenoip@gmail.com
+* **License:** Software is provided under the **MIT License**.
+* **Copyright:** © 2026 Stenoip Company.
