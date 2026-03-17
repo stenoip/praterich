@@ -642,19 +642,26 @@
                     </div>
                 </div>
                 <div class="input-row">
-                    <input type="file" id="file-upload" style="display: none;" accept="*">
-                    <button id="upload-button" class="input-button" title="Upload File">
-                        <i class="fas fa-paperclip"></i>
-                    </button>
-                    <textarea id="user-input" placeholder="Type your message here..."></textarea>
-                    <button id="send-button" class="input-button" title="Send" disabled>
-                        <i class="fas fa-paper-plane"></i>
-                    </button>
-                </div>
+    <input type="file" id="file-upload" style="display: none;" accept="*">
+    <button id="upload-button" class="input-button" title="Upload File">
+        <i class="fas fa-paperclip"></i>
+    </button>
+    
+    <button id="web-search-toggle" class="input-button" title="Web Search: Auto/Off">
+        <img id="web-search-icon" src="https://stenoip.github.io/oodles.ico" style="width: 20px; height: 20px; filter: grayscale(100%); transition: all 0.3s;" alt="Web Search">
+    </button>
+
+    <textarea id="user-input" placeholder="Type your message here..."></textarea>
+    <button id="send-button" class="input-button" title="Send" disabled>
+        <i class="fas fa-paper-plane"></i>
+    </button>
+</div>
                 <div id="char-counter">0 / 10710 characters.</div>
             </div>
         </div>
     </div>
     <script src="script.js"></script>
+    <script src="ui.js"></script>
+    
 </body>
 </html>
