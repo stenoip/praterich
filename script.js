@@ -394,3 +394,25 @@ sendButton.addEventListener('click', sendMessage);
 
 // Make sure everything is visually up to date
 updateCharCount();
+
+// --- Sidebar Toggle Logic ---
+var sidebar = document.getElementById('sidebar');
+var menuToggleButton = document.getElementById('menu-toggle-button');
+
+if (menuToggleButton && sidebar) {
+    // Toggle sidebar when the hamburger menu is clicked
+    menuToggleButton.addEventListener('click', function(e) {
+        e.stopPropagation(); // Prevents the document click listener below from immediately firing
+        sidebar.classList.toggle('open');
+    });
+
+    // Close the sidebar if clicking outside of it (especially helpful on mobile)
+    document.addEventListener('click', function(event) {
+        if (window.innerWidth <= 768 && sidebar.classList.contains('open')) {
+            // If the click happened outside the sidebar and outside the toggle button
+            if (!sidebar.contains(event.target) && !menuToggleButton.contains(event.target)) {
+                sidebar.classList.remove('open');
+            }
+        }
+    });
+}
