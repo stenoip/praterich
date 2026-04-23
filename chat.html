@@ -13,7 +13,14 @@
   --sidebar-bg: #171717;
   --sidebar-hover: #202123;
   --sidebar-text: #ECECEC;
-  --main-bg: #FFFFFF;
+  
+  /* 1. Orange | 2. Darker Orange | 3. Dark Orange */
+  --main-bg: linear-gradient(180deg, 
+                #FFA500 0%,    /* Top: Orange */
+                #FF7000 50%,   /* Mid: Darker Orange */
+                #CC5500 100%   /* Bottom: Dark Orange */
+              ); 
+
   --input-bg: #FFFFFF;
   --border-light: #E5E5E5;
   --text-primary: #0D0D0D;
@@ -24,8 +31,10 @@
 body {
   font-family: Söhne, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   background: var(--main-bg);
+  background-attachment: fixed; /* Crucial: Keeps the dark bottom at the bottom of the screen */
+  background-size: cover;
   display: flex;
-  min-height: 100vh;
+  height: 100vh; /* Set to viewport height */
   margin: 0;
   padding: 0;
   overflow: hidden;
@@ -37,9 +46,8 @@ body {
   width: 100vw;
   height: 100vh;
   overflow: hidden;
-  background: var(--main-bg);
+  background: transparent; /* Must be transparent to see the body gradient */
 }
-
 /* --- SIDEBAR --- */
 #sidebar {
   width: var(--sidebar-width);
@@ -292,12 +300,12 @@ body {
   margin: 0 auto;
 }
 .suggestions-item {
+  background-color: rgb(255,255,255);
   list-style: none;
   padding: 12px 16px;
   border-radius: 12px;
-  border: 1px solid var(--border-light);
-  background-color: var(--main-bg);
-  color: var(--text-secondary);
+  border: 1px solid;
+  color: rgb(0,0,0);
   cursor: pointer;
   transition: all 0.2s;
   font-size: 0.9em;
@@ -442,9 +450,7 @@ body {
         
         <div id="chat-container">
             <div id="chat-header">
-              <button id="voice-assistant-button" class="input-button" onclick="window.location.href='cell.html'">
-    <i class="fas fa-microphone"></i>Voice
-</button>
+             
 
               <button id="menu-toggle-button" class="input-button"><i class="fas fa-bars"></i></button>
                 <img id="praterich-icon" src="https://stenoip.github.io/praterich/praterich.png" alt="Praterich A.I. Icon" onerror="this.onerror=null; this.src='https://via.placeholder.com/30/ff9900/ffffff?text=P';">
