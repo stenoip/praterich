@@ -6,7 +6,7 @@ var MAX_CHARS = 10710;
 // Custom Pronunciations for TTS
 var customPronunciations = {
   "Praterich": "Prah-ter-rich",
-  "Stenoip": "Stick-no-ip"
+  "Stenoip": "Sticknoyp"
 };
 
 // --- Cross-browser Female Voice Picker ---
