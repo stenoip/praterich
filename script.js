@@ -80,11 +80,41 @@ async function fetchWebSearch(query) {
     }
 }
 
-// --- Image Generation via Pollinations.ai ---
 function buildPollinationsUrl(prompt) {
     var encoded = encodeURIComponent(prompt);
-    // nologo=true removes the watermark, width/height for good quality
-    return 'https://image.pollinations.ai/prompt/' + encoded + '?nologo=true&width=800&height=600&seed=' + Math.floor(Math.random() * 999999);
+    var seed = Math.floor(Math.random() * 999999);
+    // flux model is faster and less congested than sana on the free tier
+    return 'https://image.pollinations.ai/prompt/' + encoded 
+        + '?nologo=true&width=768&height=512&seed=' + seed + '&model=flux&enhance=false';
+}
+
+async function generateImageWithRetry(prompt, maxRetries) {
+    maxRetries = maxRetries || 3;
+    var delay = 4000; // 4 seconds between retries
+
+    for (var attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            var url = buildPollinationsUrl(prompt);
+            // Pre-fetch to check if image loads before displaying
+            var result = await new Promise(function(resolve, reject) {
+                var img = new Image();
+                img.onload = function() { resolve(url); };
+                img.onerror = function() { reject(new Error('Image failed')); };
+                // Timeout after 20 seconds
+                setTimeout(function() { reject(new Error('Timeout')); }, 20000);
+                img.src = url;
+            });
+            return result; // success
+        } catch (err) {
+            console.warn('Pollinations attempt ' + attempt + ' failed:', err.message);
+            if (attempt < maxRetries) {
+                typingIndicator.innerHTML = 'Image queue busy, retrying in ' + (delay/1000) + 's... (attempt ' + attempt + '/' + maxRetries + ')';
+                await new Promise(function(r) { return setTimeout(r, delay); });
+                delay += 2000; // back off a bit each retry
+            }
+        }
+    }
+    return null; // all retries failed
 }
 
 // --- Core Functions ---
