@@ -128,15 +128,43 @@ function renderMarkdown(text) {
 
 function speakText(text) {
     if (!('speechSynthesis' in window)) return;
-    window.speechSynthesis.cancel(); 
-    // Strip markdown and image URLs before speaking
-    var speakableText = text.replace(/!\[.*?\]\(.*?\)/g, 'generated image').replace(/\[.*?\]\(.*?\)/g, '').replace(/[#*_`]/g, '');
-    for (var word in customPronunciations) {
-        speakableText = speakableText.replace(new RegExp('\\b' + word + '\\b', 'gi'), customPronunciations[word]);
-    }
+    window.speechSynthesis.cancel();
+
+    // Strip markdown syntax and image tags before speaking
+    var speakableText = text
+        .replace(/!\[.*?\]\(.*?\)/g, 'generated image')
+        .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')   // keep link text, drop URL
+        .replace(/```[\s\S]*?```/g, 'code block')   // replace code blocks
+        .replace(/`[^`]+`/g, '')                     // inline code
+        .replace(/[#*_~>]/g, '')                     // markdown symbols
+        .trim();
+
+    // Apply custom pronunciations — using split/join instead of regex
+    // for consistent cross-browser behavior
+    Object.keys(customPronunciations).forEach(function(word) {
+        var replacement = customPronunciations[word];
+        // Case-insensitive split on the whole word
+        var parts = speakableText.split(new RegExp(word, 'gi'));
+        // Rebuild with replacement, preserving surrounding text
+        speakableText = parts.join(replacement);
+    });
+
     var utterance = new SpeechSynthesisUtterance(speakableText);
-    utterance.rate = 1.3; 
-    utterance.pitch = 1.0;
+    utterance.rate = 1.3;
+    utterance.pitch = 1.1;   // slightly higher pitch helps on browsers with fewer voices
+    utterance.volume = 1.0;
+    utterance.lang = 'en-US';
+
+    // Use the pre-picked female voice if available
+    if (preferredVoice) {
+        utterance.voice = preferredVoice;
+    }
+
+    // Firefox bug: long utterances get silently cut off — chunk if needed
+    if (speakableText.length > 200) {
+        window.speechSynthesis.cancel();
+    }
+
     window.speechSynthesis.speak(utterance);
 }
 
