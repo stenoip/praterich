@@ -9,6 +9,44 @@ var customPronunciations = {
   "Stenoip": "Stick-no-ip"
 };
 
+// --- Cross-browser Female Voice Picker ---
+var preferredVoice = null;
+
+function pickFemaleVoice() {
+    var voices = window.speechSynthesis.getVoices();
+    if (!voices || voices.length === 0) return;
+
+    // Priority list: specific known good female voices across browsers
+    var femaleKeywords = [
+        'samantha', 'victoria', 'karen', 'moira', 'fiona',   // macOS/iOS
+        'zira', 'hazel', 'susan',                              // Windows/Edge
+        'google uk english female', 'google us english',       // Chrome
+        'female', 'woman', 'girl',                             // Generic
+    ];
+
+    // Try to find a preferred voice by name keywords (case-insensitive)
+    for (var i = 0; i < femaleKeywords.length; i++) {
+        var keyword = femaleKeywords[i];
+        var found = voices.find(function(v) {
+            return v.name.toLowerCase().includes(keyword) && v.lang.startsWith('en');
+        });
+        if (found) { preferredVoice = found; return; }
+    }
+
+    // Fallback: any English voice — filter out known male ones
+    var maleKeywords = ['david', 'mark', 'fred', 'alex', 'daniel', 'george', 'james', 'male'];
+    var englishVoices = voices.filter(function(v) {
+        var nameLower = v.name.toLowerCase();
+        return v.lang.startsWith('en') && !maleKeywords.some(function(m) { return nameLower.includes(m); });
+    });
+
+    if (englishVoices.length > 0) preferredVoice = englishVoices[0];
+}
+
+// Voices load async — must listen for the event (especially Firefox)
+window.speechSynthesis.onvoiceschanged = pickFemaleVoice;
+pickFemaleVoice(); // also try immediately for Chrome (which has voices ready at parse time)
+
 // --- Global State ---
 var chatSessions = {}; 
 var currentChatId = null;
