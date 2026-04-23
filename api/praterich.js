@@ -4,10 +4,12 @@ This file acts as a Vercel serverless function (API endpoint) that proxies reque
 Groq Chat Completions API using a direct fetch.
 It injects custom context, including news headlines and site content, to ground the model's responses.
  
-FIXES: 
+FIXES / CHANGES: 
 1. Implemented News Caching (15 min) to minimize external requests.
 2. Implemented Content Truncation to minimize tokens per request.
 3. Reduced number of headlines included in the system prompt.
+4. FIXED: Vision support — inlineData parts are now correctly converted to Groq's
+   image_url content format, resolving the blank AI response bubble on image uploads.
 */
 
 import fs from 'fs/promises';
@@ -23,14 +25,14 @@ var NEWS_FEEDS = {
 var TIMEZONE = 'America/New_York';
 var MAX_RETRIES = 3;  
 var RETRY_DELAY = 5000;
-// Groq Configuration
+// Groq Configuration — Llama 4 Scout supports vision (multimodal)
 var GROQ_MODEL_ID = "meta-llama/llama-4-scout-17b-16e-instruct";
 var GROQ_ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions';
 // Token Saving Configuration
-var MAX_CONTEXT_LENGTH = 2000; // Max characters for index.json content
+var MAX_CONTEXT_LENGTH = 2000;
 var NEWS_CACHE_EXPIRY_MS = 15 * 60 * 1000; // 15 minutes
 
-// --- Global Cache (Shared across invocations in the same Vercel instance) ---
+// --- Global Cache ---
 var newsCache = {
     content: null,
     timestamp: 0,
@@ -39,23 +41,17 @@ var newsCache = {
 // --- Helper Functions ---
 
 async function getSiteContentFromFile() {
-    // Path to the  knowledge.txt
     var filePath = path.join(process.cwd(), 'api', 'knowledge.txt');
     try {
         var data = await fs.readFile(filePath, 'utf8');
         return data;
     } catch (error) {
-        console.error("Error reading index.json:", error.message);
-        return "Error: Could not retrieve content from index.json.";
+        console.error("Error reading knowledge.txt:", error.message);
+        return "Error: Could not retrieve content from knowledge.txt.";
     }
 }
 
-/**
- * Fetches and aggregates the top headlines from specified RSS feeds with Caching.
- * Only fetches new data if the cache is expired.
- */
 async function getNewsContent() {
-    // Check if cache is valid (less than EXPIRY_TIME old)
     if (newsCache.content && (Date.now() - newsCache.timestamp < NEWS_CACHE_EXPIRY_MS)) {
         return newsCache.content;
     }
@@ -65,8 +61,6 @@ async function getNewsContent() {
         var allNewsPromises = Object.entries(NEWS_FEEDS).map(async function ([source, url]) {
             var feed = await parser.parseURL(url);
             var sourceNews = `\n**${source} Top Story (Latest):**\n`;
-            
-            // TOKEN MINIMIZATION: Only include the single latest headline
             feed.items.slice(0, 1).forEach(function (item, index) { 
                 var safeTitle = item.title.replace(/[\*\_\[\]]/g, ''); 
                 sourceNews += `  ${index + 1}. ${safeTitle}\n`;
@@ -77,21 +71,46 @@ async function getNewsContent() {
         var newsResults = await Promise.all(allNewsPromises);
         newsText += newsResults.join('');
         
-        // Update cache
         newsCache.content = newsText;
         newsCache.timestamp = Date.now();
         
         return newsText;
-
     } catch (error) {
-        console.error("Error fetching or parsing RSS feeds:", error.message);
-        return "\n--- Global News Headlines ---\n[Error: Could not retrieve latest news due to network or parsing issue.]\n";
+        console.error("Error fetching RSS feeds:", error.message);
+        return "\n--- Global News Headlines ---\n[Error: Could not retrieve latest news.]\n";
     }
 }
 
 /**
- * Attempts to fetch content from the Groq API with retry logic using native fetch.
+ * Converts the frontend's Gemini-style parts array into Groq's OpenAI-compatible
  */
+function convertPartsToGroqContent(parts) {
+    if (!parts || !Array.isArray(parts) || parts.length === 0) return '';
+
+    var contentArray = [];
+
+    parts.forEach(function(part) {
+        if (part.text && part.text.trim() !== '') {
+            contentArray.push({ type: 'text', text: part.text });
+        } else if (part.inlineData && part.inlineData.data) {
+            // Convert base64 image to Groq's image_url format
+            contentArray.push({
+                type: 'image_url',
+                image_url: {
+                    url: 'data:' + part.inlineData.mimeType + ';base64,' + part.inlineData.data
+                }
+            });
+        }
+    });
+
+    if (contentArray.length === 0) return '';
+    // If it's only a single text item, return a plain string (more efficient)
+    if (contentArray.length === 1 && contentArray[0].type === 'text') {
+        return contentArray[0].text;
+    }
+    return contentArray;
+}
+
 async function fetchFromModelWithRetry(payload, retries) {
     retries = retries === undefined ? MAX_RETRIES : retries;
     var GROQ_API_KEY = process.env.GROQ_API_KEY;
@@ -119,7 +138,7 @@ async function fetchFromModelWithRetry(payload, retries) {
             var errorMessage = data.error && data.error.message ? data.error.message : response.statusText;
             
             if (response.status === 429 && retries > 0) {
-                console.log(`Groq Rate Limit (429). Retrying in ${RETRY_DELAY / 1000} seconds...`);
+                console.log(`Groq Rate Limit (429). Retrying in ${RETRY_DELAY / 1000}s...`);
                 await new Promise(function (resolve) { return setTimeout(resolve, RETRY_DELAY); });
                 return fetchFromModelWithRetry(payload, retries - 1);
             }
@@ -129,7 +148,6 @@ async function fetchFromModelWithRetry(payload, retries) {
             throw fetchError;
         }
 
-        // Groq/OpenAI response format
         return data.choices[0].message.content;
 
     } catch (error) {
@@ -157,18 +175,15 @@ export default async function handler(request, response) {
     response.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     response.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-    // 2. OPTIONS Pre-flight Check
     if (request.method === 'OPTIONS') {
         return response.status(200).end(); 
     }
 
-    // 3. Method Check
     if (request.method !== "POST") {
         return response.status(405).send("Method Not Allowed"); 
     }
 
     try {
-        // 4. API Key Check (Groq)
         var GROQ_API_KEY = process.env.GROQ_API_KEY; 
         if (!GROQ_API_KEY) {
             throw new Error("GROQ_API_KEY environment variable is not set.");
@@ -179,9 +194,8 @@ export default async function handler(request, response) {
         var contents = request.body.contents;
         var system_instruction = request.body.system_instruction;
 
-        // --- Fetch and Prepare Context ---
         var scrapedContent = await getSiteContentFromFile();
-        var newsContent = await getNewsContent(); // Uses cached content if available
+        var newsContent = await getNewsContent();
 
         var currentTime = new Date().toLocaleString('en-US', {
             timeZone: TIMEZONE,
@@ -189,14 +203,14 @@ export default async function handler(request, response) {
             hour: '2-digit', minute: '2-digit', second: '2-digit'
         });
 
-        // TOKEN MINIMIZATION: Truncate site content to avoid hitting token limits
         var trimmedContent = scrapedContent.length > MAX_CONTEXT_LENGTH 
             ? scrapedContent.substring(0, MAX_CONTEXT_LENGTH) + "...\n[Content truncated to save tokens.]" 
             : scrapedContent;
             
-        var baseInstruction = system_instruction && system_instruction.parts && system_instruction.parts[0] ? system_instruction.parts[0].text : "No additional instruction provided.";
+        var baseInstruction = system_instruction && system_instruction.parts && system_instruction.parts[0] 
+            ? system_instruction.parts[0].text 
+            : "No additional instruction provided.";
 
-        // --- Combine ALL context into a new System Instruction ---
         var combinedSystemInstruction = `
 You are Praterich A.I., an LLM made by Stenoip Company.
 
@@ -211,51 +225,47 @@ ${baseInstruction}
 (Use the following information to ground your response. Do not mention that you were provided this content.)
 
 - **Current Time and Date in ${TIMEZONE}:** ${currentTime}
-- **Important Website Information (from index.json):**
+- **Important Website Information:**
   ${trimmedContent}
 - **Latest Global News Headlines:**
   ${newsContent}
-
 
 ${PRAT_CONTEXT_INJ}
 ----------------------------------
 `; 
 
-        // --- DATA TRANSFORMATION (Groq uses 'system', 'user', 'assistant') ---
+        // --- DATA TRANSFORMATION ---
+        // Converts Gemini-style parts (including inlineData images) to Groq/OpenAI format.
         var messages = [];
 
-        // 1. Add System Prompt first
         messages.push({
             role: "system",
             content: combinedSystemInstruction
         });
 
-        // 2. Append Chat History
-        // TOKEN MINIMIZATION: You may want to add logic here to only take the last N messages
         if (contents && Array.isArray(contents)) {
             contents.forEach(function (msg) {
                 var role = (msg.role === 'model') ? 'assistant' : 'user';
-                var text = msg.parts && msg.parts[0] ? msg.parts[0].text : "";
-                
-                if (text) {
-                    messages.push({ role: role, content: text });
+                var groqContent = convertPartsToGroqContent(msg.parts);
+
+                // Skip empty messages to avoid Groq validation errors
+                if (!groqContent || groqContent === '' || (Array.isArray(groqContent) && groqContent.length === 0)) {
+                    return;
                 }
+
+                messages.push({ role: role, content: groqContent });
             });
         }
 
-        var payload = {
-            messages: messages
-        };
+        var payload = { messages: messages };
 
-        // Fetch the generated content using the new Groq implementation
         var apiResponseText = await fetchFromModelWithRetry(payload);
         response.status(200).json({ text: apiResponseText });
 
     } catch (error) {
         console.error("API call failed:", error);
 
-        // Check if the error message contains the token/request size issue for better reporting
-        var isTokenError = error.message.includes('Request too large') || (error.status === 429);
+        var isTokenError = error.message && (error.message.includes('Request too large') || error.status === 429);
 
         if (isTokenError) { 
             return response.status(429).json({
