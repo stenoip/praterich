@@ -33,19 +33,27 @@ Example: @@SEARCH: current weather in New York@@
 
 The system will intercept this, perform the search and feed the results back to you so you can provide a final, accurate answer. Do not wrap the search command in code blocks.
 
+IMPORTANT CAPABILITY - IMAGE GENERATION:
+You can generate images using a built-in image generation tool.
+If the user asks you to generate, draw, create, or visualize an image, you MUST trigger image generation by replying EXACTLY with this format and nothing else:
+@@IMAGE: [a detailed, descriptive image generation prompt]@@
+
+Example: @@IMAGE: a serene Japanese garden with cherry blossoms and a koi pond at golden hour@@
+
+The system will intercept this and display the generated image to the user. Do NOT wrap it in code blocks. Make the prompt as descriptive and vivid as possible for best results. You can also combine search and image in the same conversation but only one command per turn.
+
 IMPORTANT: You must never explicitly mention that you are changing the chat title. Infer the title based on the user's first message and use a maximum of 30 characters.
 `;
 
-var initialGreeting = "Hey there 👋 What’s on your mind today? Want to dive into something fun, solve a problem, or just chat for a bit?";
+var initialGreeting = "Hey there 👋 What's on your mind today? Want to dive into something fun, solve a problem, or just chat for a bit?";
 
 // --- Web Search Functions ---
 
-// Toggle search manually via the UI button
 webSearchToggle.addEventListener('click', function() {
     isWebSearchEnabled = !isWebSearchEnabled;
     if (isWebSearchEnabled) {
         webSearchIcon.style.filter = 'grayscale(0%)';
-        webSearchToggle.style.backgroundColor = 'rgba(255, 153, 0, 0.2)'; // Light orange highlight
+        webSearchToggle.style.backgroundColor = 'rgba(255, 153, 0, 0.2)';
         webSearchToggle.title = "Web Search: ON";
     } else {
         webSearchIcon.style.filter = 'grayscale(100%)';
@@ -54,7 +62,6 @@ webSearchToggle.addEventListener('click', function() {
     }
 });
 
-// Execute the fetch to the Oodles backend
 async function fetchWebSearch(query) {
     try {
         var url = OODLES_SEARCH_URL + '?q=' + encodeURIComponent(query) + '&page=1&pageSize=6';
@@ -73,6 +80,13 @@ async function fetchWebSearch(query) {
     }
 }
 
+// --- Image Generation via Pollinations.ai ---
+function buildPollinationsUrl(prompt) {
+    var encoded = encodeURIComponent(prompt);
+    // nologo=true removes the watermark, width/height for good quality
+    return 'https://image.pollinations.ai/prompt/' + encoded + '?nologo=true&width=800&height=600&seed=' + Math.floor(Math.random() * 999999);
+}
+
 // --- Core Functions ---
 
 function renderMarkdown(text) {
@@ -85,7 +99,8 @@ function renderMarkdown(text) {
 function speakText(text) {
     if (!('speechSynthesis' in window)) return;
     window.speechSynthesis.cancel(); 
-    var speakableText = text;
+    // Strip markdown and image URLs before speaking
+    var speakableText = text.replace(/!\[.*?\]\(.*?\)/g, 'generated image').replace(/\[.*?\]\(.*?\)/g, '').replace(/[#*_`]/g, '');
     for (var word in customPronunciations) {
         speakableText = speakableText.replace(new RegExp('\\b' + word + '\\b', 'gi'), customPronunciations[word]);
     }
@@ -108,28 +123,45 @@ function addMessage(text, sender, isHistoryLoad) {
     var contentDiv = document.createElement('div');
     contentDiv.className = 'message-content';
 
-    if (sender === 'user') {
-        contentDiv.innerHTML = renderMarkdown(text); 
-    } else {
-        contentDiv.innerHTML = renderMarkdown(text);
-        if (!isHistoryLoad) {
-            var actionsDiv = document.createElement('div');
-            actionsDiv.className = 'ai-message-actions';
+    contentDiv.innerHTML = renderMarkdown(text);
 
-            var copyBtn = document.createElement('button');
-            copyBtn.className = 'action-button copy-button';
-            copyBtn.innerHTML = '<i class="fas fa-copy"></i>';
-            copyBtn.onclick = () => navigator.clipboard.writeText(contentDiv.innerText);
-            
-            var voiceBtn = document.createElement('button');
-            voiceBtn.className = 'action-button voice-toggle-button';
-            voiceBtn.innerHTML = '<i class="fas fa-volume-up"></i>';
-            voiceBtn.onclick = () => window.speechSynthesis.cancel();
-            
-            actionsDiv.appendChild(copyBtn);
-            actionsDiv.appendChild(voiceBtn);
-            contentDiv.appendChild(actionsDiv);
-        }
+    // Style any generated images inside the bubble
+    contentDiv.querySelectorAll('img').forEach(function(img) {
+        img.style.maxWidth = '100%';
+        img.style.borderRadius = '10px';
+        img.style.display = 'block';
+        img.style.marginTop = '8px';
+        img.alt = img.alt || 'Generated image';
+        // Show a loading state
+        img.style.minHeight = '80px';
+        img.style.background = 'rgba(0,0,0,0.05)';
+        img.addEventListener('load', function() {
+            img.style.minHeight = '';
+            img.style.background = '';
+        });
+        img.addEventListener('error', function() {
+            img.alt = ' Image failed to load. Try again.';
+            img.style.minHeight = '';
+        });
+    });
+
+    if (sender === 'ai' && !isHistoryLoad) {
+        var actionsDiv = document.createElement('div');
+        actionsDiv.className = 'ai-message-actions';
+
+        var copyBtn = document.createElement('button');
+        copyBtn.className = 'action-button copy-button';
+        copyBtn.innerHTML = '<i class="fas fa-copy"></i>';
+        copyBtn.onclick = function() { navigator.clipboard.writeText(contentDiv.innerText); };
+        
+        var voiceBtn = document.createElement('button');
+        voiceBtn.className = 'action-button voice-toggle-button';
+        voiceBtn.innerHTML = '<i class="fas fa-volume-up"></i>';
+        voiceBtn.onclick = function() { window.speechSynthesis.cancel(); };
+        
+        actionsDiv.appendChild(copyBtn);
+        actionsDiv.appendChild(voiceBtn);
+        contentDiv.appendChild(actionsDiv);
     }
 
     messageDiv.appendChild(contentDiv);
@@ -139,7 +171,45 @@ function addMessage(text, sender, isHistoryLoad) {
     if (sender === 'ai' && !isHistoryLoad) speakText(text);
 }
 
-// The core loop: allows Praterich to call the search tool if needed, then answer.
+// Special function for user messages that include an uploaded image (shows thumbnail)
+function addUserMessageWithImage(text, imageBase64, mimeType) {
+    // Only store the text version (no base64) to keep localStorage lean
+    var storedText = text;
+    if (currentChatId) {
+        chatSessions[currentChatId].messages.push({ text: storedText, sender: 'user' });
+        saveToLocalStorage();
+    }
+
+    var messageDiv = document.createElement('div');
+    messageDiv.className = 'message user-message';
+    var contentDiv = document.createElement('div');
+    contentDiv.className = 'message-content';
+
+    // Show the thumbnail
+    if (imageBase64 && mimeType && mimeType.startsWith('image/')) {
+        var img = document.createElement('img');
+        img.src = imageBase64;
+        img.style.maxWidth = '220px';
+        img.style.maxHeight = '180px';
+        img.style.borderRadius = '10px';
+        img.style.display = 'block';
+        img.style.marginBottom = '8px';
+        contentDiv.appendChild(img);
+    }
+
+    // Add any text the user typed
+    if (text) {
+        var textDiv = document.createElement('div');
+        textDiv.innerHTML = renderMarkdown(text);
+        contentDiv.appendChild(textDiv);
+    }
+
+    messageDiv.appendChild(contentDiv);
+    chatWindow.appendChild(messageDiv);
+    scrollToBottom();
+}
+
+// The core loop: allows Praterich to call tools if needed, then answer.
 async function sendMessage() {
     if (window.speechSynthesis.speaking) window.speechSynthesis.cancel();
     
@@ -149,33 +219,52 @@ async function sendMessage() {
 
     userInput.value = '';
     updateCharCount();
-    
-    var messageText = userText;
-    if (fileToAttach) {
-        messageText += `\n\n**[File Attached]**\n- **Name:** ${fileToAttach.fileName}\n- **Type:** ${fileToAttach.mimeType}`;
-    }
-    
-    addMessage(messageText, 'user');
     clearAttachedFile();
+
+    // --- Display user message ---
+    var isImageAttachment = fileToAttach && fileToAttach.mimeType && fileToAttach.mimeType.startsWith('image/');
+    
+    if (isImageAttachment) {
+        // Show thumbnail + text in the user bubble
+        var displayText = userText || '';
+        addUserMessageWithImage(displayText, fileToAttach.base64Data, fileToAttach.mimeType);
+    } else {
+        var messageText = userText;
+        if (fileToAttach) {
+            messageText += '\n\n**[File Attached]**\n- **Name:** ' + fileToAttach.fileName + '\n- **Type:** ' + fileToAttach.mimeType;
+        }
+        addMessage(messageText, 'user');
+    }
 
     // Dynamic Chat Renaming
     var currentSession = chatSessions[currentChatId];
     if (currentSession.title === "New Chat") {
-        currentSession.title = userText.substring(0, 30).trim() || fileToAttach?.fileName.substring(0, 30).trim() || "Chat with File"; 
+        currentSession.title = (userText || (fileToAttach && fileToAttach.fileName) || "Chat with File").substring(0, 30).trim();
         renderChatList();
         saveToLocalStorage();
     }
 
-    // Prepare Base Conversation History
+    // Prepare Base Conversation History for API
+    // Slice off the message we just pushed (it's added below as newContentParts)
     var conversationHistory = chatSessions[currentChatId].messages.slice(0, -1).map(function(msg) {
         return { role: msg.sender === 'user' ? 'user' : 'model', parts: [{ text: msg.text }] };
     });
 
+    // Build the new user turn (may include image)
     var newContentParts = [];
-    if (fileToAttach) {
-        newContentParts.push({ inlineData: { mimeType: fileToAttach.mimeType, data: fileToAttach.base64Data.split(',')[1] } });
+    if (fileToAttach && isImageAttachment) {
+        // Pass image as inlineData — praterich.js will convert this for Groq vision
+        newContentParts.push({
+            inlineData: {
+                mimeType: fileToAttach.mimeType,
+                data: fileToAttach.base64Data.split(',')[1]
+            }
+        });
+    } else if (fileToAttach) {
+        // Non-image file: just describe it in text
+        userText = (userText || '') + '\n\n[File Attached: ' + fileToAttach.fileName + ', type: ' + fileToAttach.mimeType + ']';
     }
-    newContentParts.push({ text: userText || "Analyze this file." });
+    newContentParts.push({ text: userText || "Please analyze this image and describe what you see." });
     conversationHistory.push({ role: "user", parts: newContentParts });
 
     typingIndicator.style.display = 'block';
@@ -189,11 +278,11 @@ async function sendMessage() {
         while (!isFinalAnswer && turnCount < 3) {
             turnCount++;
 
-            // If the user forced Web Search on, silently append an instruction to their first prompt
             if (isWebSearchEnabled && turnCount === 1) {
                 var lastIndex = conversationHistory.length - 1;
-                var currentText = conversationHistory[lastIndex].parts[conversationHistory[lastIndex].parts.length - 1].text;
-                conversationHistory[lastIndex].parts[conversationHistory[lastIndex].parts.length - 1].text = currentText + "\n\n[SYSTEM NOTE: The user has manually enabled Web Search. If this query requires factual, external, or up-to-date knowledge, you MUST output @@SEARCH: query@@ to look it up.]";
+                var lastParts = conversationHistory[lastIndex].parts;
+                var lastTextPart = lastParts[lastParts.length - 1];
+                lastTextPart.text = (lastTextPart.text || '') + "\n\n[SYSTEM NOTE: The user has manually enabled Web Search. If this query requires factual, external, or up-to-date knowledge, you MUST output @@SEARCH: query@@ to look it up.]";
             }
 
             var requestBody = {
@@ -207,31 +296,48 @@ async function sendMessage() {
                 body: JSON.stringify(requestBody)
             });
 
-            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            if (!response.ok) throw new Error('HTTP error! status: ' + response.status);
             
             var data = await response.json();
             var aiRawText = data.text;
 
-            // Check if Praterich triggered the Web Search Command
-            var searchRegex = /@@SEARCH:\s*(.*?)@@/;
+            if (!aiRawText || aiRawText.trim() === '') {
+                throw new Error('Empty response from API.');
+            }
+
+            // --- Check for IMAGE tool ---
+            var imageRegex = /@@IMAGE:\s*(.*?)@@/s;
+            var imageMatch = aiRawText.match(imageRegex);
+
+            // --- Check for SEARCH tool ---
+            var searchRegex = /@@SEARCH:\s*(.*?)@@/s;
             var searchMatch = aiRawText.match(searchRegex);
 
-            if (searchMatch) {
-                // Execute Search
+            if (imageMatch) {
+                var imagePrompt = imageMatch[1].trim();
+                typingIndicator.innerHTML = 'Praterich is generating an image of <b>"' + imagePrompt.substring(0, 50) + '..."</b>';
+                
+                var imageUrl = buildPollinationsUrl(imagePrompt);
+                var imageMarkdown = '![' + imagePrompt + '](' + imageUrl + ')';
+                
+                isFinalAnswer = true;
+                typingIndicator.style.display = 'none';
+                typingIndicator.innerHTML = "Praterich A.I. is typing...";
+                addMessage(imageMarkdown, 'ai');
+
+            } else if (searchMatch) {
                 var searchQuery = searchMatch[1].trim();
-                typingIndicator.innerHTML = `Praterich is searching the web for <b>"${searchQuery}"</b>...`;
+                typingIndicator.innerHTML = 'Praterich is searching the web for <b>"' + searchQuery + '"</b>...';
                 
                 var searchResultsText = await fetchWebSearch(searchQuery);
 
-                // Provide results back to her history for the next iteration
                 conversationHistory.push({ role: "model", parts: [{ text: aiRawText }] });
-                conversationHistory.push({ role: "user", parts: [{ text: `[TOOL_RESULT_FOR_PREVIOUS_TURN]\nWeb Search Results for "${searchQuery}":\n${searchResultsText}\n\nBased on these results, please provide your final answer to the original prompt.` }] });
+                conversationHistory.push({ role: "user", parts: [{ text: '[TOOL_RESULT_FOR_PREVIOUS_TURN]\nWeb Search Results for "' + searchQuery + '":\n' + searchResultsText + '\n\nBased on these results, please provide your final answer to the original prompt.' }] });
                 
-                // Reset indicator for the final generation
                 typingIndicator.innerHTML = "Praterich A.I. is typing...";
                 scrollToBottom();
+
             } else {
-                // No search requested, this is the final answer
                 isFinalAnswer = true;
                 typingIndicator.style.display = 'none';
                 typingIndicator.innerHTML = "Praterich A.I. is typing...";
@@ -242,16 +348,16 @@ async function sendMessage() {
         typingIndicator.style.display = 'none';
         typingIndicator.innerHTML = "Praterich A.I. is typing...";
         console.error('API Error:', error);
-        addMessage("An API error occurred. Praterich A.I. apologizes. Please check the console or try again later.", 'ai');
+        addMessage("An API error occurred. Praterich A.I. apologizes — please check the console or try again.", 'ai');
     }
 }
 
 
 // --- File Handling ---
 function fileToBase64(file) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
+    return new Promise(function(resolve, reject) {
+        var reader = new FileReader();
+        reader.onload = function() { resolve(reader.result); };
         reader.onerror = reject;
         reader.readAsDataURL(file);
     });
@@ -339,7 +445,7 @@ function loadChatSession(id) {
     if (suggestionBox) {
         var clonedSuggestionBox = suggestionBox.cloneNode(true);
         chatWindow.appendChild(clonedSuggestionBox);
-        clonedSuggestionBox.querySelectorAll('.suggestions-item').forEach(item => {
+        clonedSuggestionBox.querySelectorAll('.suggestions-item').forEach(function(item) {
             item.addEventListener('click', function() {
                 userInput.value = item.querySelector('p').textContent.trim();
                 updateCharCount(); 
@@ -348,7 +454,7 @@ function loadChatSession(id) {
         });
     }
 
-    chatSessions[id].messages.forEach(msg => addMessage(msg.text, msg.sender, true));
+    chatSessions[id].messages.forEach(function(msg) { addMessage(msg.text, msg.sender, true); });
     renderChatList(); 
     scrollToBottom();
 }
@@ -372,7 +478,7 @@ function renderChatList() {
         var titleSpan = document.createElement('span');
         titleSpan.className = 'chat-title';
         titleSpan.textContent = session.title;
-        titleSpan.onclick = () => loadChatSession(id);
+        titleSpan.onclick = function() { loadChatSession(id); };
         sessionDiv.appendChild(titleSpan);
 
         var deleteBtn = document.createElement('button');
@@ -387,32 +493,8 @@ function renderChatList() {
     });
 }
 
-// Initialization Binding
+// Initialization
 window.addEventListener('load', loadFromLocalStorage);
 newChatButton.addEventListener('click', startNewChat);
 sendButton.addEventListener('click', sendMessage);
-
-// Make sure everything is visually up to date
 updateCharCount();
-
-// --- Sidebar Toggle Logic ---
-var sidebar = document.getElementById('sidebar');
-var menuToggleButton = document.getElementById('menu-toggle-button');
-
-if (menuToggleButton && sidebar) {
-    // Toggle sidebar when the hamburger menu is clicked
-    menuToggleButton.addEventListener('click', function(e) {
-        e.stopPropagation(); // Prevents the document click listener below from immediately firing
-        sidebar.classList.toggle('open');
-    });
-
-    // Close the sidebar if clicking outside of it (especially helpful on mobile)
-    document.addEventListener('click', function(event) {
-        if (window.innerWidth <= 768 && sidebar.classList.contains('open')) {
-            // If the click happened outside the sidebar and outside the toggle button
-            if (!sidebar.contains(event.target) && !menuToggleButton.contains(event.target)) {
-                sidebar.classList.remove('open');
-            }
-        }
-    });
-}
