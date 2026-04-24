@@ -1,3 +1,4 @@
+// --- Elements ---
 var appWrapper = document.getElementById('app-wrapper');
 var sidebar = document.getElementById('sidebar');
 var chatWindow = document.getElementById('chat-window');
@@ -11,7 +12,6 @@ var typingIndicator = document.getElementById('typing-indicator');
 var menuToggleButton = document.getElementById('menu-toggle-button');
 var chatContainer = document.getElementById('chat-container'); 
 var charCounter = document.getElementById('char-counter'); 
-var suggestionItems = document.querySelectorAll('.suggestions-item');
 var filePreviewContainer = document.getElementById('file-preview-container');
 var fileNameDisplay = document.getElementById('file-name');
 var fileIcon = document.getElementById('file-icon');
@@ -57,7 +57,6 @@ function updateCharCount() {
 
 function updateSendButtonState() {
     var text = userInput.value.trim();
-    // attachedFile comes from script.js
     var file = typeof attachedFile !== 'undefined' ? attachedFile : null;
     var charCountValid = text.length > 0 && text.length <= MAX_CHARS;
     
@@ -112,49 +111,41 @@ chatContainer.addEventListener('click', function() {
 });
 
 // --- Suggestion Cycling Logic ---
+var suggestionTimer = null;
+
 function initSuggestionCycling() {
-    var items = document.querySelectorAll('.suggestions-item');
+    if (suggestionTimer) clearInterval(suggestionTimer);
+
+    // FIX: Always look for items inside the CURRENT chat window
+    var items = chatWindow.querySelectorAll('.suggestions-item');
     if (!items.length) return;
 
     var currentIndex = 0;
 
     function showNextSuggestion() {
-        // Remove active class from all
         items.forEach(item => item.classList.remove('active'));
-
-        // Add to current
-        items[currentIndex].classList.add('active');
-
-        // Increment index
-        currentIndex = (currentIndex + 1) % items.length;
+        if (items[currentIndex]) {
+            items[currentIndex].classList.add('active');
+            currentIndex = (currentIndex + 1) % items.length;
+        }
     }
 
-    // Initial call
     showNextSuggestion();
+    suggestionTimer = setInterval(showNextSuggestion, 4000);
 
-    // Set interval for cycling (4000ms = 4 seconds)
-    var cycleInterval = setInterval(showNextSuggestion, 4000);
-
-    // Stop cycling if a user clicks a suggestion or starts typing
     items.forEach(function(item) {
         item.addEventListener('click', function() {
-            clearInterval(cycleInterval);
-            suggestionBox.style.display = 'none'; // Hide box after selection
-        });
-    });
-}
-
-// Call the function
-initSuggestionCycling();
-
-// Existing click listener update
-if (suggestionItems) {
-    suggestionItems.forEach(function(item) {
-        item.addEventListener('click', function() {
-            userInput.value = item.querySelector('.text').textContent.trim();
-            updateCharCount(); 
+            clearInterval(suggestionTimer);
+            var text = item.querySelector('p').textContent.trim();
+            userInput.value = text;
+            updateCharCount();
             userInput.focus();
-            if(suggestionBox) suggestionBox.style.display = 'none';
+            
+            var box = item.closest('#suggestion-box');
+            if (box) box.style.display = 'none';
         });
     });
 }
+
+// Initial run on page load
+document.addEventListener('DOMContentLoaded', initSuggestionCycling);
