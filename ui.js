@@ -1,4 +1,3 @@
-// --- Elements ---
 var appWrapper = document.getElementById('app-wrapper');
 var sidebar = document.getElementById('sidebar');
 var chatWindow = document.getElementById('chat-window');
@@ -21,6 +20,7 @@ var webSearchToggle = document.getElementById('web-search-toggle');
 var webSearchIcon = document.getElementById('web-search-icon');
 
 // --- UI Helper Functions ---
+
 function scrollToBottom() {
     chatWindow.scrollTop = chatWindow.scrollHeight;
 }
@@ -32,7 +32,7 @@ function autoResizeTextarea() {
 
 function updateCharCount() {
     var count = userInput.value.length;
-    // MAX_CHARS comes from script.js
+    // MAX_CHARS is defined in script.js
     charCounter.textContent = `${count} / ${MAX_CHARS} characters.`;
     
     if (count > MAX_CHARS) {
@@ -57,6 +57,7 @@ function updateCharCount() {
 
 function updateSendButtonState() {
     var text = userInput.value.trim();
+    // attachedFile is managed in script.js
     var file = typeof attachedFile !== 'undefined' ? attachedFile : null;
     var charCountValid = text.length > 0 && text.length <= MAX_CHARS;
     
@@ -81,8 +82,51 @@ function getFileIcon(fileName) {
     }
 }
 
-// --- Basic Event Listeners ---
+// --- Suggestion Cycling Logic ---
+
+var suggestionTimer = null;
+
+function initSuggestionCycling() {
+    // Clear existing timer to prevent multiple loops
+    if (suggestionTimer) clearInterval(suggestionTimer);
+
+    // Look for items currently inside the chat window (handles cloned items)
+    var items = chatWindow.querySelectorAll('.suggestions-item');
+    if (!items.length) return;
+
+    var currentIndex = 0;
+
+    function showNextSuggestion() {
+        items.forEach(item => item.classList.remove('active'));
+        if (items[currentIndex]) {
+            items[currentIndex].classList.add('active');
+            currentIndex = (currentIndex + 1) % items.length;
+        }
+    }
+
+    // Start cycle
+    showNextSuggestion();
+    suggestionTimer = setInterval(showNextSuggestion, 4000);
+
+    // Handle clicks on suggestions
+    items.forEach(function(item) {
+        item.addEventListener('click', function() {
+            clearInterval(suggestionTimer);
+            var text = item.querySelector('p').textContent.trim();
+            userInput.value = text;
+            updateCharCount();
+            userInput.focus();
+            
+            var box = item.closest('#suggestion-box');
+            if (box) box.style.display = 'none';
+        });
+    });
+}
+
+// --- Event Listeners ---
+
 userInput.addEventListener('input', updateCharCount);
+
 userInput.addEventListener('keydown', function(event) {
     if (event.key === 'Enter' && !event.shiftKey) {
         event.preventDefault();
@@ -100,52 +144,30 @@ removeFileButton.addEventListener('click', function() {
     if (typeof clearAttachedFile === 'function') clearAttachedFile();
 });
 
-menuToggleButton.addEventListener('click', function() {
+// Sidebar Toggle Logic
+menuToggleButton.addEventListener('click', function(e) {
+    e.stopPropagation();
     sidebar.classList.toggle('open');
+    
+    // Toggle Icon between Bars and X
+    var icon = menuToggleButton.querySelector('i');
+    if (sidebar.classList.contains('open')) {
+        icon.className = 'fas fa-times';
+    } else {
+        icon.className = 'fas fa-bars';
+    }
 });
 
+// Close sidebar when clicking main chat area (Mobile)
 chatContainer.addEventListener('click', function() {
     if (sidebar.classList.contains('open') && window.innerWidth <= 768) {
         sidebar.classList.remove('open');
+        var icon = menuToggleButton.querySelector('i');
+        if(icon) icon.className = 'fas fa-bars';
     }
 });
 
-// --- Suggestion Cycling Logic ---
-var suggestionTimer = null;
-
-function initSuggestionCycling() {
-    if (suggestionTimer) clearInterval(suggestionTimer);
-
-    // FIX: Always look for items inside the CURRENT chat window
-    var items = chatWindow.querySelectorAll('.suggestions-item');
-    if (!items.length) return;
-
-    var currentIndex = 0;
-
-    function showNextSuggestion() {
-        items.forEach(item => item.classList.remove('active'));
-        if (items[currentIndex]) {
-            items[currentIndex].classList.add('active');
-            currentIndex = (currentIndex + 1) % items.length;
-        }
-    }
-
-    showNextSuggestion();
-    suggestionTimer = setInterval(showNextSuggestion, 4000);
-
-    items.forEach(function(item) {
-        item.addEventListener('click', function() {
-            clearInterval(suggestionTimer);
-            var text = item.querySelector('p').textContent.trim();
-            userInput.value = text;
-            updateCharCount();
-            userInput.focus();
-            
-            var box = item.closest('#suggestion-box');
-            if (box) box.style.display = 'none';
-        });
-    });
-}
-
 // Initial run on page load
-document.addEventListener('DOMContentLoaded', initSuggestionCycling);
+document.addEventListener('DOMContentLoaded', function() {
+    initSuggestionCycling();
+});
