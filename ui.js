@@ -111,12 +111,50 @@ chatContainer.addEventListener('click', function() {
     }
 });
 
+// --- Suggestion Cycling Logic ---
+function initSuggestionCycling() {
+    var items = document.querySelectorAll('.suggestions-item');
+    if (!items.length) return;
+
+    var currentIndex = 0;
+
+    function showNextSuggestion() {
+        // Remove active class from all
+        items.forEach(item => item.classList.remove('active'));
+
+        // Add to current
+        items[currentIndex].classList.add('active');
+
+        // Increment index
+        currentIndex = (currentIndex + 1) % items.length;
+    }
+
+    // Initial call
+    showNextSuggestion();
+
+    // Set interval for cycling (4000ms = 4 seconds)
+    var cycleInterval = setInterval(showNextSuggestion, 4000);
+
+    // Stop cycling if a user clicks a suggestion or starts typing
+    items.forEach(function(item) {
+        item.addEventListener('click', function() {
+            clearInterval(cycleInterval);
+            suggestionBox.style.display = 'none'; // Hide box after selection
+        });
+    });
+}
+
+// Call the function
+initSuggestionCycling();
+
+// Existing click listener update
 if (suggestionItems) {
     suggestionItems.forEach(function(item) {
         item.addEventListener('click', function() {
-            userInput.value = item.querySelector('p').textContent.trim();
+            userInput.value = item.querySelector('.text').textContent.trim();
             updateCharCount(); 
             userInput.focus();
+            if(suggestionBox) suggestionBox.style.display = 'none';
         });
     });
 }
