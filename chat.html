@@ -417,25 +417,28 @@ body {
 #copyright { font-size: 0.75em; color: #8E8EA0; text-align: center; padding: 15px; }
 
 /* --- MOBILE ADJUSTMENTS --- */
+/* Sidebar hidden by default on mobile */
 @media (max-width: 768px) {
   #sidebar {
-    position: absolute;
-    height: 100%;
-    z-index: 20;
-    transform: translateX(-100%);
+    position: fixed;
+    left: -260px; /* Slide it completely off-screen */
+    top: 0;
+    bottom: 0;
+    width: 260px;
+    z-index: 1000;
+    transition: left 0.3s ease; /* Smooth sliding animation */
   }
-  #sidebar.open { transform: translateX(0); }
+
+  /* When the 'open' class is added via JS, slide it in */
+  #sidebar.open {
+    left: 0;
+  }
   
-  #menu-toggle-button {
-    display: flex;
-    background: white;
-    border: 1px solid var(--border-light);
-    color: var(--text-primary);
-    border-radius: 8px;
-    padding: 8px 12px;
+  /* Optional: Dim the chat window when sidebar is open */
+  #sidebar.open ~ #chat-container {
+    filter: brightness(0.7);
+    pointer-events: none; /* Prevent clicking chat while menu is open */
   }
-  .message { max-width: 95%; }
-  #input-area { padding: 10px; }
 }
     </style>
 </head>
