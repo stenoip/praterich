@@ -289,27 +289,28 @@ body {
 }
 .action-button:hover { background: rgba(255,255,255,0.8); }
 
-/* Container needs relative positioning to stack items */
 #suggestion-box {
   position: relative;
-  height: 60px; /* Adjust based on your design */
+  height: 60px; 
   display: flex;
   align-items: center;
   justify-content: center;
+  list-style: none; /* Removes the bullet points */
+  padding: 0;       /* Removes the default indentation */
+  margin: 10px 0;
 }
 
 .suggestions-item {
   position: absolute;
+  list-style: none; /* Extra insurance to hide bullets */
   opacity: 0;
   visibility: hidden;
   transition: opacity 1s ease-in-out, visibility 1s;
-  pointer-events: none; /* Disable clicking when hidden */
+  pointer-events: none;
   text-align: center;
   width: 100%;
-  max-width: 600px;
 }
 
-/* Class to show the active suggestion */
 .suggestions-item.active {
   opacity: 1;
   visibility: visible;
