@@ -538,19 +538,24 @@ function loadChatSession(id) {
     currentChatId = id;
     chatWindow.innerHTML = ''; 
     
-    if (suggestionBox) {
+    // Check if we are on a "New Chat" or the first message is the initial greeting
+    // This ensures suggestions only show up on fresh chats
+    var session = chatSessions[id];
+    if (session.messages.length <= 1 && suggestionBox) {
         var clonedSuggestionBox = suggestionBox.cloneNode(true);
+        clonedSuggestionBox.style.display = 'flex'; // Ensure it's visible
         chatWindow.appendChild(clonedSuggestionBox);
-        clonedSuggestionBox.querySelectorAll('.suggestions-item').forEach(function(item) {
-            item.addEventListener('click', function() {
-                userInput.value = item.querySelector('p').textContent.trim();
-                updateCharCount(); 
-                userInput.focus();
-            });
-        });
+        
+        // Re-run the cycling logic because the DOM elements are new
+        if (typeof initSuggestionCycling === 'function') {
+            initSuggestionCycling();
+        }
     }
 
-    chatSessions[id].messages.forEach(function(msg) { addMessage(msg.text, msg.sender, true); });
+    session.messages.forEach(function(msg) { 
+        addMessage(msg.text, msg.sender, true); 
+    });
+    
     renderChatList(); 
     scrollToBottom();
 }
