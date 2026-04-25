@@ -50,12 +50,23 @@ body {
 }
 /* --- SIDEBAR --- */
 #sidebar {
-  width: var(--sidebar-width);
-  background-color: var(--sidebar-bg);
-  display: flex;
-  flex-direction: column;
-  transition: transform 0.3s ease-in-out;
-  flex-shrink: 0;
+    position: fixed;
+    left: -260px; /* Start off-screen */
+    top: 0;
+    bottom: 0;
+    width: 260px;
+    transition: left 0.3s ease;
+    z-index: 1000;
+}
+
+/* Sidebar open state */
+#sidebar.open {
+    left: 0;
+}
+
+/* Shift the toggle button when sidebar is open */
+#sidebar.open ~ #menu-toggle-button {
+    left: 275px; 
 }
 
 /* Hide Redundant Header Stuff */
@@ -147,6 +158,9 @@ body {
   display: flex;
   flex-direction: column;
   position: relative;
+  margin-left: 0;
+ transition: margin-left 0.3s ease;
+ width: 100%;
 }
 
 /* ChatGPT clone: Minimal/Hidden header */
@@ -163,7 +177,18 @@ body {
   display: none; /* Removed redundant branding */
 }
 #menu-toggle-button {
-  display: none;
+    display: flex !important; /* Overrides any mobile-only hidden rules */
+    position: fixed;
+    top: 15px;
+    left: 15px;
+    z-index: 1001; /* Must be above the sidebar */
+    background: var(--sidebar-bg);
+    color: white;
+    border: none;
+    padding: 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: left 0.3s ease;
 }
 #voice-assistant-button {
   background: white;
