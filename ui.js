@@ -16,7 +16,8 @@ var fileNameDisplay = document.getElementById('file-name');
 var fileIcon = document.getElementById('file-icon');
 var removeFileButton = document.getElementById('remove-file-button');
 var suggestionBox = document.getElementById('suggestion-box');
-
+var webSearchToggle = document.getElementById('web-search-toggle');
+var webSearchIcon = document.getElementById('web-search-icon');
 
 // --- UI Helper Functions ---
 
@@ -123,7 +124,7 @@ function initSuggestionCycling() {
 }
 
 // --- Event Listeners ---
-micButton.addEventListener('click', toggleSpeechRecognition);
+
 userInput.addEventListener('input', updateCharCount);
 
 userInput.addEventListener('keydown', function(event) {
