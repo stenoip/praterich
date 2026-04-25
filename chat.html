@@ -42,6 +42,7 @@ body {
 }
       .title {
         color: rgb(255,255,255);
+        text-align: center;
       }
 
 #app-wrapper {
@@ -178,8 +179,29 @@ body {
 }
 #chat-header span, 
 #praterich-icon {
-  display: none; /* Removed redundant branding */
+  display: block; /* Ensure it's visible in sidebar */
+    width: 60px;
+    height: 60px;
+    margin: 20px auto 10px auto; /* Centered with spacing */
+    border-radius: 15px; /* Rounded corners */
+    
+    /* Frutiger Aero Glossy Look */
+    background: linear-gradient(135deg, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0) 50%);
+    box-shadow: 
+        0 4px 10px rgba(0, 0, 0, 0.3), 
+        inset 0 1px 1px rgba(255, 255, 255, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    
+    transition: transform 0.3s ease;
+    object-fit: contain;
+    padding: 5px;
+    background-color: rgba(255, 255, 255, 0.05);
 }
+      
+ #praterich-icon:hover {
+    transform: scale(1.05) rotate(2deg);
+    box-shadow: 0 6px 15px rgba(255, 165, 0, 0.3); /* Slight orange glow on hover */
+}     
 #menu-toggle-button {
     display: flex !important; /* Overrides any mobile-only hidden rules */
     position: fixed;
@@ -486,6 +508,7 @@ body {
 <body>
     <div id="app-wrapper">
         <div id="sidebar">
+            <img id="praterich-icon" src="https://stenoip.github.io/praterich/praterich.png" alt="Praterich A.I. Icon" onerror="this.onerror=null; this.src='https://via.placeholder.com/30/ff9900/ffffff?text=P';">
             <h2 class="title">Praterich A.I</h2>
             <div id="sidebar-header">Chat History</div>
             <button id="new-chat-button"><i class="fas fa-plus"></i> New Chat</button>
@@ -500,7 +523,7 @@ body {
              
 
               <button id="menu-toggle-button" class="input-button"><i class="fas fa-bars"></i></button>
-                <img id="praterich-icon" src="https://stenoip.github.io/praterich/praterich.png" alt="Praterich A.I. Icon" onerror="this.onerror=null; this.src='https://via.placeholder.com/30/ff9900/ffffff?text=P';">
+                
                 
             </div>
             <div id="chat-window">
