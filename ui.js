@@ -18,6 +18,7 @@ var removeFileButton = document.getElementById('remove-file-button');
 var suggestionBox = document.getElementById('suggestion-box');
 var webSearchToggle = document.getElementById('web-search-toggle');
 var webSearchIcon = document.getElementById('web-search-icon');
+var micButton = document.getElementById('mic-button');
 
 // --- UI Helper Functions ---
 
@@ -79,6 +80,19 @@ function getFileIcon(fileName) {
             return 'fas fa-file-code';
         case 'zip': case 'rar': return 'fas fa-file-archive';
         default: return 'fas fa-file';
+    }
+}
+
+function setMicActive(isActive) {
+    const icon = micButton.querySelector('i');
+    if (isActive) {
+        micButton.style.color = '#ef4444'; // Red for recording
+        icon.className = 'fas fa-microphone-lines'; // Animating icon if using FA Pro, otherwise just keep it
+        userInput.placeholder = "Listening...";
+    } else {
+        micButton.style.color = '';
+        icon.className = 'fas fa-microphone';
+        userInput.placeholder = "Type your message here...";
     }
 }
 
