@@ -1,8 +1,3 @@
-var webSearchToggle = document.getElementById('web-search-toggle');
-var micButton = document.getElementById('mic-button');
-var webSearchToggle = document.getElementById('web-search-toggle');
-var webSearchIcon = document.getElementById('web-search-icon');
-var micButton = document.getElementById('mic-button');
 var API_URL = "https://praterich.vercel.app/api/praterich";
 var OODLES_SEARCH_URL = "https://oodles-backend.vercel.app/metasearch";
 var STORAGE_KEY_SESSIONS = 'praterich_chats';
@@ -318,10 +313,6 @@ async function sendMessage() {
     var fileToAttach = attachedFile;
     if (!userText && !fileToAttach) return;
 
-    if (!currentChatId || !chatSessions[currentChatId]) {
-        startNewChat(); 
-    }
-  
     userInput.value = '';
     updateCharCount();
     clearAttachedFile();
@@ -457,58 +448,6 @@ async function sendMessage() {
     }
 }
 
-
-// --- Speech Recognition Logic ---
-var recognition;
-var isRecording = false;
-
-if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-    var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    recognition = new SpeechRecognition();
-    recognition.continuous = false; // Stop after the user stops speaking
-    recognition.interimResults = false; // Only final results
-    recognition.lang = 'en-US';
-
-    recognition.onstart = function() {
-        isRecording = true;
-        micButton.classList.add('recording');
-        userInput.placeholder = "Listening...";
-    };
-
-    recognition.onresult = function(event) {
-        var transcript = event.results[0][0].transcript;
-        userInput.value += transcript;
-        updateCharCount(); // Trigger resize and char count update
-    };
-
-    recognition.onerror = function(event) {
-        console.error("Speech recognition error", event.error);
-        stopRecording();
-    };
-
-    recognition.onend = function() {
-        stopRecording();
-    };
-}
-
-function toggleSpeechRecognition() {
-    if (!recognition) {
-        alert("Speech Recognition is not supported in this browser.");
-        return;
-    }
-    
-    if (isRecording) {
-        recognition.stop();
-    } else {
-        recognition.start();
-    }
-}
-
-function stopRecording() {
-    isRecording = false;
-    micButton.classList.remove('recording');
-    userInput.placeholder = "Type your message here...";
-}
 
 // --- File Handling ---
 function fileToBase64(file) {
