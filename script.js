@@ -449,6 +449,59 @@ async function sendMessage() {
 }
 
 
+// --- Speech Recognition (STT) Logic ---
+var recognition;
+var isListening = false;
+
+if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+    var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    recognition = new SpeechRecognition();
+    recognition.continuous = false; // Stop after one sentence
+    recognition.interimResults = false;
+    recognition.lang = 'en-US';
+
+    recognition.onstart = function() {
+        isListening = true;
+        setMicActive(true);
+    };
+
+    recognition.onresult = function(event) {
+        var transcript = event.results[0][0].transcript;
+        userInput.value += transcript;
+        updateCharCount(); // Refresh the counter and button state
+    };
+
+    recognition.onerror = function(event) {
+        console.error("Speech recognition error", event.error);
+        stopListening();
+    };
+
+    recognition.onend = function() {
+        stopListening();
+    };
+}
+
+function stopListening() {
+    isListening = false;
+    recognition.stop();
+    setMicActive(false);
+}
+
+function toggleListening() {
+    if (!recognition) {
+        alert("Your browser doesn't support speech recognition.");
+        return;
+    }
+    if (isListening) {
+        stopListening();
+    } else {
+        recognition.start();
+    }
+}
+
+// Event Listener for the button
+micButton.addEventListener('click', toggleListening);
+
 // --- File Handling ---
 function fileToBase64(file) {
     return new Promise(function(resolve, reject) {
