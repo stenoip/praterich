@@ -1,4 +1,6 @@
 var webSearchToggle = document.getElementById('web-search-toggle');
+var micButton = document.getElementById('mic-button');
+var webSearchToggle = document.getElementById('web-search-toggle');
 var webSearchIcon = document.getElementById('web-search-icon');
 var micButton = document.getElementById('mic-button');
 var API_URL = "https://praterich.vercel.app/api/praterich";
