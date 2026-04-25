@@ -40,6 +40,9 @@ body {
   overflow: hidden;
   color: var(--text-primary);
 }
+      .title {
+        color: rgb(255,255,255);
+      }
 
 #app-wrapper {
   display: flex;
@@ -483,6 +486,7 @@ body {
 <body>
     <div id="app-wrapper">
         <div id="sidebar">
+            <h2 class="title">Praterich A.I</h2>
             <div id="sidebar-header">Chat History</div>
             <button id="new-chat-button"><i class="fas fa-plus"></i> New Chat</button>
             <div id="chat-list"></div>
@@ -497,7 +501,7 @@ body {
 
               <button id="menu-toggle-button" class="input-button"><i class="fas fa-bars"></i></button>
                 <img id="praterich-icon" src="https://stenoip.github.io/praterich/praterich.png" alt="Praterich A.I. Icon" onerror="this.onerror=null; this.src='https://via.placeholder.com/30/ff9900/ffffff?text=P';">
-                <span>Praterich A.I.</span>
+                
             </div>
             <div id="chat-window">
                 <ul id="suggestion-box">
