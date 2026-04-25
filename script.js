@@ -1,3 +1,6 @@
+var webSearchToggle = document.getElementById('web-search-toggle');
+var webSearchIcon = document.getElementById('web-search-icon');
+var micButton = document.getElementById('mic-button');
 var API_URL = "https://praterich.vercel.app/api/praterich";
 var OODLES_SEARCH_URL = "https://oodles-backend.vercel.app/metasearch";
 var STORAGE_KEY_SESSIONS = 'praterich_chats';
@@ -313,6 +316,10 @@ async function sendMessage() {
     var fileToAttach = attachedFile;
     if (!userText && !fileToAttach) return;
 
+    if (!currentChatId || !chatSessions[currentChatId]) {
+        startNewChat(); 
+    }
+  
     userInput.value = '';
     updateCharCount();
     clearAttachedFile();
