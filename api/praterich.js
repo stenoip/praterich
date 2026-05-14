@@ -162,7 +162,8 @@ export default async function handler(request, response) {
     // 1. CORS Origin Check
     var allowedOrigins = [
         'https://stenoip.github.io', 
-        'https://www.khanacademy.org/computer-programming/praterich_ai/5593365421342720'
+        'https://www.khanacademy.org/computer-programming/praterich_ai/5593365421342720',
+        ''http://localhost:1010''
     ];
     var origin = request.headers['origin']; 
 
