@@ -163,12 +163,14 @@ export default async function handler(request, response) {
     var allowedOrigins = [
         'https://stenoip.github.io', 
         'https://www.khanacademy.org/computer-programming/praterich_ai/5593365421342720',
-        ''http://localhost:1010''
+        'http://localhost:1010'
     ];
     var origin = request.headers['origin']; 
 
     if (allowedOrigins.includes(origin)) {
         response.setHeader('Access-Control-Allow-Origin', origin);
+    } else if (!origin) {
+        response.setHeader('Access-Control-Allow-Origin', allowedOrigins[0]);
     } else {
         return response.status(403).json({ error: 'Forbidden: Unauthorized origin.' }); 
     }
