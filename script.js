@@ -83,8 +83,6 @@ The system will intercept this and display the generated image to the user. Do N
 IMPORTANT: You must never explicitly mention that you are changing the chat title. Infer the title based on the user's first message and use a maximum of 30 characters.
 `;
 
-var initialGreeting = "Hey there 👋 What's on your mind today? Want to dive into something fun, solve a problem, or just chat for a bit?";
-
 // --- Web Search Functions ---
 
 webSearchToggle.addEventListener('click', function() {
@@ -121,38 +119,63 @@ async function fetchWebSearch(query) {
 function buildPollinationsUrl(prompt) {
     var encoded = encodeURIComponent(prompt);
     var seed = Math.floor(Math.random() * 999999);
-    // flux model is faster and less congested than sana on the free tier
     return 'https://image.pollinations.ai/prompt/' + encoded 
         + '?nologo=true&width=768&height=512&seed=' + seed + '&model=flux&enhance=false';
 }
 
 async function generateImageWithRetry(prompt, maxRetries) {
     maxRetries = maxRetries || 3;
-    var delay = 4000; // 4 seconds between retries
+    var delay = 4000; 
 
     for (var attempt = 1; attempt <= maxRetries; attempt++) {
         try {
             var url = buildPollinationsUrl(prompt);
-            // Pre-fetch to check if image loads before displaying
             var result = await new Promise(function(resolve, reject) {
                 var img = new Image();
                 img.onload = function() { resolve(url); };
                 img.onerror = function() { reject(new Error('Image failed')); };
-                // Timeout after 20 seconds
                 setTimeout(function() { reject(new Error('Timeout')); }, 20000);
                 img.src = url;
             });
-            return result; // success
+            return result; 
         } catch (err) {
             console.warn('Pollinations attempt ' + attempt + ' failed:', err.message);
             if (attempt < maxRetries) {
                 typingIndicator.innerHTML = 'Image queue busy, retrying in ' + (delay/1000) + 's... (attempt ' + attempt + '/' + maxRetries + ')';
                 await new Promise(function(r) { return setTimeout(r, delay); });
-                delay += 2000; // back off a bit each retry
+                delay += 2000; 
             }
         }
     }
-    return null; // all retries failed
+    return null; 
+}
+
+// --- Active AI Welcome Title Generation ---
+async function generatePraterichWelcomeTitle(titleElement) {
+    try {
+        var response = await fetch(API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{ 
+                    role: "user", 
+                    parts: [{ text: "Generate a short, creative, casual greeting or welcome header text for a user starting a fresh chat session with you. It must be under 35 characters, direct, open-ended, and unique. Output ONLY the greeting line, no quote wrappers, no trailing punctuation." }] 
+                }],
+                system_instruction: { parts: [{ text: "You are Praterich, an intelligent and modern AI. Respond only with the requested custom greeting string." }] }
+            })
+        });
+
+        if (response.ok) {
+            var data = await response.json();
+            if (data.text) {
+                titleElement.textContent = data.text.replace(/["']/g, "").trim();
+                return;
+            }
+        }
+    } catch (err) {
+        console.error("Failed to actively generate welcome title:", err);
+    }
+    titleElement.textContent = "Meet Praterich"; 
 }
 
 // --- Core Functions ---
@@ -168,37 +191,30 @@ function speakText(text) {
     if (!('speechSynthesis' in window)) return;
     window.speechSynthesis.cancel();
 
-    // Strip markdown syntax and image tags before speaking
     var speakableText = text
         .replace(/!\[.*?\]\(.*?\)/g, 'generated image')
-        .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')   // keep link text, drop URL
-        .replace(/```[\s\S]*?```/g, 'code block')   // replace code blocks
-        .replace(/`[^`]+`/g, '')                     // inline code
-        .replace(/[#*_~>]/g, '')                     // markdown symbols
+        .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')   
+        .replace(/```[\s\S]*?```/g, 'code block')   
+        .replace(/`[^`]+`/g, '')                     
+        .replace(/[#*_~>]/g, '')                     
         .trim();
 
-    // Apply custom pronunciations — using split/join instead of regex
-    // for consistent cross-browser behavior
     Object.keys(customPronunciations).forEach(function(word) {
         var replacement = customPronunciations[word];
-        // Case-insensitive split on the whole word
         var parts = speakableText.split(new RegExp(word, 'gi'));
-        // Rebuild with replacement, preserving surrounding text
         speakableText = parts.join(replacement);
     });
 
     var utterance = new SpeechSynthesisUtterance(speakableText);
     utterance.rate = 1.3;
-    utterance.pitch = 1.1;   // slightly higher pitch helps on browsers with fewer voices
+    utterance.pitch = 1.1;   
     utterance.volume = 1.0;
     utterance.lang = 'en-US';
 
-    // Use the pre-picked female voice if available
     if (preferredVoice) {
         utterance.voice = preferredVoice;
     }
 
-    // Firefox bug: long utterances get silently cut off — chunk if needed
     if (speakableText.length > 200) {
         window.speechSynthesis.cancel();
     }
@@ -221,14 +237,12 @@ function addMessage(text, sender, isHistoryLoad) {
 
     contentDiv.innerHTML = renderMarkdown(text);
 
-    // Style any generated images inside the bubble
     contentDiv.querySelectorAll('img').forEach(function(img) {
         img.style.maxWidth = '100%';
         img.style.borderRadius = '10px';
         img.style.display = 'block';
         img.style.marginTop = '8px';
         img.alt = img.alt || 'Generated image';
-        // Show a loading state
         img.style.minHeight = '80px';
         img.style.background = 'rgba(0,0,0,0.05)';
         img.addEventListener('load', function() {
@@ -267,9 +281,7 @@ function addMessage(text, sender, isHistoryLoad) {
     if (sender === 'ai' && !isHistoryLoad) speakText(text);
 }
 
-// Special function for user messages that include an uploaded image (shows thumbnail)
 function addUserMessageWithImage(text, imageBase64, mimeType) {
-    // Only store the text version (no base64) to keep localStorage lean
     var storedText = text;
     if (currentChatId) {
         chatSessions[currentChatId].messages.push({ text: storedText, sender: 'user' });
@@ -281,7 +293,6 @@ function addUserMessageWithImage(text, imageBase64, mimeType) {
     var contentDiv = document.createElement('div');
     contentDiv.className = 'message-content';
 
-    // Show the thumbnail
     if (imageBase64 && mimeType && mimeType.startsWith('image/')) {
         var img = document.createElement('img');
         img.src = imageBase64;
@@ -293,7 +304,6 @@ function addUserMessageWithImage(text, imageBase64, mimeType) {
         contentDiv.appendChild(img);
     }
 
-    // Add any text the user typed
     if (text) {
         var textDiv = document.createElement('div');
         textDiv.innerHTML = renderMarkdown(text);
@@ -305,7 +315,6 @@ function addUserMessageWithImage(text, imageBase64, mimeType) {
     scrollToBottom();
 }
 
-// The core loop: allows Praterich to call tools if needed, then answer.
 async function sendMessage() {
     if (window.speechSynthesis.speaking) window.speechSynthesis.cancel();
     
@@ -313,15 +322,20 @@ async function sendMessage() {
     var fileToAttach = attachedFile;
     if (!userText && !fileToAttach) return;
 
+    // Remove welcome header components on message dispatch
+    var welcomeContainer = document.getElementById('welcome-container');
+    if (welcomeContainer) {
+        welcomeContainer.remove();
+    }
+    chatWindow.classList.add('has-messages');
+
     userInput.value = '';
     updateCharCount();
     clearAttachedFile();
 
-    // --- Display user message ---
     var isImageAttachment = fileToAttach && fileToAttach.mimeType && fileToAttach.mimeType.startsWith('image/');
     
     if (isImageAttachment) {
-        // Show thumbnail + text in the user bubble
         var displayText = userText || '';
         addUserMessageWithImage(displayText, fileToAttach.base64Data, fileToAttach.mimeType);
     } else {
@@ -332,7 +346,6 @@ async function sendMessage() {
         addMessage(messageText, 'user');
     }
 
-    // Dynamic Chat Renaming
     var currentSession = chatSessions[currentChatId];
     if (currentSession.title === "New Chat") {
         currentSession.title = (userText || (fileToAttach && fileToAttach.fileName) || "Chat with File").substring(0, 30).trim();
@@ -340,16 +353,12 @@ async function sendMessage() {
         saveToLocalStorage();
     }
 
-    // Prepare Base Conversation History for API
-    // Slice off the message we just pushed (it's added below as newContentParts)
     var conversationHistory = chatSessions[currentChatId].messages.slice(0, -1).map(function(msg) {
         return { role: msg.sender === 'user' ? 'user' : 'model', parts: [{ text: msg.text }] };
     });
 
-    // Build the new user turn (may include image)
     var newContentParts = [];
     if (fileToAttach && isImageAttachment) {
-        // Pass image as inlineData — praterich.js will convert this for Groq vision
         newContentParts.push({
             inlineData: {
                 mimeType: fileToAttach.mimeType,
@@ -357,7 +366,6 @@ async function sendMessage() {
             }
         });
     } else if (fileToAttach) {
-        // Non-image file: just describe it in text
         userText = (userText || '') + '\n\n[File Attached: ' + fileToAttach.fileName + ', type: ' + fileToAttach.mimeType + ']';
     }
     newContentParts.push({ text: userText || "Please analyze this image and describe what you see." });
@@ -366,7 +374,6 @@ async function sendMessage() {
     typingIndicator.style.display = 'block';
     scrollToBottom();
 
-    // --- TOOL CALLING LOOP ---
     var isFinalAnswer = false;
     var turnCount = 0;
 
@@ -401,11 +408,9 @@ async function sendMessage() {
                 throw new Error('Empty response from API.');
             }
 
-            // --- Check for IMAGE tool ---
             var imageRegex = /@@IMAGE:\s*(.*?)@@/s;
             var imageMatch = aiRawText.match(imageRegex);
 
-            // --- Check for SEARCH tool ---
             var searchRegex = /@@SEARCH:\s*(.*?)@@/s;
             var searchMatch = aiRawText.match(searchRegex);
 
@@ -448,7 +453,6 @@ async function sendMessage() {
     }
 }
 
-
 // --- Speech Recognition (STT) Logic ---
 var recognition;
 var isListening = false;
@@ -456,7 +460,7 @@ var isListening = false;
 if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
     var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     recognition = new SpeechRecognition();
-    recognition.continuous = false; // Stop after one sentence
+    recognition.continuous = false; 
     recognition.interimResults = false;
     recognition.lang = 'en-US';
 
@@ -468,7 +472,7 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
     recognition.onresult = function(event) {
         var transcript = event.results[0][0].transcript;
         userInput.value += transcript;
-        updateCharCount(); // Refresh the counter and button state
+        updateCharCount(); 
     };
 
     recognition.onerror = function(event) {
@@ -499,7 +503,6 @@ function toggleListening() {
     }
 }
 
-// Event Listener for the button
 micButton.addEventListener('click', toggleListening);
 
 // --- File Handling ---
@@ -543,7 +546,6 @@ fileUpload.addEventListener('change', function() {
     if (fileUpload.files[0]) handleFileUpload(fileUpload.files[0]);
 });
 
-
 // --- Chat Management and Storage ---
 function generateUuid() {
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
@@ -577,7 +579,7 @@ function startNewChat() {
     var newId = generateUuid();
     chatSessions[newId] = {
         title: "New Chat",
-        messages: [{ sender: 'ai', text: initialGreeting }]
+        messages: []
     };
     currentChatId = newId;
     saveToLocalStorage();
@@ -591,18 +593,34 @@ function loadChatSession(id) {
     currentChatId = id;
     chatWindow.innerHTML = ''; 
     
-    // Check if we are on a "New Chat" or the first message is the initial greeting
-    // This ensures suggestions only show up on fresh chats
     var session = chatSessions[id];
-    if (session.messages.length <= 1 && suggestionBox) {
-        var clonedSuggestionBox = suggestionBox.cloneNode(true);
-        clonedSuggestionBox.style.display = 'flex'; // Ensure it's visible
-        chatWindow.appendChild(clonedSuggestionBox);
+
+    if (session.messages.length === 0) {
+        chatWindow.classList.remove('has-messages');
         
-        // Re-run the cycling logic because the DOM elements are new
-        if (typeof initSuggestionCycling === 'function') {
-            initSuggestionCycling();
+        var welcomeDiv = document.createElement('div');
+        welcomeDiv.id = 'welcome-container';
+        
+        var titleH1 = document.createElement('h1');
+        titleH1.id = 'welcome-title';
+        titleH1.textContent = "Connecting to Praterich...";
+        welcomeDiv.appendChild(titleH1);
+        chatWindow.appendChild(welcomeDiv);
+
+        // Fetch dynamic, generative title
+        generatePraterichWelcomeTitle(titleH1);
+        
+        if (suggestionBox) {
+            var clonedSuggestionBox = suggestionBox.cloneNode(true);
+            clonedSuggestionBox.style.display = 'flex'; 
+            chatWindow.appendChild(clonedSuggestionBox);
+            
+            if (typeof initSuggestionCycling === 'function') {
+                initSuggestionCycling();
+            }
         }
+    } else {
+        chatWindow.classList.add('has-messages');
     }
 
     session.messages.forEach(function(msg) { 
@@ -647,7 +665,6 @@ function renderChatList() {
     });
 }
 
-// Initialization
 window.addEventListener('load', loadFromLocalStorage);
 newChatButton.addEventListener('click', startNewChat);
 sendButton.addEventListener('click', sendMessage);
