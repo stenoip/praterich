@@ -25,8 +25,11 @@ var NEWS_FEEDS = {
 var TIMEZONE = 'America/New_York';
 var MAX_RETRIES = 3;  
 var RETRY_DELAY = 5000;
-// Groq Configuration — Llama 4 Scout supports vision (multimodal)
-var GROQ_MODEL_ID = "meta-llama/llama-4-scout-17b-16e-instruct";
+// meta-llama/llama-4-scout-17b-16e-instruct has been retired
+
+var GROQ_MODEL_ID = "qwen/qwen3.6-27b";
+
+
 var GROQ_ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions';
 // Token Saving Configuration
 var MAX_CONTEXT_LENGTH = 2000;
