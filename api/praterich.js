@@ -1,4 +1,4 @@
-/* Copyright Stenoip Company. All rights reserved.
+/* Copyright Stenoip Company. All rights reserved. 
 
 This file acts as a Vercel serverless function (API endpoint) that proxies requests to the 
 Groq Chat Completions API using a direct fetch.
