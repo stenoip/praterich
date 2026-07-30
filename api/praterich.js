@@ -9,7 +9,8 @@ FIXES / CHANGES:
 2. Implemented Content Truncation to minimize tokens per request.
 3. Reduced number of headlines included in the system prompt.
 4. FIXED: Vision support — inlineData parts are now correctly converted to Groq's
-   image_url content format, resolving the blank AI response bubble on image uploads.
+    image_url content format, resolving the blank AI response bubble on image uploads.
+5. Added parameter logic to suppress/skip model thinking (reasoning) output.
 */
 
 import fs from 'fs/promises';
@@ -122,7 +123,10 @@ async function fetchFromModelWithRetry(payload, retries) {
         messages: payload.messages,
         model: GROQ_MODEL_ID,
         max_tokens: 1024,
-        temperature: 0.7
+        temperature: 0.7,
+        // --- SKIP THINKING LOGIC ---
+        // Tells the Groq endpoint to hide or disable explicit reasoning/thinking tokens block
+        reasoning_format: "hidden" 
     });
 
     try {
