@@ -1,4 +1,4 @@
-/* Copyright Stenoip Company. All rights reserved. 
+/* Copyright Stenoip Company. All rights reserved.
 
 This file acts as a Vercel serverless function (API endpoint) that proxies requests to the 
 Groq Chat Completions API using a direct fetch.
@@ -10,7 +10,7 @@ FIXES / CHANGES:
 3. Reduced number of headlines included in the system prompt.
 4. FIXED: Vision support — inlineData parts are now correctly converted to Groq's
     image_url content format, resolving the blank AI response bubble on image uploads.
-5. Added parameter logic to suppress/skip model thinking (reasoning) output.
+5. Added reasoning_effort: "none" to completely skip model thinking/reasoning.
 */
 
 import fs from 'fs/promises';
@@ -26,12 +26,10 @@ var NEWS_FEEDS = {
 var TIMEZONE = 'America/New_York';
 var MAX_RETRIES = 3;  
 var RETRY_DELAY = 5000;
-// meta-llama/llama-4-scout-17b-16e-instruct has been retired
 
 var GROQ_MODEL_ID = "qwen/qwen3.6-27b";
-
-
 var GROQ_ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions';
+
 // Token Saving Configuration
 var MAX_CONTEXT_LENGTH = 2000;
 var NEWS_CACHE_EXPIRY_MS = 15 * 60 * 1000; // 15 minutes
@@ -85,9 +83,6 @@ async function getNewsContent() {
     }
 }
 
-/**
- * Converts the frontend's Gemini-style parts array into Groq's OpenAI-compatible
- */
 function convertPartsToGroqContent(parts) {
     if (!parts || !Array.isArray(parts) || parts.length === 0) return '';
 
@@ -97,7 +92,6 @@ function convertPartsToGroqContent(parts) {
         if (part.text && part.text.trim() !== '') {
             contentArray.push({ type: 'text', text: part.text });
         } else if (part.inlineData && part.inlineData.data) {
-            // Convert base64 image to Groq's image_url format
             contentArray.push({
                 type: 'image_url',
                 image_url: {
@@ -108,7 +102,6 @@ function convertPartsToGroqContent(parts) {
     });
 
     if (contentArray.length === 0) return '';
-    // If it's only a single text item, return a plain string (more efficient)
     if (contentArray.length === 1 && contentArray[0].type === 'text') {
         return contentArray[0].text;
     }
@@ -124,9 +117,8 @@ async function fetchFromModelWithRetry(payload, retries) {
         model: GROQ_MODEL_ID,
         max_tokens: 1024,
         temperature: 0.7,
-        // --- SKIP THINKING LOGIC ---
-        // Tells the Groq endpoint to hide or disable explicit reasoning/thinking tokens block
-        reasoning_format: "hidden" 
+        // --- SKIP THINKING COMPLETELY ---
+        reasoning_effort: "none"
     });
 
     try {
@@ -166,7 +158,6 @@ async function fetchFromModelWithRetry(payload, retries) {
 // --- Main Vercel Handler ---
 
 export default async function handler(request, response) {
-    // 1. CORS Origin Check
     var allowedOrigins = [
         'https://stenoip.github.io', 
         'https://www.khanacademy.org/computer-programming/praterich_ai/5593365421342720',
@@ -244,8 +235,6 @@ ${PRAT_CONTEXT_INJ}
 ----------------------------------
 `; 
 
-        // --- DATA TRANSFORMATION ---
-        // Converts Gemini-style parts (including inlineData images) to Groq/OpenAI format.
         var messages = [];
 
         messages.push({
@@ -258,7 +247,6 @@ ${PRAT_CONTEXT_INJ}
                 var role = (msg.role === 'model') ? 'assistant' : 'user';
                 var groqContent = convertPartsToGroqContent(msg.parts);
 
-                // Skip empty messages to avoid Groq validation errors
                 if (!groqContent || groqContent === '' || (Array.isArray(groqContent) && groqContent.length === 0)) {
                     return;
                 }
