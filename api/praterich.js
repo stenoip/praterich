@@ -10,7 +10,8 @@ FIXES / CHANGES:
 3. Reduced number of headlines included in the system prompt.
 4. FIXED: Vision support — inlineData parts are now correctly converted to Groq's
    image_url content format, resolving the blank AI response bubble on image uploads.
-5. Enabled thinking/reasoning with automatic <think> tag stripping for frontends that don't parse thinking blocks.
+5. FIXED: Disabled thinking by default when unrequested by the frontend using 
+   reasoning_format: "hidden" and reasoning_effort: "none".
 */
 
 import fs from 'fs/promises';
@@ -119,9 +120,14 @@ async function fetchFromModelWithRetry(payload, reasoningEffort, retries) {
         temperature: 0.7
     };
 
-    // If explicit reasoning effort is passed from frontend ("none", "low", "medium", "high"), include it
-    if (reasoningEffort) {
+    // If the frontend explicitly requested thinking ("default", "low", "medium", "high")
+    if (reasoningEffort && reasoningEffort !== 'none') {
         requestBody.reasoning_effort = reasoningEffort;
+        requestBody.reasoning_format = "parsed"; // Isolates thinking into message.reasoning so message.content stays clean
+    } else {
+        // Default when frontend sends no reasoning parameters: disable/hide reasoning on Groq
+        requestBody.reasoning_effort = "none";
+        requestBody.reasoning_format = "hidden";
     }
 
     try {
@@ -152,8 +158,11 @@ async function fetchFromModelWithRetry(payload, reasoningEffort, retries) {
 
         var rawContent = data.choices[0].message.content || '';
 
-        // Strip inline <think>...</think> tags if present so non-thinking frontends only receive the final response
-        var cleanContent = rawContent.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+        // Strip any remaining <think>...</think> tags or unclosed <think> blocks
+        var cleanContent = rawContent
+            .replace(/<think>[\s\S]*?<\/think>/gi, '')
+            .replace(/<think>[\s\S]*/gi, '')
+            .trim();
 
         return cleanContent || rawContent;
 
@@ -202,7 +211,7 @@ export default async function handler(request, response) {
         
         var contents = request.body.contents;
         var system_instruction = request.body.system_instruction;
-        var reasoning_effort = request.body.reasoning_effort; // Optional: "none", "low", "medium", "high"
+        var reasoning_effort = request.body.reasoning_effort; // Optional: "none", "default", "low", "medium", "high"
 
         var scrapedContent = await getSiteContentFromFile();
         var newsContent = await getNewsContent();
