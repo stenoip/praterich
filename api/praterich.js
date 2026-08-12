@@ -9,8 +9,8 @@ FIXES / CHANGES:
 2. Implemented Content Truncation to minimize tokens per request.
 3. Reduced number of headlines included in the system prompt.
 4. FIXED: Vision support — inlineData parts are now correctly converted to Groq's
-    image_url content format, resolving the blank AI response bubble on image uploads.
-5. Added reasoning_effort: "none" to completely skip model thinking/reasoning.
+   image_url content format, resolving the blank AI response bubble on image uploads.
+5. Enabled thinking/reasoning with automatic <think> tag stripping for frontends that don't parse thinking blocks.
 */
 
 import fs from 'fs/promises';
@@ -108,18 +108,21 @@ function convertPartsToGroqContent(parts) {
     return contentArray;
 }
 
-async function fetchFromModelWithRetry(payload, retries) {
+async function fetchFromModelWithRetry(payload, reasoningEffort, retries) {
     retries = retries === undefined ? MAX_RETRIES : retries;
     var GROQ_API_KEY = process.env.GROQ_API_KEY;
 
-    var body = JSON.stringify({
+    var requestBody = {
         messages: payload.messages,
         model: GROQ_MODEL_ID,
         max_tokens: 1024,
-        temperature: 0.7,
-        // --- SKIP THINKING COMPLETELY ---
-        reasoning_effort: "none"
-    });
+        temperature: 0.7
+    };
+
+    // If explicit reasoning effort is passed from frontend ("none", "low", "medium", "high"), include it
+    if (reasoningEffort) {
+        requestBody.reasoning_effort = reasoningEffort;
+    }
 
     try {
         var response = await fetch(GROQ_ENDPOINT, {
@@ -128,7 +131,7 @@ async function fetchFromModelWithRetry(payload, retries) {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${GROQ_API_KEY}`,
             },
-            body: body
+            body: JSON.stringify(requestBody)
         });
 
         var data = await response.json();
@@ -139,7 +142,7 @@ async function fetchFromModelWithRetry(payload, retries) {
             if (response.status === 429 && retries > 0) {
                 console.log(`Groq Rate Limit (429). Retrying in ${RETRY_DELAY / 1000}s...`);
                 await new Promise(function (resolve) { return setTimeout(resolve, RETRY_DELAY); });
-                return fetchFromModelWithRetry(payload, retries - 1);
+                return fetchFromModelWithRetry(payload, reasoningEffort, retries - 1);
             }
             
             var fetchError = new Error(`Groq API Error (${response.status}): ${errorMessage}`);
@@ -147,7 +150,12 @@ async function fetchFromModelWithRetry(payload, retries) {
             throw fetchError;
         }
 
-        return data.choices[0].message.content;
+        var rawContent = data.choices[0].message.content || '';
+
+        // Strip inline <think>...</think> tags if present so non-thinking frontends only receive the final response
+        var cleanContent = rawContent.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+
+        return cleanContent || rawContent;
 
     } catch (error) {
         console.error("Error fetching from Groq:", error.message);
@@ -194,6 +202,7 @@ export default async function handler(request, response) {
         
         var contents = request.body.contents;
         var system_instruction = request.body.system_instruction;
+        var reasoning_effort = request.body.reasoning_effort; // Optional: "none", "low", "medium", "high"
 
         var scrapedContent = await getSiteContentFromFile();
         var newsContent = await getNewsContent();
@@ -259,7 +268,7 @@ ${PRAT_CONTEXT_INJ}
 
         var payload = { messages: messages };
 
-        var apiResponseText = await fetchFromModelWithRetry(payload);
+        var apiResponseText = await fetchFromModelWithRetry(payload, reasoning_effort);
         response.status(200).json({ text: apiResponseText });
 
     } catch (error) {
