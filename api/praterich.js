@@ -4,21 +4,14 @@ This file acts as a Vercel serverless function (API endpoint) that proxies reque
 Groq Chat Completions API using a direct fetch.
 It injects custom context, including news headlines and site content, to ground the model's responses.
  
-FIXES / CHANGES: 
-1. Implemented News Caching (15 min) to minimize external requests.
-2. Implemented Content Truncation to minimize tokens per request.
-3. Reduced number of headlines included in the system prompt.
-4. FIXED: Vision support — inlineData parts are now correctly converted to Groq's
-   image_url content format, resolving the blank AI response bubble on image uploads.
-5. FIXED: Disabled thinking by default when unrequested by the frontend using 
-   reasoning_format: "hidden" and reasoning_effort: "none".
+
 */
 
 import fs from 'fs/promises';
 import path from 'path';
 import Parser from 'rss-parser';
 
-// --- Configuration ---
+
 var parser = new Parser();
 var NEWS_FEEDS = {
     BBC: 'http://feeds.bbci.co.uk/news/world/rss.xml',
