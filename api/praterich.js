@@ -170,7 +170,7 @@ async function fetchFromModelWithRetry(payload, reasoningEffort, retries) {
 export default async function handler(request, response) {
     var allowedOrigins = [
         'https://stenoip.github.io', 
-        'https://www.khanacademy.org/computer-programming/praterich_ai/5593365421342720',
+        'https://stenoip.com',
         'http://127.0.0.1:1010'
     ];
     var origin = request.headers['origin']; 
