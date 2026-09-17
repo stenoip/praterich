@@ -21,7 +21,7 @@ var TIMEZONE = 'America/New_York';
 var MAX_RETRIES = 3;  
 var RETRY_DELAY = 5000;
 
-var GROQ_MODEL_ID = "qwen/qwen3.6-27b";
+var GROQ_MODEL_ID = "qwen/qwen3.8-27b";
 var GROQ_ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions';
 
 // Token Saving Configuration
