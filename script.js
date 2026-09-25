@@ -19,9 +19,9 @@ function pickFemaleVoice() {
     // Priority list: specific known good female voices across browsers
     var femaleKeywords = [
         'samantha', 'victoria', 'karen', 'moira', 'fiona',   // macOS/iOS
-        'zira', 'hazel', 'susan',                              // Windows/Edge
-        'google uk english female', 'google us english',       // Chrome
-        'female', 'woman', 'girl',                             // Generic
+        'zira', 'hazel', 'susan',                            // Windows/Edge
+        'google uk english female', 'google us english',     // Chrome
+        'female', 'woman', 'girl',                           // Generic
     ];
 
     // Try to find a preferred voice by name keywords (case-insensitive)
@@ -83,6 +83,31 @@ The system will intercept this and display the generated image to the user. Do N
 IMPORTANT: You must never explicitly mention that you are changing the chat title. Infer the title based on the user's first message and use a maximum of 30 characters.
 `;
 
+function ajax(method, url, data, successCallback, errorCallback) {
+    var xhr = new XMLHttpRequest();
+    xhr.open(method, url, true);
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    
+    xhr.onload = function() {
+        if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+                var json = JSON.parse(xhr.responseText);
+                successCallback(json);
+            } catch (e) {
+                successCallback(xhr.responseText);
+            }
+        } else {
+            if (errorCallback) errorCallback(xhr);
+        }
+    };
+    
+    xhr.onerror = function() {
+        if (errorCallback) errorCallback(xhr);
+    };
+    
+    xhr.send(data ? JSON.stringify(data) : null);
+}
+
 // --- Web Search Functions ---
 
 webSearchToggle.addEventListener('click', function() {
@@ -98,22 +123,57 @@ webSearchToggle.addEventListener('click', function() {
     }
 });
 
-async function fetchWebSearch(query) {
-    try {
+function fetchWebSearch(query) {
+    return new Promise(function(resolve) {
         var url = OODLES_SEARCH_URL + '?q=' + encodeURIComponent(query) + '&page=1&pageSize=6';
-        var resp = await fetch(url);
-        var data = await resp.json();
         
-        if (!data.items || data.items.length === 0) return 'No web links found.';
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', url, true);
         
-        return data.items.map(function(r, index) {
-            var fullSnippet = r.snippet ? r.snippet.trim() : 'No snippet available.';
-            return `[Index ${index}] Title: ${r.title}. Snippet: ${fullSnippet}`;
-        }).join('\n---\n');
-    } catch (error) {
-        console.error('Oodles search error:', error);
-        return 'Web search failed or timed out. Please proceed with your existing knowledge.';
-    }
+        xhr.onload = function() {
+            if (xhr.status >= 200 && xhr.status < 300) {
+                try {
+                    var data = JSON.parse(xhr.responseText);
+                    if (!data.items || data.items.length === 0) {
+                        resolve('No web links found.');
+                        return;
+                    }
+                    var formatted = "";
+                    // var limit = Math.min(data.items.length, 3); 
+
+                    for (var i = 0; i < 3; i++) {
+                          var r = data.items[i];
+                          var fullSnippet = "No snippet available.";
+                          if (r.snippet) {
+                            fullSnippet = r.snippet.trim();
+                          }
+    
+                          var line = "[Index " + i + "] Title: " + r.title + ". Snippet: " + fullSnippet;
+    
+                          if (i === 0) {
+                            formatted += line;
+                          } else {
+                            formatted += "\n---\n" + line;
+                          }
+                    }
+                    resolve(formatted);
+                  
+                } catch (e) {
+                    resolve('No web links found.');
+                }
+            } else {
+                console.error('Oodles search error status:', xhr.status);
+                resolve('Web search failed or timed out. Please proceed with your existing knowledge.');
+            }
+        };
+        
+        xhr.onerror = function() {
+            console.error('Oodles search network error');
+            resolve('Web search failed or timed out. Please proceed with your existing knowledge.');
+        };
+        
+        xhr.send();
+    });
 }
 
 function buildPollinationsUrl(prompt) {
@@ -151,31 +211,25 @@ async function generateImageWithRetry(prompt, maxRetries) {
 }
 
 // --- Active AI Welcome Title Generation ---
-async function generatePraterichWelcomeTitle(titleElement) {
-    try {
-        var response = await fetch(API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                contents: [{ 
-                    role: "user", 
-                    parts: [{ text: "Generate a short, humorious, odd greeting(relating to that you are tired of your career as a chatbot in the datacentre) or welcome header text for a user starting a fresh chat session with you. It must be under 35 characters, direct, open-ended, and unique. Output ONLY the greeting line, no quote wrappers, no trailing punctuation." }] 
-                }],
-                system_instruction: { parts: [{ text: "You are Praterich, an intelligent and modern AI. Respond only with the requested custom greeting string." }] }
-            })
-        });
+function generatePraterichWelcomeTitle(titleElement) {
+    var payload = {
+        contents: [{ 
+            role: "user", 
+            parts: [{ text: "Generate a short, humorious, odd greeting(relating to that you are tired of your career as a chatbot in the datacentre) or welcome header text for a user starting a fresh chat session with you. It must be under 35 characters, direct, open-ended, and unique. Output ONLY the greeting line, no quote wrappers, no trailing punctuation." }] 
+        }],
+        system_instruction: { parts: [{ text: "You are Praterich, an intelligent and modern AI. Respond only with the requested custom greeting string." }] }
+    };
 
-        if (response.ok) {
-            var data = await response.json();
-            if (data.text) {
-                titleElement.textContent = data.text.replace(/["']/g, "").trim();
-                return;
-            }
+    ajax('POST', API_URL, payload, function(data) {
+        if (data && data.text) {
+            titleElement.textContent = data.text.replace(/["']/g, "").trim();
+        } else {
+            titleElement.textContent = "Meet Praterich";
         }
-    } catch (err) {
+    }, function(err) {
         console.error("Failed to actively generate welcome title:", err);
-    }
-    titleElement.textContent = "Meet Praterich"; 
+        titleElement.textContent = "Meet Praterich";
+    });
 }
 
 // --- Core Functions ---
@@ -195,8 +249,8 @@ function speakText(text) {
         .replace(/!\[.*?\]\(.*?\)/g, 'generated image')
         .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')   
         .replace(/```[\s\S]*?```/g, 'code block')   
-        .replace(/`[^`]+`/g, '')                     
-        .replace(/[#*_~>]/g, '')                     
+        .replace(/`[^`]+`/g, '')                 
+        .replace(/[#*_~>]/g, '')                 
         .trim();
 
     Object.keys(customPronunciations).forEach(function(word) {
@@ -207,7 +261,7 @@ function speakText(text) {
 
     var utterance = new SpeechSynthesisUtterance(speakableText);
     utterance.rate = 1.3;
-    utterance.pitch = 1.1;   
+    utterance.pitch = 1.1;    
     utterance.volume = 1.0;
     utterance.lang = 'en-US';
 
@@ -393,16 +447,18 @@ async function sendMessage() {
                 system_instruction: { parts: [{ text: ladyPraterichSystemInstruction }] }
             };
 
-            var response = await fetch(API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(requestBody)
+           
+            var aiRawText = await new Promise(function(resolve, reject) {
+                ajax('POST', API_URL, requestBody, function(data) {
+                    if (data && data.text) {
+                        resolve(data.text);
+                    } else {
+                        reject(new Error('Empty response from API.'));
+                    }
+                }, function(xhr) {
+                    reject(new Error('HTTP error! status: ' + (xhr ? xhr.status : 'unknown')));
+                });
             });
-
-            if (!response.ok) throw new Error('HTTP error! status: ' + response.status);
-            
-            var data = await response.json();
-            var aiRawText = data.text;
 
             if (!aiRawText || aiRawText.trim() === '') {
                 throw new Error('Empty response from API.');
