@@ -126,16 +126,20 @@ webSearchToggle.addEventListener('click', function() {
 function fetchWebSearch(query) {
     return new Promise(function(resolve) {
         var url = OODLES_SEARCH_URL + '?q=' + encodeURIComponent(query) + '&page=1&pageSize=6';
+        console.log("[Search Fetching] Executing query:", query, "URL:", url);
         
         var xhr = new XMLHttpRequest();
         xhr.open('GET', url, true);
         
         xhr.onload = function() {
+            console.log("[Search HTTP Status]:", xhr.status);
             if (xhr.status >= 200 && xhr.status < 300) {
                 try {
                     var data = JSON.parse(xhr.responseText);
+                    console.log("[Search Raw Response Data]:", data);
+
                     if (!data.items || data.items.length === 0) {
-                        console.log("Search results for '" + query + "':", 'No web links found.');
+                        console.log("[Search Results] No web links found for query:", query);
                         resolve('No web links found.');
                         return;
                     }
@@ -169,11 +173,16 @@ function fetchWebSearch(query) {
                             formatted = formatted + "\n---\n" + line;
                         }
                     }
-                    console.log("Search results for '" + query + "':", formatted);
+
+                    console.log("================ SEARCH RESULTS LOG ================");
+                    console.log("Query:", query);
+                    console.log("Formatted Results:\n" + formatted);
+                    console.log("====================================================");
+
                     resolve(formatted);
                   
                 } catch (e) {
-                    console.log("Search results error parsing JSON for '" + query + "':", e);
+                    console.error("[Search JSON Parsing Error]:", e);
                     resolve('No web links found.');
                 }
             } else {
@@ -462,7 +471,6 @@ async function sendMessage() {
                 system_instruction: { parts: [{ text: ladyPraterichSystemInstruction }] }
             };
 
-           
             var aiRawText = await new Promise(function(resolve, reject) {
                 ajax('POST', API_URL, requestBody, function(data) {
                     if (data && data.text) {
@@ -479,10 +487,12 @@ async function sendMessage() {
                 throw new Error('Empty response from API.');
             }
 
-            var imageRegex = /@@IMAGE:\s*(.*?)@@/s;
+            console.log("[AI Turn Raw Text]:", aiRawText);
+
+            var imageRegex = /@@IMAGE:\s*(.*?)@@/is;
             var imageMatch = aiRawText.match(imageRegex);
 
-            var searchRegex = /@@SEARCH:\s*(.*?)@@/s;
+            var searchRegex = /@@SEARCH:\s*(.*?)@@/is;
             var searchMatch = aiRawText.match(searchRegex);
 
             if (imageMatch) {
@@ -499,10 +509,10 @@ async function sendMessage() {
 
             } else if (searchMatch) {
                 var searchQuery = searchMatch[1].trim();
+                console.log("[SEARCH MATCH DETECTED] Query:", searchQuery);
                 typingIndicator.innerHTML = 'Praterich is searching the web for <b>"' + searchQuery + '"</b>...';
                 
                 var searchResultsText = await fetchWebSearch(searchQuery);
-                console.log('Praterich Search Results:', searchResultsText);
 
                 conversationHistory.push({ role: "model", parts: [{ text: aiRawText }] });
                 conversationHistory.push({ role: "user", parts: [{ text: '[TOOL_RESULT_FOR_PREVIOUS_TURN]\nWeb Search Results for "' + searchQuery + '":\n' + searchResultsText + '\n\nBased on these results, please provide your final answer to the original prompt.' }] });
