@@ -135,42 +135,45 @@ function fetchWebSearch(query) {
                 try {
                     var data = JSON.parse(xhr.responseText);
                     if (!data.items || data.items.length === 0) {
+                        console.log("Search results for '" + query + "':", 'No web links found.');
                         resolve('No web links found.');
                         return;
                     }
                     var limit = data.items.length;
-if (limit > 3) {
-    limit = 3;
-}
+                    if (limit > 3) {
+                        limit = 3;
+                    }
 
-var formatted = "";
-for (var i = 0; i < limit; i++) {
-    var r = data.items[i];
-    if (!r) {
-        continue;
-    }
-    
-    var fullSnippet = "No snippet available.";
-    if (r.snippet) {
-        fullSnippet = r.snippet.trim();
-    }
+                    var formatted = "";
+                    for (var i = 0; i < limit; i++) {
+                        var r = data.items[i];
+                        if (!r) {
+                            continue;
+                        }
+                        
+                        var fullSnippet = "No snippet available.";
+                        if (r.snippet) {
+                            fullSnippet = r.snippet.trim();
+                        }
 
-    var titleText = "No title";
-    if (r.title) {
-        titleText = r.title;
-    }
+                        var titleText = "No title";
+                        if (r.title) {
+                            titleText = r.title;
+                        }
 
-    var line = "[Index " + i + "] Title: " + titleText + ". Snippet: " + fullSnippet;
+                        var line = "[Index " + i + "] Title: " + titleText + ". Snippet: " + fullSnippet;
 
-    if (i === 0) {
-        formatted = line;
-    } else {
-        formatted = formatted + "\n---\n" + line;
-    }
-}
+                        if (i === 0) {
+                            formatted = line;
+                        } else {
+                            formatted = formatted + "\n---\n" + line;
+                        }
+                    }
+                    console.log("Search results for '" + query + "':", formatted);
                     resolve(formatted);
                   
                 } catch (e) {
+                    console.log("Search results error parsing JSON for '" + query + "':", e);
                     resolve('No web links found.');
                 }
             } else {
@@ -499,6 +502,7 @@ async function sendMessage() {
                 typingIndicator.innerHTML = 'Praterich is searching the web for <b>"' + searchQuery + '"</b>...';
                 
                 var searchResultsText = await fetchWebSearch(searchQuery);
+                console.log('Praterich Search Results:', searchResultsText);
 
                 conversationHistory.push({ role: "model", parts: [{ text: aiRawText }] });
                 conversationHistory.push({ role: "user", parts: [{ text: '[TOOL_RESULT_FOR_PREVIOUS_TURN]\nWeb Search Results for "' + searchQuery + '":\n' + searchResultsText + '\n\nBased on these results, please provide your final answer to the original prompt.' }] });
