@@ -17,7 +17,7 @@ Homepage for Stenoip Company. It has resources, answers, news and comics.
     * While PyQt6 loads modern sites, it is very slow and difficult to maintain by Stenoip.
     * **v1.8 Updates:** Better horizontal tabs, recognise layout to mainstream browsers, bookmarks etc.
     * Soon to be retired some time in Summer of 2027.
-    * Until 1.8, looks archaric.
+    * Until 1.7, it looked looks archaic.
 
 
 * **URL for download:** https://stenoip.com/ringzauber
