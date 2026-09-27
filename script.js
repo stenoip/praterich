@@ -138,24 +138,36 @@ function fetchWebSearch(query) {
                         resolve('No web links found.');
                         return;
                     }
-                    var formatted = "";
-                    // var limit = Math.min(data.items.length, 3); 
+                    var limit = data.items.length;
+if (limit > 3) {
+    limit = 3;
+}
 
-                    for (var i = 0; i < 3; i++) {
-                          var r = data.items[i];
-                          var fullSnippet = "No snippet available.";
-                          if (r.snippet) {
-                            fullSnippet = r.snippet.trim();
-                          }
+var formatted = "";
+for (var i = 0; i < limit; i++) {
+    var r = data.items[i];
+    if (!r) {
+        continue;
+    }
     
-                          var line = "[Index " + i + "] Title: " + r.title + ". Snippet: " + fullSnippet;
-    
-                          if (i === 0) {
-                            formatted += line;
-                          } else {
-                            formatted += "\n---\n" + line;
-                          }
-                    }
+    var fullSnippet = "No snippet available.";
+    if (r.snippet) {
+        fullSnippet = r.snippet.trim();
+    }
+
+    var titleText = "No title";
+    if (r.title) {
+        titleText = r.title;
+    }
+
+    var line = "[Index " + i + "] Title: " + titleText + ". Snippet: " + fullSnippet;
+
+    if (i === 0) {
+        formatted = line;
+    } else {
+        formatted = formatted + "\n---\n" + line;
+    }
+}
                     resolve(formatted);
                   
                 } catch (e) {
