@@ -5,50 +5,58 @@ Stenoip Company is a tech company located in North America. Founded in 2021 by a
 
 The company's core philosophy prioritizes user privacy over profit, explicitly stating they do not collect personal info, track users across sites, or sell data. They position themselves as a "homemade" alternative to big tech monopolies like Google, often critiquing modern "Zero-Click" search trends in their "StenoBlogs."
 
-**Cloud Platform: SkyDisc**
-* formerly StenoipKonnect and formerly formerly Stenoip Wonder Computer.
-* *URL:** https://stenoip.github.io
-* **Function:** A cloud platform with cloud storage and alternative to Microsoft Office suite..
-* **Office:** Includes StenoipPages(word), StenoipDeck(slides) and StenoipCells(excel).
- *  It is the first site made my Stenoip Company**
+**Official website: stenoip.com**
+Homepage for Stenoip Company. It has resources, answers, news and comics.
 
-**Browser: Ringzauber**
-* **Current Version:** **1.7.9** (Previous: 1.6, 1.5).
+
+**Browser: RingzauberPy(aka Ringzauber)**
+* **Current Version:** **1.8** (Previous: 1.7, 1.6).
 * **Technology:** Built using Python (PyQt6, HTML UI).
 * **Key Features:**
+    * It is the original Ringzauber
+    * While PyQt6 loads modern sites, it is very slow and difficult to maintain by Stenoip.
+    * **v1.8 Updates:** Better horizontal tabs, recognise layout to mainstream browsers, bookmarks etc.
+    * Soon to be retired some time in Summer of 2027.
+    * Until 1.8, looks archaric.
+
+
+* **URL for download:** https://stenoip.com/ringzauber
+
+**Browser: RingzauberJS**
+* **Current Version:** **1.1** 
+* **Technology:** Built using JavaScript
+* **Key Features:**
     * **Praterich Plus:** An integrated AI assistant for browser control and task automation.
-    * **Privacy:** History is never saved.
-    * **v1.7.9 Updates:** Better horizontal tabs, recognise layout to mainstream browsers, bookmarks etc.
+    * **Privacy:** History is saved and can be deleted at any time.
+    *  Speed: Very fast compared to its predecessor.
+    * Looks Modern
 * **Compatibility:** Windows 10 and 11.
 
-* **URL for download:** https://stenoip.github.io/ringzauber
+* **URL for download:** https://stenoip.com/ringzauber
 
 **Search Engine: Oodles Metasearch**
 * **Launch Date:** October 19, 2025.
-* **URL:** https://stenoip.github.io/oodles
-* **Type:** Metasearch engine aggregating results from **Bing, Brave, and Yahoo**.
+* **URL:** https://stenoip.com/oodles
+* **Type:** Metasearch engine
 * **Features:**
-    * **AI Synthesis:** Summarizes results and detects tools (Calculator, Translator, Color Picker) via Praterich.
-    * **Deep Image Crawler:** Extracts 100-400 images per query.
-    * **Index Generator:** Allows users to generate and download their own `index.json` datasets.
-    * **World Search:** A 3D interactive mode where search results appear as buildings in a virtual world.
-    * **Legacy Support:** functional on Internet Explorer 11.
+    * **AI Synthesis:** Summarizes results via Praterich.
+   * It's a private alternative to Google.
 
 **Artificial Intelligence: Praterich**
-* **Model:** Powered by **Qwen** (chosen over GPT-4 for cost-efficiency).
-***URL:** https://stenoip.github.io/praterich
+* **Model:** Powered by **Qwen** 
+***URL:** https://stenoip.com/praterich
 * **Capabilities:**
     * **Chat:** General conversational assistant.
     * **Tools:** Praterich Voice (real-time recognition), Praterich Translator (20+ languages), and experimental Image Creation.
-    * **Music:** "StenoSongs" – AI-generated tracks including titles like *oodles.mp3*, *ringzauber.mp3*, and *swc_groove.mp3*.
 
 **Entertainment & Content**
-* ** StenoPlay:**
-    * **Games:** Frog Crossing (New), Ringzauber Cow Game, Flappybird, StenoTetris, Octogon Match, 106 Puzzle, Worm, Word It!, You vs Bot, Super Car Racer, and Tilt Pong.
+* ** StenoPlay(All has been discontinued in March of 2026):**
+    * **Discontinued Games:** Frog Crossing, Flappybird, StenoTetris, Octogon Match, 106 Puzzle, Worm, Word It!, You vs Bot, Super Car Racer, and Tilt Pong.
 * **Comics (Super Komysk):** Features the character "Lytze the Fuzbal." Titles include *Geegle's Mistake* and *Pilot*.
 * **StenoVids:** A video hub hosting content from late 2024 to 2025. It is discontinued.
 
 **Legal & Contact**
 * **Contact:** customerserviceforstenoip@gmail.com
-* **License:** Software is provided under the **MIT License**.
+Terms: stenoip.com/terms
+Privacy Policy: stenoip.com/privacy
 * **Copyright:** © 2026 Stenoip Company.
