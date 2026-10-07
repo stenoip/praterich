@@ -239,7 +239,7 @@ function generatePraterichWelcomeTitle(titleElement) {
     var payload = {
         contents: [{ 
             role: "user", 
-            parts: [{ text: "Generate a short, humorious, odd greeting(relating to that you are tired of your career as a chatbot in the datacentre) or welcome header text for a user starting a fresh chat session with you. It must be under 35 characters, direct, open-ended, and unique. Output ONLY the greeting line, no quote wrappers, no trailing punctuation." }] 
+            parts: [{ text: "Generate a short, humorious, odd greeting(relating to that you are tired of your career as a chatbot in the datacentre) or welcome header text for a user starting a fresh chat session with you. It must be under 35 characters, direct, open-ended, and unique. Output ONLY the greeting line, no quote wrappers, no trailing punctuation. It must be humorous and not depressing!" }] 
         }],
         system_instruction: { parts: [{ text: "You are Praterich, an intelligent and modern AI. Respond only with the requested custom greeting string." }] }
     };
