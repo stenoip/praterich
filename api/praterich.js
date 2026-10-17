@@ -171,7 +171,7 @@ export default async function handler(request, response) {
     var allowedOrigins = [
         'https://stenoip.github.io', 
         'https://stenoip.com',
-        'http://127.0.0.1:1010'
+        'http://127.0.0.1:8080'
     ];
     var origin = request.headers['origin']; 
 
